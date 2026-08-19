@@ -13,7 +13,7 @@ const { createServer, HEARTBEAT_MS } = require('./server/http');
  * whole thing is Node's standard library plus static files.
  */
 
-const PORT = Number(process.env.BLOB_PORT || 4100);
+const PORT = Number(process.env.BLOB_PORT || process.env.PORT || 4100);
 const HOST = process.env.BLOB_HOST || '0.0.0.0';
 const DATA_DIR = process.env.BLOB_DATA_DIR || path.join(__dirname, 'data');
 /** How long a dropped phone has to come back before the game works around it. */

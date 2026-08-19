@@ -1,0 +1,31 @@
+# Render blueprint for Blob.
+#
+# Free plan note: free services get no persistent disk and sleep after ~15
+# minutes with no traffic. In-progress games and saved history therefore do
+# not survive a restart or redeploy. During a game the SSE heartbeat keeps
+# the service awake; the cold start only bites the first player after a idle
+# spell.
+#
+# To make history durable, move to a paid instance and add:
+#   disk:
+#     name: blob-data
+#     mountPath: /var/data
+#     sizeGB: 1
+# and set BLOB_DATA_DIR=/var/data below.
+#
+# Keep this at a single instance whatever the plan: rooms, the command queue
+# and the SSE connections all live in memory, so a second replica would split
+# players in the same game across servers.
+
+services:
+  - type: web
+    name: blob
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
