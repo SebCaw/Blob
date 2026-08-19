@@ -180,9 +180,22 @@ const ctx = {
   switchToPendingGame() {
     const code = ui.pendingCode;
     ui.pendingCode = null;
-    disconnectFromGame();
+    // Not disconnectFromGame: joining replaces the session on success, and
+    // until it does this phone still has a seat worth keeping.
+    resetGameView();
     ui.code = code || '';
     ui.route = 'join';
+    render();
+  },
+  /** Is there still a game to go back to? Drives the Back button on join. */
+  hasSession() {
+    return Boolean(net.session);
+  },
+  /** Back out of joining and pick up the game we never actually left. */
+  returnToGame() {
+    ui.code = '';
+    ui.route = 'game';
+    net.connect();
     render();
   },
   /** Keep the game we were already in and drop the link. */
@@ -211,6 +224,18 @@ const ctx = {
 /** The reset shared by every way of stepping away from the current game. */
 function disconnectFromGame() {
   net.clearSession();
+  resetGameView();
+}
+
+/**
+ * Drop the live game from view without giving up the seat.
+ *
+ * Used when we are on our way to a DIFFERENT game but have not arrived yet:
+ * throwing the session away first would strand anyone who backs out, or whose
+ * new code turns out to be wrong, with no way back into the game they were in.
+ */
+function resetGameView() {
+  net.disconnect();
   state = null;
   previousOrder = [];
   lastRoundIndex = -1;

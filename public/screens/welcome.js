@@ -237,7 +237,9 @@ function backBar(ctx, title) {
       text: '‹ Back',
       type: 'button',
       style: { 'text-decoration': 'none', 'min-height': '44px' },
-      onClick: () => ctx.go('home'),
+      // A phone that still holds a seat got here on its way to another game.
+      // Home would leave that game running with nothing pointing at it.
+      onClick: () => (ctx.hasSession() ? ctx.returnToGame() : ctx.go('home')),
     }),
     h('div.topbar__right', h('span.topbar__title', { text: title }))
   );
