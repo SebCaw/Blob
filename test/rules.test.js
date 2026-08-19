@@ -447,3 +447,137 @@ test('the rematch pointer is visible to everyone, and never carries a token', ()
   assert.equal(view.rematchCode, '4242');
   assert.equal(JSON.stringify(view).toLowerCase().includes('token'), false);
 });
+
+// ── Correcting a scored round ────────────────────────────────────────────────
+
+/** A two-player game with round 1 scored: Seb bid 2 and made it, James bid 0. */
+function scoredGame() {
+  const { state, ctxf, masterId } = startedGame(['Seb', 'James'], 3);
+  const [seb, james] = state.players.map((p) => p.id);
+  let s = allBid(state, ctxf, { [seb]: 2, [james]: 1 });
+  s = ok(s, { type: 'results/submit', tricks: { [seb]: 2, [james]: 1 } }, masterId, ctxf).state;
+  return { state: s, ctxf, masterId, seb, james };
+}
+
+test('a mistyped result can be corrected, and the totals follow', () => {
+  const { state, ctxf, masterId, seb, james } = scoredGame();
+  // Seb bid 2 and won 2: 10 + 2. James bid 1 and won 1: 10 + 1.
+  assert.equal(state.players.find((p) => p.id === seb).total, 12);
+  assert.equal(state.players.find((p) => p.id === james).total, 11);
+
+  // It was actually 3-0, so neither of them made their bid.
+  const fixed = ok(
+    state,
+    { type: 'results/amend', roundIndex: 0, tricks: { [seb]: 3, [james]: 0 } },
+    masterId,
+    ctxf
+  ).state;
+
+  assert.equal(fixed.players.find((p) => p.id === seb).total, 0);
+  assert.equal(fixed.players.find((p) => p.id === james).total, 0);
+  assert.equal(fixed.rounds[0].tricks[seb], 3);
+  assert.ok(fixed.rounds[0].amendedAt, 'the round should be marked as corrected');
+});
+
+test('correcting an early round rebuilds every later running total', () => {
+  const { state, ctxf, masterId, seb, james } = scoredGame();
+  let s = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  s = allBid(s, ctxf, { [seb]: 0, [james]: 2 });
+  s = ok(s, { type: 'results/submit', tricks: { [seb]: 0, [james]: 2 } }, masterId, ctxf).state;
+
+  // Round 1: Seb 12, James 11. Round 2: Seb +10, James +12.
+  assert.equal(s.players.find((p) => p.id === seb).total, 22);
+  assert.equal(s.rounds[1].totalsAfter[seb], 22);
+
+  // Round 1 was really 3-0, so Seb's 12 from it never existed.
+  const fixed = ok(
+    s,
+    { type: 'results/amend', roundIndex: 0, tricks: { [seb]: 3, [james]: 0 } },
+    masterId,
+    ctxf
+  ).state;
+
+  assert.equal(fixed.rounds[0].totalsAfter[seb], 0, 'round 1 total is rebuilt');
+  assert.equal(fixed.rounds[1].totalsAfter[seb], 10, 'round 2 total is rebuilt on top of it');
+  assert.equal(fixed.players.find((p) => p.id === seb).total, 10);
+  assert.equal(fixed.players.find((p) => p.id === james).total, 12, 'round 2 was untouched');
+  assert.equal(fixed.rounds[1].amendedAt, undefined, 'only the corrected round is marked');
+});
+
+test('a correction is refused unless it is the Master, is sane, and the round was scored', () => {
+  const { state, ctxf, masterId, seb, james } = scoredGame();
+  assert.match(
+    refused(state, { type: 'results/amend', roundIndex: 0, tricks: { [seb]: 1, [james]: 2 } }, james, ctxf).message,
+    /Only the Master/
+  );
+  assert.match(
+    refused(state, { type: 'results/amend', roundIndex: 5, tricks: { [seb]: 1, [james]: 2 } }, masterId, ctxf)
+      .message,
+    /not been scored/
+  );
+  assert.match(
+    refused(state, { type: 'results/amend', roundIndex: 0, tricks: { [seb]: 9, [james]: 0 } }, masterId, ctxf)
+      .message,
+    /between 0 and 3/
+  );
+  // A total that does not match the hand size is stopped, then allowed on insistence.
+  const bad = refused(state, { type: 'results/amend', roundIndex: 0, tricks: { [seb]: 1, [james]: 1 } }, masterId, ctxf);
+  assert.equal(bad.code, 'trick-total');
+  const forced = ok(
+    state,
+    { type: 'results/amend', roundIndex: 0, tricks: { [seb]: 1, [james]: 1 }, force: true },
+    masterId,
+    ctxf
+  ).state;
+  assert.equal(forced.rounds[0].trickTotalOverridden, true);
+});
+
+test('a corrected score reaches the history record', () => {
+  const { state, ctxf, masterId, ids } = finishedGame(['Seb', 'James'], 3);
+  const [seb] = ids;
+  assert.equal(historyRecord(state).rounds[0].players.find((p) => p.id === seb).score, 10);
+
+  const fixed = ok(
+    state,
+    { type: 'results/amend', roundIndex: 0, tricks: { [seb]: 3, [ids[1]]: 0 } },
+    masterId,
+    ctxf
+  ).state;
+  const record = historyRecord(fixed);
+  assert.equal(record.rounds[0].players.find((p) => p.id === seb).score, 0);
+  assert.equal(record.players.find((p) => p.id === seb).total, fixed.players.find((p) => p.id === seb).total);
+});
+
+// ── Ending a game early ──────────────────────────────────────────────────────
+
+test('the Master can end a game early, and it lands in the history as it stands', () => {
+  const { state, ctxf, masterId, seb } = scoredGame();
+  const ended = ok(state, { type: 'game/end' }, masterId, ctxf).state;
+  assert.equal(ended.phase, 'complete');
+  assert.equal(ended.endedEarly, true);
+  assert.ok(ended.completedAt);
+  // The rounds actually played keep their scores.
+  assert.equal(ended.players.find((p) => p.id === seb).total, 12);
+  assert.equal(historyRecord(ended).rounds.length, 1);
+  assert.equal(viewFor(ended, seb).endedEarly, true);
+});
+
+test('ending a game is Master-only, needs a started game, and a double tap is harmless', () => {
+  const { state: lobbyState, ctxf: lobbyCtx } = (() => {
+    const c = ctxFactory();
+    const { state } = game.createGame({ hostName: 'Seb', code: '1234', startHandSize: 3 }, c.next(null));
+    return { state, ctxf: c };
+  })();
+  assert.match(
+    refused(lobbyState, { type: 'game/end' }, lobbyState.players[0].id, lobbyCtx).message,
+    /has not started/
+  );
+
+  const { state, ctxf, masterId, james } = scoredGame();
+  assert.match(refused(state, { type: 'game/end' }, james, ctxf).message, /Only the Master/);
+
+  const ended = ok(state, { type: 'game/end' }, masterId, ctxf).state;
+  const again = ok(ended, { type: 'game/end' }, masterId, ctxf).state;
+  assert.equal(again.phase, 'complete');
+  assert.equal(again.completedAt, ended.completedAt, 'a second tap must not restamp the game');
+});

@@ -14,6 +14,7 @@ const SHELL = [
   '/app.js',
   '/ui.js',
   '/net.js',
+  '/wake.js',
   '/mascot.js',
   '/qr.js',
   '/screens/common.js',

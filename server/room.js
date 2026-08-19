@@ -196,7 +196,12 @@ class Room {
       this.electionTimer = null;
     }
 
-    if (this.state.phase === 'complete' && previous.phase !== 'complete') {
+    // Re-saved on a correction too: the record is written once on completion,
+    // so without this a score fixed after the final round would be right on
+    // screen and wrong in the history for good.
+    const justFinished = previous.phase !== 'complete';
+    const correctedSinceFinishing = this.state.amendedAt !== previous.amendedAt;
+    if (this.state.phase === 'complete' && (justFinished || correctedSinceFinishing)) {
       this.store.saveHistory(historyRecord(this.state)).catch((err) => {
         console.error('[blob] could not save history', err.message);
       });

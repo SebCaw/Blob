@@ -1,4 +1,4 @@
-import { h } from '../ui.js';
+import { h, fill } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { topbar, leaderboard, action } from './common.js';
 
@@ -13,6 +13,8 @@ export function summaryScreen(ctx) {
   const round = state.round;
   const isMaster = you && you.isMaster;
   const last = state.roundIndex === state.sequence.length - 1;
+
+  if (isMaster && ctx.ui.correcting) return correctionEntry(ctx);
 
   return h(
     'div.screen.screen--scroll',
@@ -59,9 +61,172 @@ export function summaryScreen(ctx) {
           mascot(you.madeBid ? 'cheer' : 'sad', { size: 'sm' }),
           h('p.lede', { text: `Waiting for ${state.masterName} to deal the next round.` })
         ),
+    isMaster ? masterExtras(ctx) : null,
     // The one breathing point in a running game, so it is where leaving
     // belongs. Mid-bid there is no safe moment for a stray tap.
     leaveControl(ctx)
+  );
+}
+
+/**
+ * The Master's two get-out-of-jail controls: fix a number that went in wrong,
+ * and stop a game that is not going to finish. Both are quiet links rather
+ * than buttons — they matter, but not as much as dealing the next round.
+ */
+function masterExtras(ctx) {
+  if (ctx.ui.confirmEnd) {
+    return h(
+      'div.stack.center',
+      h('p.muted', { text: 'End the game here? The scores as they stand become the final result.' }),
+      h('button.btn.btn--link', {
+        text: 'Yes, end the game',
+        type: 'button',
+        onClick: () => {
+          ctx.ui.confirmEnd = false;
+          ctx.send({ type: 'game/end' });
+        },
+      }),
+      h('button.btn.btn--link', { text: 'Keep playing', type: 'button', onClick: () => ctx.cancelEnd() })
+    );
+  }
+  return h(
+    'div.stack.stack--tight.center',
+    h('button.btn.btn--link', {
+      text: 'Fix the scores',
+      type: 'button',
+      onClick: () => ctx.startCorrection(),
+    }),
+    h('button.btn.btn--link', { text: 'End game here', type: 'button', onClick: () => ctx.askEnd() })
+  );
+}
+
+/**
+ * Correcting the round that has just been scored.
+ *
+ * Deliberately the same steppers as entering the results in the first place —
+ * the Master is doing the same job twice, and a different control for it would
+ * only invite a second mistake. Prefilled with what actually went in, so a
+ * single wrong number is one tap to fix rather than a whole table to retype.
+ */
+function correctionEntry(ctx) {
+  const state = ctx.state;
+  const round = state.round;
+  const draft = { ...(ctx.ui.correction || {}) };
+  state.players.forEach((p) => {
+    if (typeof draft[p.id] !== 'number') draft[p.id] = typeof p.tricks === 'number' ? p.tricks : 0;
+  });
+  ctx.ui.correction = draft;
+
+  const refs = {};
+  const tally = h('div.tally', { role: 'status', 'aria-live': 'polite' });
+  const tallyLabel = h('span');
+  const tallyCount = h('span.tabular');
+  tally.append(tallyLabel, tallyCount);
+  const footer = h('div.stack.stack--tight');
+
+  const total = () => state.players.reduce((sum, p) => sum + draft[p.id], 0);
+
+  const set = (playerId, value) => {
+    if (value < 0 || value > round.handSize) return;
+    draft[playerId] = value;
+    ctx.ui.correction = draft;
+    refresh();
+  };
+
+  const submit = async (force) => {
+    const sent = await ctx.send({
+      type: 'results/amend',
+      roundIndex: round.index,
+      tricks: { ...draft },
+      force: Boolean(force),
+    });
+    // Keep the draft if it did not land, exactly as entering results does.
+    if (!sent) return;
+    ctx.ui.correction = null;
+    ctx.ui.correcting = false;
+    // Entering results gets its repaint free, because the phase moves on and
+    // the screen changes with it. A correction leaves the phase where it was,
+    // and the pushed state lands before this line — so without an explicit
+    // render the Master is left staring at the form they just submitted.
+    ctx.render();
+  };
+
+  function refresh() {
+    state.players.forEach((player) => {
+      const ref = refs[player.id];
+      const value = draft[player.id];
+      ref.value.textContent = String(value);
+      ref.value.className = `stepper__value${value === player.bid ? ' stepper__value--match' : ''}`;
+      ref.value.setAttribute('aria-label', `${player.name} won ${value}`);
+      ref.minus.disabled = value <= 0;
+      ref.plus.disabled = value >= round.handSize;
+    });
+
+    const sum = total();
+    const balanced = sum === round.handSize;
+    tally.className = `tally ${balanced ? 'tally--ok' : 'tally--off'}`;
+    tallyLabel.textContent = balanced ? 'That all adds up' : "That doesn't add up yet";
+    tallyCount.textContent = `${sum} of ${round.handSize}`;
+
+    fill(
+      footer,
+      balanced
+        ? action('Save the correction', () => submit(false))
+        : [
+            h('p.muted.center', {
+              style: { 'font-size': '14px' },
+              text: `A ${round.handSize}-card round has ${round.handSize} tricks in it. Worth a recount?`,
+            }),
+            h('button.btn.btn--ghost', { text: 'Save anyway', type: 'button', onClick: () => submit(true) }),
+          ]
+    );
+  }
+
+  const rows = state.players.map((player) => {
+    const value = h('div.stepper__value');
+    const minus = h('button.stepper__btn', {
+      text: '−',
+      type: 'button',
+      'aria-label': `One fewer trick for ${player.name}`,
+      onClick: () => set(player.id, draft[player.id] - 1),
+    });
+    const plus = h('button.stepper__btn', {
+      text: '+',
+      type: 'button',
+      'aria-label': `One more trick for ${player.name}`,
+      onClick: () => set(player.id, draft[player.id] + 1),
+    });
+    refs[player.id] = { value, minus, plus };
+
+    return h(
+      'div.result-row',
+      h(
+        'div.result-row__who',
+        h('div.result-row__name', { text: player.name }),
+        h('div.result-row__bid', { text: `Bid ${player.bid} · went in as ${player.tricks}` })
+      ),
+      h('div.stepper', minus, value, plus)
+    );
+  });
+
+  refresh();
+
+  return h(
+    'div.screen.screen--scroll',
+    h(
+      'div.topbar',
+      h('button.btn.btn--link', {
+        text: '‹ Back',
+        type: 'button',
+        style: { 'text-decoration': 'none' },
+        onClick: () => ctx.cancelCorrection(),
+      }),
+      h('div.topbar__right', h('span.topbar__title', { text: `Fixing round ${round.number}` }))
+    ),
+    h('div.stack.stack--tight', rows),
+    tally,
+    h('div.spacer'),
+    footer
   );
 }
 

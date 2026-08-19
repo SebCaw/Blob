@@ -1,6 +1,7 @@
 import { h, fill, reducedMotion, buzz } from './ui.js';
 import { mascot } from './mascot.js';
 import { Net, LIVE, RETRYING, LOST, lastName } from './net.js';
+import { keepAwake, releaseWake } from './wake.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -44,6 +45,12 @@ const ui = {
   pendingCode: null,
   /** Leaving a running game cannot be undone, so it is asked about first. */
   confirmLeave: false,
+  /** Ending the game for everyone is asked about the same way. */
+  confirmEnd: false,
+  /** The Master is fixing a round that was scored wrong. */
+  correcting: false,
+  /** The corrected trick counts, kept if the request does not land. */
+  correction: null,
 };
 
 let state = null;
@@ -147,6 +154,24 @@ const ctx = {
     ui.confirmLeave = true;
     render();
   },
+  askEnd() {
+    ui.confirmEnd = true;
+    render();
+  },
+  cancelEnd() {
+    ui.confirmEnd = false;
+    render();
+  },
+  startCorrection() {
+    ui.correcting = true;
+    ui.correction = null;
+    render();
+  },
+  cancelCorrection() {
+    ui.correcting = false;
+    ui.correction = null;
+    render();
+  },
   cancelLeave() {
     ui.confirmLeave = false;
     render();
@@ -197,6 +222,10 @@ function disconnectFromGame() {
   ui.takeover = null;
   ui.showCard = false;
   ui.confirmLeave = false;
+  ui.confirmEnd = false;
+  ui.correcting = false;
+  ui.correction = null;
+  releaseWake();
 }
 
 // -- State in ----------------------------------------------------------------
@@ -217,7 +246,14 @@ net.on('state', (next) => {
     ui.takeover = null;
   }
   if (phaseChanged && next.phase !== 'reveal') ui.entering = false;
-  if (phaseChanged || roundChanged) ui.confirmLeave = false;
+  if (phaseChanged || roundChanged) {
+    ui.confirmLeave = false;
+    ui.confirmEnd = false;
+    // A correction belongs to the round it was opened on. Carrying a half-typed
+    // one into the next round would put those numbers against the wrong hand.
+    ui.correcting = false;
+    ui.correction = null;
+  }
 
   const startingRound = next.phase === 'bidding' && (roundChanged || lastPhase === null || lastPhase === 'lobby');
 
@@ -234,6 +270,10 @@ net.on('state', (next) => {
   lastRoundIndex = next.roundIndex;
   lastPhase = next.phase;
   if (ui.route !== 'history') ui.route = 'game';
+  // Cards are on the table for minutes at a time — the phone must not lock in
+  // the middle of a round. A finished game has no reason to hold the screen.
+  if (next.phase === 'complete') releaseWake();
+  else keepAwake();
 
   if (startingRound && next.round) showRoundIntro(next.round);
   if (phaseChanged && next.phase === 'summary') buzz(next.you && next.you.madeBid ? [14, 50, 14] : 30);
