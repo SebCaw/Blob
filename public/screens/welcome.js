@@ -81,6 +81,7 @@ function homeView(ctx) {
 
 function createView(ctx) {
   const handSize = ctx.ui.handSize || 7;
+  ctx.ui.handSize = handSize;
   const nameInput = h('input.input', {
     type: 'text',
     value: ctx.ui.name || '',
@@ -95,9 +96,30 @@ function createView(ctx) {
     },
   });
 
+  // Patched in place rather than re-rendered, for the same reason the results
+  // steppers are: this button gets tapped several times in a row, and
+  // rebuilding the screen under a thumb drops whichever tap lands mid-render.
+  // It also took the name field with it, which is halfway through being typed.
+  const valueEl = h('div', { className: 'display', text: String(handSize), style: { color: 'var(--lime)' } });
+  const hintEl = h('p.muted.center', {
+    style: { 'margin-top': '10px', 'font-size': '14px' },
+    text: sequenceHint(handSize),
+  });
+  const minusBtn = h('button.stepper__btn', {
+    text: '−',
+    type: 'button',
+    'aria-label': 'Fewer cards',
+    disabled: handSize <= MIN_HAND,
+    onClick: () => setHand((ctx.ui.handSize || MIN_HAND) - 1),
+  });
+
   const setHand = (value) => {
-    ctx.ui.handSize = Math.max(MIN_HAND, value);
-    ctx.render();
+    const next = Math.max(MIN_HAND, value);
+    if (next === ctx.ui.handSize) return;
+    ctx.ui.handSize = next;
+    valueEl.textContent = String(next);
+    hintEl.textContent = sequenceHint(next);
+    minusBtn.disabled = next <= MIN_HAND;
   };
 
   const submit = async () => {
@@ -107,7 +129,8 @@ function createView(ctx) {
       nameInput.focus();
       return;
     }
-    await ctx.createGame(name, handSize);
+    // Read the live value, not the one captured when this screen was built.
+    await ctx.createGame(name, ctx.ui.handSize || MIN_HAND);
   };
 
   return shell(
@@ -123,29 +146,16 @@ function createView(ctx) {
           h(
             'div',
             { style: { display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', gap: '12px' } },
-            h('button.stepper__btn', {
-              text: '−',
-              type: 'button',
-              'aria-label': 'Fewer cards',
-              disabled: handSize <= MIN_HAND,
-              onClick: () => setHand(handSize - 1),
-            }),
-            h(
-              'div.center',
-              h('div', { className: 'display', text: String(handSize), style: { color: 'var(--lime)' } }),
-              h('div.eyebrow', { text: 'cards' })
-            ),
+            minusBtn,
+            h('div.center', valueEl, h('div.eyebrow', { text: 'cards' })),
             h('button.stepper__btn', {
               text: '+',
               type: 'button',
               'aria-label': 'More cards',
-              onClick: () => setHand(handSize + 1),
+              onClick: () => setHand((ctx.ui.handSize || MIN_HAND) + 1),
             })
           ),
-          h('p.muted.center', {
-            style: { 'margin-top': '10px', 'font-size': '14px' },
-            text: sequenceHint(handSize),
-          })
+          hintEl
         )
       ),
       h('p.muted', {
