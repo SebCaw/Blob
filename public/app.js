@@ -51,6 +51,8 @@ const ui = {
   correcting: false,
   /** The corrected trick counts, kept if the request does not land. */
   correction: null,
+  /** A starting hand the Master is still adjusting, before the server is told. */
+  lobbyHandSize: null,
 };
 
 let state = null;
@@ -250,6 +252,7 @@ function resetGameView() {
   ui.confirmEnd = false;
   ui.correcting = false;
   ui.correction = null;
+  ui.lobbyHandSize = null;
   releaseWake();
 }
 
@@ -278,6 +281,7 @@ net.on('state', (next) => {
     // one into the next round would put those numbers against the wrong hand.
     ui.correcting = false;
     ui.correction = null;
+    ui.lobbyHandSize = null;
   }
 
   const startingRound = next.phase === 'bidding' && (roundChanged || lastPhase === null || lastPhase === 'lobby');

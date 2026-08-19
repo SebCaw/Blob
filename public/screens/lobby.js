@@ -90,41 +90,85 @@ function deckWarning(ctx) {
 }
 
 function handSizeControl(ctx) {
-  const state = ctx.state;
-  const change = (delta) => {
-    const next = state.startHandSize + delta;
-    if (next < 3) return;
-    ctx.send({ type: 'game/setHandSize', handSize: next });
-  };
+  const server = ctx.state.startHandSize;
+  // A pending change the server has caught up with is no longer pending.
+  if (ctx.ui.lobbyHandSize === server) ctx.ui.lobbyHandSize = null;
+  const shown = typeof ctx.ui.lobbyHandSize === 'number' ? ctx.ui.lobbyHandSize : server;
+
+  const valueEl = h('div.stepper__value', { text: String(shown) });
+  const roundsEl = h('div', {
+    style: { 'font-weight': '800', 'font-size': '15px', 'margin-top': '2px' },
+    text: `${rounds(shown)} rounds`,
+  });
+  const minusBtn = h('button.stepper__btn', {
+    text: '−',
+    type: 'button',
+    'aria-label': 'Fewer cards',
+    disabled: shown <= MIN_HAND,
+    onClick: () => change(-1),
+  });
+
+  const current = () =>
+    typeof ctx.ui.lobbyHandSize === 'number' ? ctx.ui.lobbyHandSize : ctx.state.startHandSize;
+
+  /**
+   * The number moves under the thumb; the server hears about it once.
+   *
+   * A command per tap meant four quick taps sent four commands all computed
+   * from the same not-yet-updated state — so they all asked for the same
+   * number, and three of them did nothing. Every reply then re-rendered the
+   * card, rebuilding the button being tapped.
+   *
+   * This is the one place the screen shows something the server has not
+   * confirmed. It is a lobby setting rather than anything scored, the Master
+   * is the only one who can touch it, and a refusal puts it straight back.
+   */
+  function change(delta) {
+    const next = Math.max(MIN_HAND, current() + delta);
+    if (next === current()) return;
+    ctx.ui.lobbyHandSize = next;
+    valueEl.textContent = String(next);
+    roundsEl.textContent = `${rounds(next)} rounds`;
+    minusBtn.disabled = next <= MIN_HAND;
+
+    if (sendTimer) clearTimeout(sendTimer);
+    sendTimer = setTimeout(async () => {
+      sendTimer = null;
+      const wanted = ctx.ui.lobbyHandSize;
+      if (typeof wanted !== 'number') return;
+      // The game may have started while the thumb was still going. The hand
+      // size is locked by then, and a refusal here is not worth a toast.
+      if (!ctx.state || ctx.state.phase !== 'lobby') {
+        ctx.ui.lobbyHandSize = null;
+        return;
+      }
+      const sent = await ctx.send({ type: 'game/setHandSize', handSize: wanted });
+      if (!sent) {
+        ctx.ui.lobbyHandSize = null;
+        ctx.render();
+      }
+    }, SETTLE_MS);
+  }
 
   return h(
     'div.card',
     h(
       'div',
       { style: { display: 'flex', 'align-items': 'center', gap: '12px' } },
-      h(
-        'div',
-        { style: { flex: '1' } },
-        h('div.eyebrow', { text: 'Starting hand' }),
-        h('div', {
-          style: { 'font-weight': '800', 'font-size': '15px', 'margin-top': '2px' },
-          text: `${rounds(state.startHandSize)} rounds`,
-        })
-      ),
-      h('button.stepper__btn', {
-        text: '−',
-        type: 'button',
-        'aria-label': 'Fewer cards',
-        disabled: state.startHandSize <= 3,
-        onClick: () => change(-1),
-      }),
-      h('div.stepper__value', { text: String(state.startHandSize) }),
+      h('div', { style: { flex: '1' } }, h('div.eyebrow', { text: 'Starting hand' }), roundsEl),
+      minusBtn,
+      valueEl,
       h('button.stepper__btn', { text: '+', type: 'button', 'aria-label': 'More cards', onClick: () => change(1) })
     )
   );
 }
 
 const rounds = (handSize) => handSize * 2 - 1;
+const MIN_HAND = 3;
+/** How long the thumb has to stop before the server is told. */
+const SETTLE_MS = 400;
+/** Shared across re-renders, so a rebuild of the card cannot orphan the timer. */
+let sendTimer = null;
 
 /** Adding a player who has no phone of their own. */
 function offlineAdder(ctx) {
