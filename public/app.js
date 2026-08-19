@@ -42,6 +42,8 @@ const ui = {
   rematchPending: false,
   /** A code from a shared link that is for a game other than the one we are in. */
   pendingCode: null,
+  /** Leaving a running game cannot be undone, so it is asked about first. */
+  confirmLeave: false,
 };
 
 let state = null;
@@ -136,6 +138,19 @@ const ctx = {
     ui.route = 'home';
     render();
   },
+  /**
+   * Leaving a game that has started is one-way: the session is cleared, and
+   * player/join refuses once a game is running, so there is no way back in.
+   * Worth a question — plenty of people will read the button as "pause".
+   */
+  askLeave() {
+    ui.confirmLeave = true;
+    render();
+  },
+  cancelLeave() {
+    ui.confirmLeave = false;
+    render();
+  },
   /** Take the shared link that was asked about at boot, and leave the old game. */
   switchToPendingGame() {
     const code = ui.pendingCode;
@@ -181,6 +196,7 @@ function disconnectFromGame() {
   ui.entering = false;
   ui.takeover = null;
   ui.showCard = false;
+  ui.confirmLeave = false;
 }
 
 // -- State in ----------------------------------------------------------------
@@ -201,6 +217,7 @@ net.on('state', (next) => {
     ui.takeover = null;
   }
   if (phaseChanged && next.phase !== 'reveal') ui.entering = false;
+  if (phaseChanged || roundChanged) ui.confirmLeave = false;
 
   const startingRound = next.phase === 'bidding' && (roundChanged || lastPhase === null || lastPhase === 'lobby');
 
