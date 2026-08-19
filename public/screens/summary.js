@@ -58,7 +58,10 @@ export function summaryScreen(ctx) {
           'div.stack.center',
           mascot(you.madeBid ? 'cheer' : 'sad', { size: 'sm' }),
           h('p.lede', { text: `Waiting for ${state.masterName} to deal the next round.` })
-        )
+        ),
+    // The one breathing point in a running game, so it is where leaving
+    // belongs. Mid-bid there is no safe moment for a stray tap.
+    h('button.btn.btn--link', { text: 'Leave game', type: 'button', onClick: () => ctx.leaveGame() })
   );
 }
 

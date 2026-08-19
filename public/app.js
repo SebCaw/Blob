@@ -1,7 +1,7 @@
 import { h, fill, reducedMotion, buzz } from './ui.js';
 import { mascot } from './mascot.js';
 import { Net, LIVE, RETRYING, LOST, lastName } from './net.js';
-import { welcomeScreen } from './screens/welcome.js';
+import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
 import { revealScreen } from './screens/reveal.js';
@@ -40,6 +40,8 @@ const ui = {
   showCard: false,
   electionSeen: null,
   rematchPending: false,
+  /** A code from a shared link that is for a game other than the one we are in. */
+  pendingCode: null,
 };
 
 let state = null;
@@ -134,6 +136,22 @@ const ctx = {
     ui.route = 'home';
     render();
   },
+  /** Take the shared link that was asked about at boot, and leave the old game. */
+  switchToPendingGame() {
+    const code = ui.pendingCode;
+    ui.pendingCode = null;
+    disconnectFromGame();
+    ui.code = code || '';
+    ui.route = 'join';
+    render();
+  },
+  /** Keep the game we were already in and drop the link. */
+  keepCurrentGame() {
+    ui.pendingCode = null;
+    ui.route = 'game';
+    net.connect();
+    render();
+  },
   /**
    * A player who was not carried into a rematch automatically taps the code
    * on their own complete screen. This has to disconnect from the finished
@@ -217,6 +235,7 @@ net.on('gone', (error) => {
 // -- Render ------------------------------------------------------------------
 
 function pickScreen() {
+  if (ui.pendingCode) return switchGameScreen(ctx);
   if (ui.route === 'history') return historyScreen(ctx);
   if (!state || ui.route !== 'game') return welcomeScreen(ctx);
   // Handing the phone to someone else outranks the phase. Their bid is often
@@ -381,13 +400,19 @@ function boot() {
   // A scanned QR or a shared link lands on /?c=4827 with the code filled in.
   const params = new URLSearchParams(location.search);
   const code = (params.get('c') || '').replace(/\D/g, '');
-  if (code && !net.session) {
+  const session = net.session;
+  if (code) history.replaceState(null, '', location.pathname);
+
+  if (code && !session) {
     ui.code = code;
     ui.route = 'join';
-    history.replaceState(null, '', location.pathname);
-  }
-
-  if (net.session) {
+  } else if (code && session && session.code !== code) {
+    // A link for a game we are not in. Ignoring it silently would drop the
+    // player straight back into their old game with no hint of why, so ask
+    // instead — and stay disconnected until they choose, so the old game's
+    // stream cannot push a state update over the question.
+    ui.pendingCode = code;
+  } else if (session) {
     ui.route = 'game';
     net.connect();
   }

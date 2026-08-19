@@ -19,6 +19,30 @@ export function welcomeScreen(ctx) {
   return homeView(ctx);
 }
 
+/**
+ * A shared link or scanned QR for a game other than the one this phone is
+ * already in. The code used to be dropped on the floor here, which put the
+ * player back in their old game with nothing to explain it.
+ */
+export function switchGameScreen(ctx) {
+  const code = ctx.ui.pendingCode;
+  return shell(
+    wordmark(),
+    mascot('think', { size: 'sm' }),
+    h('h2.lede', { text: `Join game ${code}?` }),
+    h('p.muted', {
+      text: 'You are still in another game on this phone. Joining this one will leave it.',
+    }),
+    h('div.spacer'),
+    action(`Join game ${code}`, () => ctx.switchToPendingGame()),
+    h('button.btn.btn--link', {
+      text: 'Stay in my game',
+      type: 'button',
+      onClick: () => ctx.keepCurrentGame(),
+    })
+  );
+}
+
 function shell(...children) {
   return h('div.screen.screen--scroll', ...children);
 }
