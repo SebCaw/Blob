@@ -1,0 +1,220 @@
+import { h } from '../ui.js';
+import { mascot } from '../mascot.js';
+import { action } from './common.js';
+
+/**
+ * Everything before you are in a game: the front door, making a game, and
+ * joining one.
+ *
+ * These three live together because they share one piece of local state — the
+ * name you are typing — and none of them has any server state to react to.
+ */
+
+const MIN_HAND = 3;
+
+export function welcomeScreen(ctx) {
+  const route = ctx.ui.route || 'home';
+  if (route === 'create') return createView(ctx);
+  if (route === 'join') return joinView(ctx);
+  return homeView(ctx);
+}
+
+function shell(...children) {
+  return h('div.screen.screen--scroll', ...children);
+}
+
+function wordmark() {
+  return h(
+    'h1.wordmark',
+    { 'aria-label': 'Blob' },
+    h('span', { text: 'B', 'aria-hidden': 'true' }),
+    h('span', { text: 'L', 'aria-hidden': 'true' }),
+    h('span', { text: 'O', 'aria-hidden': 'true' }),
+    h('span', { text: 'B', 'aria-hidden': 'true' })
+  );
+}
+
+function homeView(ctx) {
+  return shell(
+    h('div.spacer'),
+    h(
+      'div.stack.center',
+      mascot('idle', { size: 'lg', label: 'Blob, the mascot' }),
+      wordmark(),
+      h('p.lede.center', {
+        text: 'The bidding, the scoring and the arguments — sorted. You bring the cards.',
+      })
+    ),
+    h('div.spacer'),
+    h(
+      'div.stack',
+      action('Start a game', () => ctx.go('create')),
+      action('Join a game', () => ctx.go('join'), { kind: 'ghost' }),
+      h('button.btn.btn--link', { text: 'Past games', type: 'button', onClick: () => ctx.go('history') })
+    )
+  );
+}
+
+function createView(ctx) {
+  const handSize = ctx.ui.handSize || 7;
+  const nameInput = h('input.input', {
+    type: 'text',
+    value: ctx.ui.name || '',
+    placeholder: 'Your name',
+    maxlength: '16',
+    autocomplete: 'nickname',
+    enterkeyhint: 'go',
+    'aria-label': 'Your name',
+    'data-focus-key': 'create-name',
+    onInput: (event) => {
+      ctx.ui.name = event.target.value;
+    },
+  });
+
+  const setHand = (value) => {
+    ctx.ui.handSize = Math.max(MIN_HAND, value);
+    ctx.render();
+  };
+
+  const submit = async () => {
+    const name = (ctx.ui.name || '').trim();
+    if (!name) {
+      ctx.toast('Pop your name in first.');
+      nameInput.focus();
+      return;
+    }
+    await ctx.createGame(name, handSize);
+  };
+
+  return shell(
+    backBar(ctx, 'New game'),
+    h(
+      'div.stack',
+      h('div.field', h('label.eyebrow', { text: 'Who are you?', for: 'blob-name' }), nameInput),
+      h(
+        'div.field',
+        h('span.eyebrow', { text: 'Starting hand' }),
+        h(
+          'div.card',
+          h(
+            'div',
+            { style: { display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', gap: '12px' } },
+            h('button.stepper__btn', {
+              text: '−',
+              type: 'button',
+              'aria-label': 'Fewer cards',
+              disabled: handSize <= MIN_HAND,
+              onClick: () => setHand(handSize - 1),
+            }),
+            h(
+              'div.center',
+              h('div', { className: 'display', text: String(handSize), style: { color: 'var(--lime)' } }),
+              h('div.eyebrow', { text: 'cards' })
+            ),
+            h('button.stepper__btn', {
+              text: '+',
+              type: 'button',
+              'aria-label': 'More cards',
+              onClick: () => setHand(handSize + 1),
+            })
+          ),
+          h('p.muted.center', {
+            style: { 'margin-top': '10px', 'font-size': '14px' },
+            text: sequenceHint(handSize),
+          })
+        )
+      ),
+      h('p.muted', {
+        style: { 'font-size': '14px' },
+        text: 'You can add anyone without a phone once the lobby is open.',
+      })
+    ),
+    h('div.spacer'),
+    action('Create game', submit)
+  );
+}
+
+/** Show the round sequence so the Master can see what they are choosing. */
+function sequenceHint(handSize) {
+  const down = [];
+  for (let n = handSize; n >= 1; n--) down.push(n);
+  const up = [];
+  for (let n = 2; n <= handSize; n++) up.push(n);
+  const all = down.concat(up);
+  const rounds = all.length;
+  const shown = all.length > 11 ? `${all.slice(0, 5).join(' ')} … ${all.slice(-3).join(' ')}` : all.join(' ');
+  return `${rounds} rounds: ${shown}`;
+}
+
+function joinView(ctx) {
+  const codeInput = h('input.input.input--code', {
+    type: 'text',
+    inputmode: 'numeric',
+    pattern: '[0-9]*',
+    value: ctx.ui.code || '',
+    placeholder: '0000',
+    maxlength: '6',
+    'aria-label': 'Game code',
+    'data-focus-key': 'join-code',
+    autocomplete: 'one-time-code',
+    onInput: (event) => {
+      const digits = event.target.value.replace(/\D/g, '').slice(0, 6);
+      event.target.value = digits;
+      ctx.ui.code = digits;
+    },
+  });
+
+  const nameInput = h('input.input', {
+    type: 'text',
+    value: ctx.ui.name || '',
+    placeholder: 'Your name',
+    maxlength: '16',
+    autocomplete: 'nickname',
+    enterkeyhint: 'go',
+    'aria-label': 'Your name',
+    'data-focus-key': 'join-name',
+    onInput: (event) => {
+      ctx.ui.name = event.target.value;
+    },
+  });
+
+  const submit = async () => {
+    const code = (ctx.ui.code || '').trim();
+    const name = (ctx.ui.name || '').trim();
+    if (code.length < 4) {
+      ctx.toast('A game code is four digits.');
+      codeInput.focus();
+      return;
+    }
+    if (!name) {
+      ctx.toast('Pop your name in first.');
+      nameInput.focus();
+      return;
+    }
+    await ctx.joinGame(code, name);
+  };
+
+  return shell(
+    backBar(ctx, 'Join a game'),
+    h(
+      'div.stack',
+      h('div.field', h('span.eyebrow', { text: 'Game code' }), codeInput),
+      h('div.field', h('span.eyebrow', { text: 'Your name' }), nameInput)
+    ),
+    h('div.spacer'),
+    h('div.stack', mascot('think', { size: 'sm' }), action('Join game', submit))
+  );
+}
+
+function backBar(ctx, title) {
+  return h(
+    'div.topbar',
+    h('button.btn.btn--link', {
+      text: '‹ Back',
+      type: 'button',
+      style: { 'text-decoration': 'none', 'min-height': '44px' },
+      onClick: () => ctx.go('home'),
+    }),
+    h('div.topbar__right', h('span.topbar__title', { text: title }))
+  );
+}

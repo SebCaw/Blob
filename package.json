@@ -1,0 +1,14 @@
+{
+  "name": "blob",
+  "version": "1.0.0",
+  "description": "A companion app for the physical card game Blob — bidding, scoring and the leaderboard, so the cards stay on the table.",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

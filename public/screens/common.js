@@ -1,0 +1,193 @@
+import { h, initials, fragment } from '../ui.js';
+
+/**
+ * A drawn crown rather than the U+265B glyph. A font that lacks it renders
+ * nothing at all and the Master loses their badge silently — the same reason
+ * the mascot is drawn instead of set in type.
+ */
+function crown() {
+  const wrap = h('span.crown', { 'aria-hidden': 'true' });
+  wrap.appendChild(
+    fragment(
+      '<svg viewBox="0 0 24 20" xmlns="http://www.w3.org/2000/svg">' +
+        '<path d="M2 6 L7 11 L12 3 L17 11 L22 6 L20 17 L4 17 Z" fill="currentColor"/>' +
+        '<circle cx="12" cy="2" r="2" fill="currentColor"/>' +
+        '</svg>'
+    )
+  );
+  return wrap;
+}
+
+/** Pieces that turn up on more than one screen. */
+
+/**
+ * The slim bar at the top of every in-game screen.
+ * @param {object} state
+ * @param {{title?:string, right?:Node|Node[]}} [options]
+ */
+export function topbar(state, options = {}) {
+  const title =
+    options.title ||
+    (state.round ? `Round ${state.round.number} of ${state.round.totalRounds}` : 'Lobby');
+  return h(
+    'div.topbar',
+    h('div.topbar__title', { text: title }),
+    h(
+      'div.topbar__right',
+      options.right || null,
+      state.code ? h('span.chip.chip--code', { text: state.code }) : null
+    )
+  );
+}
+
+/** One dot per round, with the current one lit. */
+export function roundPips(state) {
+  if (!state.sequence || !state.sequence.length) return null;
+  const max = Math.max(...state.sequence);
+  return h(
+    'div.pips',
+    { 'aria-hidden': 'true' },
+    state.sequence.map((handSize, index) => {
+      const which = index < state.roundIndex ? 'done' : index === state.roundIndex ? 'now' : '';
+      return h('div.pip', {
+        className: which ? `pip--${which}` : '',
+        style: { height: `${Math.round((handSize / max) * 100)}%` },
+      });
+    })
+  );
+}
+
+/** A labelled progress bar, e.g. "3 / 4 in". */
+export function progress(done, total, label) {
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  return h(
+    'div.progress',
+    h('div.progress__bar', h('div.progress__fill', { style: { width: `${percent}%` } })),
+    h('span.progress__count', { text: label || `${done} / ${total}` })
+  );
+}
+
+/**
+ * A player in a list, with whatever status chip suits the moment.
+ * @param {object} player
+ * @param {object} state
+ * @param {{status?:{text:string, kind:string}, trailing?:Node}} [options]
+ */
+export function playerRow(player, state, options = {}) {
+  const you = state.you && state.you.id === player.id;
+  const classes = [
+    'player',
+    player.isMaster ? 'player--master' : '',
+    you ? 'player--you' : '',
+    !player.connected && !player.isOffline ? 'player--gone' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const status = options.status || defaultStatus(player);
+
+  return h(
+    'li',
+    { className: classes },
+    h('div.player__badge', { text: initials(player.name) }),
+    h(
+      'div',
+      { style: { flex: '1', 'min-width': '0' } },
+      h('div.player__name', { text: player.name + (you ? ' (you)' : '') }),
+      h(
+        'div.player__meta',
+        player.isMaster ? h('span.player__crown', crown(), h('span', { text: 'Master' })) : null,
+        player.isMaster && player.isOffline ? h('span', { text: '\u00b7' }) : null,
+        player.isOffline ? h('span', { text: 'No phone' }) : null
+      )
+    ),
+    options.trailing || null,
+    status ? h('span', { className: `player__state state--${status.kind}`, text: status.text }) : null
+  );
+}
+
+function defaultStatus(player) {
+  if (player.isOffline) return { text: 'On Master phone', kind: 'offline' };
+  if (!player.connected) return { text: 'Reconnecting', kind: 'gone' };
+  return { text: 'Ready', kind: 'in' };
+}
+
+/**
+ * The leaderboard. `previous` is last render's order, which is what lets a
+ * player who has climbed get an animation rather than silently swapping places.
+ *
+ * @param {object} state
+ * @param {string[]} [previousOrder] player ids in their previous positions
+ */
+export function leaderboard(state, previousOrder = [], options = {}) {
+  const medals = ['\u{1F947}', '\u{1F948}', '\u{1F949}'];
+  // Before anyone has scored, everyone shares first place. Handing out three
+  // gold medals for a 0-0-0 table reads as a bug, so plain numbers until the
+  // scores actually separate.
+  const allLevel = state.leaderboard.every((entry) => entry.total === state.leaderboard[0].total);
+  return h(
+    'div.board',
+    state.leaderboard.map((entry, index) => {
+      const was = previousOrder.indexOf(entry.id);
+      const climbed = was > index && was !== -1;
+      const you = state.you && state.you.id === entry.id;
+      const gained = options.hideDelta ? null : entry.roundScore;
+
+      return h(
+        'div',
+        {
+          className: [
+            'board-row',
+            entry.rank <= 3 && !allLevel ? `board-row--${entry.rank}` : '',
+            you ? 'board-row--you' : '',
+            climbed ? 'board-row--climbed' : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        },
+        h('div.board-row__rank', {
+          text: entry.rank <= 3 && !allLevel ? medals[entry.rank - 1] : String(entry.rank),
+        }),
+        h('div.board-row__name', { text: entry.name + (you ? ' (you)' : '') }),
+        gained !== null && gained !== undefined
+          ? h('div', {
+              className: `board-row__delta${gained ? '' : ' board-row__delta--zero'}`,
+              text: gained ? `+${gained}` : '+0',
+            })
+          : null,
+        h('div.board-row__total.tabular', { text: String(entry.total) })
+      );
+    })
+  );
+}
+
+/** A full-width primary action. */
+export function action(label, onClick, options = {}) {
+  return h('button', {
+    className: `btn btn--${options.kind || 'primary'}`,
+    text: label,
+    onClick,
+    disabled: options.disabled,
+    type: 'button',
+  });
+}
+
+/** Confetti, for the moments that deserve it. */
+export function confetti(count = 40) {
+  const colours = ['#c8ff3d', '#ff3e8a', '#37e0ff', '#ffc93c', '#ffffff'];
+  const wrap = h('div.confetti', { 'aria-hidden': 'true' });
+  for (let i = 0; i < count; i++) {
+    wrap.appendChild(
+      h('i', {
+        style: {
+          left: `${Math.random() * 100}%`,
+          background: colours[i % colours.length],
+          'animation-duration': `${2.4 + Math.random() * 2}s`,
+          'animation-delay': `${Math.random() * 1.6}s`,
+          transform: `rotate(${Math.random() * 360}deg)`,
+        },
+      })
+    );
+  }
+  return wrap;
+}

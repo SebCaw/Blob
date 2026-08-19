@@ -1,0 +1,407 @@
+import { h, fill, reducedMotion, buzz } from './ui.js';
+import { mascot } from './mascot.js';
+import { Net, LIVE, RETRYING, LOST, lastName } from './net.js';
+import { welcomeScreen } from './screens/welcome.js';
+import { lobbyScreen } from './screens/lobby.js';
+import { biddingScreen } from './screens/bidding.js';
+import { revealScreen } from './screens/reveal.js';
+import { summaryScreen } from './screens/summary.js';
+import { completeScreen } from './screens/complete.js';
+import { historyScreen } from './screens/history.js';
+import { electionOverlay } from './screens/election.js';
+
+/**
+ * The app shell: one state object from the server, one render, one screen.
+ *
+ * There is no client-side game logic here at all. The server sends a snapshot,
+ * this decides which screen that snapshot means, and draws it. Anything a
+ * player does becomes a command; nothing is applied optimistically, because a
+ * bid that appears to land and then does not would be far worse than a bid that
+ * takes 40ms.
+ */
+
+const root = document.getElementById('app');
+const net = new Net();
+
+/** Local, throwaway view state — never anything the game depends on. */
+const ui = {
+  route: 'home',
+  name: lastName(),
+  code: '',
+  handSize: 7,
+  bid: null,
+  tricks: null,
+  entering: false,
+  takeover: null,
+  addingOffline: false,
+  offlineName: '',
+  historyList: undefined,
+  historyRecord: null,
+  showCard: false,
+  electionSeen: null,
+  rematchPending: false,
+};
+
+let state = null;
+let previousOrder = [];
+let lastRoundIndex = -1;
+let lastPhase = null;
+let toastTimer = null;
+/** The rematch id we have already tried to claim a seat in, so a later
+ *  broadcast of the same pointer does not trigger a second attempt. */
+let claimedRematchFor = null;
+
+// -- The context every screen is handed --------------------------------------
+
+const ctx = {
+  ui,
+  get state() {
+    return state;
+  },
+  get previousOrder() {
+    return previousOrder;
+  },
+  render,
+  toast,
+  go(route) {
+    ui.route = route;
+    if (route === 'history') ui.historyList = undefined;
+    render();
+  },
+  /**
+   * Send a command and say whether it landed.
+   *
+   * The boolean matters: a screen that moves on regardless would tell an
+   * offline player "bid taken" when the server had refused it, or throw away
+   * results the Master had just typed in because the network hiccupped.
+   *
+   * @returns {Promise<boolean>} true if the server accepted it
+   */
+  async send(command) {
+    try {
+      await net.send(command);
+      return true;
+    } catch (error) {
+      toast(error.message);
+      return false;
+    }
+  },
+  async createGame(name, handSize) {
+    try {
+      lastName(name);
+      state = await net.createGame(name, handSize);
+      ui.route = 'game';
+      net.connect();
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  async joinGame(code, name) {
+    try {
+      lastName(name);
+      state = await net.joinGame(code, name);
+      ui.route = 'game';
+      net.connect();
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /** The Master starts a rematch. Everyone else is carried in automatically. */
+  async rematch() {
+    try {
+      claimedRematchFor = state && state.rematchGameId; // it is ours - don't also auto-claim it
+      state = await net.rematch();
+      lastRoundIndex = state.roundIndex;
+      lastPhase = state.phase;
+      ui.route = 'game';
+      ui.showCard = false;
+      net.connect();
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  leaveGame() {
+    // In a lobby, leaving takes you out of the line-up. Once a game is running
+    // it does not, because a game cannot lose a player mid-round without the
+    // scores stopping making sense — you simply stop watching.
+    if (state && state.phase === 'lobby' && state.you) {
+      net.send({ type: 'player/remove', playerId: state.you.id }).catch(() => {});
+    }
+    disconnectFromGame();
+    ui.route = 'home';
+    render();
+  },
+  /**
+   * A player who was not carried into a rematch automatically taps the code
+   * on their own complete screen. This has to disconnect from the finished
+   * game FIRST — its stream is still open and would otherwise push a
+   * background 'state' update that snaps the screen straight back (the same
+   * reason 'history' is the only route the state handler already lets stand
+   * on its own — see the guard below).
+   */
+  joinDifferentGame(code) {
+    disconnectFromGame();
+    ui.code = code || '';
+    ui.route = 'join';
+    render();
+  },
+};
+
+/** The reset shared by every way of stepping away from the current game. */
+function disconnectFromGame() {
+  net.clearSession();
+  state = null;
+  previousOrder = [];
+  lastRoundIndex = -1;
+  lastPhase = null;
+  claimedRematchFor = null;
+  ui.bid = null;
+  ui.tricks = null;
+  ui.entering = false;
+  ui.takeover = null;
+  ui.showCard = false;
+}
+
+// -- State in ----------------------------------------------------------------
+
+net.on('state', (next) => {
+  const roundChanged = next.roundIndex !== lastRoundIndex;
+  const phaseChanged = next.phase !== lastPhase;
+
+  // Keep the previous leaderboard order so the board can animate a climb.
+  if (state && next.phase === 'summary' && lastPhase !== 'summary') {
+    previousOrder = state.leaderboard.map((entry) => entry.id);
+  }
+
+  if (roundChanged) {
+    ui.bid = null;
+    ui.tricks = null;
+    ui.entering = false;
+    ui.takeover = null;
+  }
+  if (phaseChanged && next.phase !== 'reveal') ui.entering = false;
+
+  const startingRound = next.phase === 'bidding' && (roundChanged || lastPhase === null || lastPhase === 'lobby');
+
+  // The Master has started a rematch, and it isn't the one we (as Master)
+  // already switched into ourselves — everyone else carried in automatically
+  // discovers their seat this way, without touching a code.
+  const carriedIntoRematch =
+    next.rematchGameId &&
+    next.rematchGameId !== claimedRematchFor &&
+    next.you &&
+    next.you.id !== next.masterId;
+
+  state = next;
+  lastRoundIndex = next.roundIndex;
+  lastPhase = next.phase;
+  if (ui.route !== 'history') ui.route = 'game';
+
+  if (startingRound && next.round) showRoundIntro(next.round);
+  if (phaseChanged && next.phase === 'summary') buzz(next.you && next.you.madeBid ? [14, 50, 14] : 30);
+  render();
+
+  if (carriedIntoRematch) claimRematchSeat(next.rematchGameId, next.masterName);
+});
+
+net.on('status', renderConnection);
+
+net.on('gone', (error) => {
+  toast(error.message || 'That game has finished.');
+  ctx.leaveGame();
+});
+
+// -- Render ------------------------------------------------------------------
+
+function pickScreen() {
+  if (ui.route === 'history') return historyScreen(ctx);
+  if (!state || ui.route !== 'game') return welcomeScreen(ctx);
+  // Handing the phone to someone else outranks the phase. Their bid is often
+  // the one that locks the round, and without this the phone would jump
+  // straight to the revealed bids while they were still holding it - losing
+  // the "pass it back" step, and showing them the reveal first.
+  if (ui.takeover) return biddingScreen(ctx);
+  if (state.phase === 'lobby') return lobbyScreen(ctx);
+  if (state.phase === 'bidding') return biddingScreen(ctx);
+  if (state.phase === 'reveal') return revealScreen(ctx);
+  if (state.phase === 'summary') return summaryScreen(ctx);
+  if (state.phase === 'complete') return completeScreen(ctx);
+  return welcomeScreen(ctx);
+}
+
+function render() {
+  // Keep whatever the player was typing in, and where their cursor was.
+  const active = document.activeElement;
+  const focusKey = active && active.dataset ? active.dataset.focusKey : null;
+  const caret = focusKey && 'selectionStart' in active ? active.selectionStart : null;
+
+  const screen = pickScreen();
+  const overlay = state ? electionOverlay(ctx) : null;
+  fill(root, screen, overlay);
+
+  if (focusKey) {
+    const restored = root.querySelector(`[data-focus-key="${focusKey}"]`);
+    if (restored) {
+      restored.focus();
+      if (caret !== null && 'setSelectionRange' in restored) {
+        try {
+          restored.setSelectionRange(caret, caret);
+        } catch {
+          /* not a text field after all */
+        }
+      }
+    }
+  }
+}
+
+/**
+ * "Round 6 / 2 cards", briefly, before the bidding pad. It is the beat that
+ * makes a new hand feel like an event rather than a form reappearing.
+ */
+function showRoundIntro(round) {
+  const existing = document.querySelector('.round-intro');
+  if (existing) existing.remove();
+
+  const intro = h(
+    'div.round-intro',
+    { role: 'status' },
+    h(
+      'div',
+      h('div.round-intro__round', { text: `Round ${round.number} of ${round.totalRounds}` }),
+      h('div.round-intro__cards.tabular', { text: String(round.handSize) }),
+      h('div.round-intro__label', { text: round.handSize === 1 ? 'card' : 'cards' })
+    )
+  );
+  document.body.appendChild(intro);
+  setTimeout(() => intro.remove(), reducedMotion() ? 1500 : 1950);
+}
+
+/**
+ * Everyone but the Master lands here automatically when a rematch starts: a
+ * brief "X started a new game" beat, the same idea as the round intro, then a
+ * swap onto the new lobby with nothing for them to type. A player who was not
+ * reachable when the rematch was created (never connected, or dropped before
+ * it started) gets a friendly 404 here — not a fault, just no automatic seat
+ * — and their own complete screen already shows the public code as the way
+ * back in, so there is nothing further to do for them.
+ */
+async function claimRematchSeat(rematchGameId, masterName) {
+  claimedRematchFor = rematchGameId;
+
+  const intro = h(
+    'div.round-intro',
+    { role: 'status' },
+    h(
+      'div.stack.center',
+      mascot('cheer', { size: 'lg' }),
+      h('div.round-intro__label', { text: `${masterName || 'The Master'} started a new game!` })
+    )
+  );
+  document.body.appendChild(intro);
+
+  try {
+    const newState = await net.claimRematchSession();
+    // Give the beat a moment to land before the screen changes under them —
+    // an instant swap reads as a glitch, a short pause reads as intentional.
+    await new Promise((resolve) => setTimeout(resolve, reducedMotion() ? 200 : 1300));
+    state = newState;
+    lastRoundIndex = newState.roundIndex;
+    lastPhase = newState.phase;
+    ui.route = 'game';
+    ui.showCard = false;
+    net.connect();
+    render();
+  } catch (error) {
+    if (error.status !== 404) toast(error.message);
+  } finally {
+    intro.remove();
+  }
+}
+
+// -- Connection and errors ---------------------------------------------------
+
+const connection = h('div.conn', { role: 'status', 'aria-live': 'polite' });
+const toastEl = h('div.toast', { role: 'status', 'aria-live': 'polite' });
+document.body.append(connection, toastEl);
+
+/**
+ * Connection trouble is stated in plain language and never as an error the
+ * player has to act on — right up until it genuinely needs them to.
+ */
+function renderConnection(status) {
+  connection.className = 'conn';
+  if (status === LIVE || !net.session) {
+    connection.classList.remove('conn--show');
+    return;
+  }
+  connection.classList.add('conn--show');
+
+  if (status === LOST) {
+    connection.classList.add('conn--bad');
+    fill(
+      connection,
+      h('span', { text: "Can't reach the game." }),
+      h('button.btn.btn--small', {
+        text: 'Try again',
+        type: 'button',
+        style: { background: '#fff', color: 'var(--ink-dark)', 'min-height': '32px', padding: '6px 12px' },
+        onClick: () => net.retryNow(),
+      })
+    );
+    return;
+  }
+
+  fill(
+    connection,
+    h('span.conn__dot'),
+    h('span', { text: status === RETRYING ? 'Connection lost. Reconnecting…' : 'Connecting…' })
+  );
+}
+
+function toast(message) {
+  toastEl.textContent = message;
+  toastEl.classList.add('toast--show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('toast--show'), 3600);
+}
+
+// Anything that gets this far is a bug, not something a player should read raw.
+window.addEventListener('error', () => toast('Something went wrong. We are putting it right.'));
+window.addEventListener('unhandledrejection', (event) => {
+  event.preventDefault();
+  toast('Something went wrong. Please try that again.');
+});
+
+// -- Boot --------------------------------------------------------------------
+
+function boot() {
+  // A scanned QR or a shared link lands on /?c=4827 with the code filled in.
+  const params = new URLSearchParams(location.search);
+  const code = (params.get('c') || '').replace(/\D/g, '');
+  if (code && !net.session) {
+    ui.code = code;
+    ui.route = 'join';
+    history.replaceState(null, '', location.pathname);
+  }
+
+  if (net.session) {
+    ui.route = 'game';
+    net.connect();
+  }
+
+  render();
+  renderConnection(net.status);
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // A missing service worker costs offline caching, nothing else.
+    });
+  }
+}
+
+boot();
+
+export { ctx, net };

@@ -1,0 +1,6 @@
+# Runtime data — live games and saved history live on disk at runtime,
+# never in git. See server/store.js.
+/data/
+
+node_modules/
+.DS_Store
