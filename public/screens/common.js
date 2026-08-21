@@ -189,5 +189,13 @@ export function confetti(count = 40) {
       })
     );
   }
-  return wrap;
+  // Lives on the body rather than inside the screen, and takes itself away
+  // when it has fallen.
+  //
+  // As a child of the screen it was at the mercy of re-rendering: returned
+  // fresh every render it piled up over the scorecard, and returned once it
+  // was wiped out by the very next repaint. It belongs to the moment, not to
+  // any particular screen.
+  document.body.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 1600 + 4400 + 400);
 }

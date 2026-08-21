@@ -53,6 +53,8 @@ const ui = {
   correction: null,
   /** A starting hand the Master is still adjusting, before the server is told. */
   lobbyHandSize: null,
+  /** The game whose win has already been celebrated, so it happens once. */
+  confettiShownFor: null,
 };
 
 let state = null;

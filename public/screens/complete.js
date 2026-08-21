@@ -11,10 +11,16 @@ export function completeScreen(ctx) {
   const champions = state.leaderboard.filter((p) => state.winners.includes(p.id));
   const shared = champions.length > 1;
   const isMaster = state.you && state.you.isMaster;
+  // Once per win, not once per render. Opening the scorecard re-renders this
+  // screen, and the celebration was landing again on top of the round you had
+  // just asked to read.
+  if (youWon && ctx.ui.confettiShownFor !== state.id) {
+    ctx.ui.confettiShownFor = state.id;
+    confetti(32);
+  }
 
   return h(
     'div.screen.screen--scroll',
-    youWon ? confetti(32) : null,
     h('div.spacer'),
     h(
       'div.stack.center',
