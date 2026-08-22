@@ -38,8 +38,30 @@ const ARC_SWEEP = 210;
 /** Below this width there is no room for a name under the badge. */
 const NAME_MIN_PCT = 17;
 
+/**
+ * How long a card takes to fly out of the deck, and the gap between one card
+ * and the next.
+ *
+ * Slow enough to watch a card arrive rather than notice that one has: a hand of
+ * seven takes a little over a second and a half, which is about how long it
+ * takes to deal one for real.
+ */
+const DEAL_MS = 520;
+const DEAL_STAGGER_MS = 150;
+
 /** The round whose deal has already been animated, so it happens once. */
 let dealtFor = null;
+
+/**
+ * The seat scale the fit pass settled on, and the round it belongs to.
+ *
+ * Without this the table started every repaint at full size and shrank again
+ * after paint — a visible jump on every single card anybody played. The scale
+ * is carried into the next render instead, so the fit pass usually has nothing
+ * left to do. It only ever tightens within a round: seats that grew back as a
+ * trick cleared would be the same jitter wearing a different hat.
+ */
+let seatScale = { round: null, value: 1 };
 
 export function playingScreen(ctx) {
   const state = ctx.state;
@@ -61,8 +83,12 @@ export function playingScreen(ctx) {
     hand(ctx, you, trick, round, forehead)
   );
 
-  const firstPaintOfRound = dealtFor !== `${state.id}:${round.index}`;
-  if (firstPaintOfRound) dealtFor = `${state.id}:${round.index}`;
+  const roundKey = `${state.id}:${round.index}`;
+  const firstPaintOfRound = dealtFor !== roundKey;
+  if (firstPaintOfRound) {
+    dealtFor = roundKey;
+    seatScale = { round: roundKey, value: 1 }; // a new deal, a new table
+  }
   requestAnimationFrame(() => {
     fitSeats(screen);
     // The deal runs once per round, on the first paint of that round.
@@ -109,8 +135,10 @@ function table(ctx, opponents, trick, round, forehead, you) {
   return h(
     'div',
     {
-      className: `table${crowded ? ' table--crowded' : ''}`,
-      style: { '--seat-pct': String(widthPct) },
+      // The scale the last fit settled on is applied up front, so the table is
+      // already the right size on the first frame rather than snapping after it.
+      className: `table${crowded || seatScale.value < 0.8 ? ' table--crowded' : ''}`,
+      style: { '--seat-pct': String(widthPct), '--seat-scale': String(seatScale.value) },
     },
     h('div.table__felt', { 'aria-hidden': 'true' }),
     h(
@@ -359,7 +387,7 @@ function fitSeats(screen) {
   };
   const hits = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
-  let scale = 1;
+  let scale = seatScale.value;
   for (let pass = 0; pass < 6; pass++) {
     const all = seats.map(piecesOf);
     if (!all[0][0].width) return; // not laid out yet — nothing to measure
@@ -371,6 +399,7 @@ function fitSeats(screen) {
     }
     if (!clash) return;
     scale *= 0.88;
+    seatScale = { round: seatScale.round, value: scale }; // remembered for the next paint
     table.style.setProperty('--seat-scale', String(scale));
     // Once a seat is this small there is no reading a name off it anyway.
     if (scale < 0.8) table.classList.add('table--crowded');
@@ -403,7 +432,7 @@ function dealAnimation(screen) {
         { transform: `translate(${dx}px, ${dy}px) scale(0.7) rotate(-8deg)`, opacity: 0 },
         { transform: 'translate(0, 0) scale(1) rotate(0deg)', opacity: 1 },
       ],
-      { duration: 300, delay: index * 55, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' }
+      { duration: DEAL_MS, delay: index * DEAL_STAGGER_MS, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' }
     );
   });
 }

@@ -132,6 +132,13 @@ ul {
   max-width: 560px;
   width: 100%;
   margin: 0 auto;
+}
+
+/* The entry animation belongs to arriving at a screen, not to repainting one.
+   Every state the server pushes builds a fresh element, so leaving this on
+   `.screen` replayed it on every card anybody played — which read as the whole
+   screen twitching. `app.js` adds this class only when the screen changes. */
+.screen--enter {
   animation: screen-in 260ms var(--ease-pop) both;
 }
 
@@ -144,6 +151,18 @@ ul {
 .screen--scroll {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* A short screen that is a question rather than a page: centred, not stacked
+   at the top with a lot of nothing underneath. */
+.screen--centre {
+  justify-content: center;
+  text-align: center;
+}
+
+.screen--centre .lede,
+.screen--centre .muted {
+  text-align: center;
 }
 
 @keyframes screen-in {
@@ -1409,6 +1428,10 @@ ul {
 @media (min-width: 640px) {
   body { font-size: 18px; }
   .screen { padding-left: 28px; padding-right: 28px; }
+  .card-face--sm { --w: 54px; }
+  .card-face--md { --w: 72px; }
+  .card-face--lg { --w: 88px; }
+  .peek__row { gap: 20px; }
 }
 
 /* Short phones: give the pad every pixel going. */
@@ -1848,21 +1871,41 @@ ul {
 .trump--none { color: var(--ink-faint); }
 
 /* -- Your cards while bidding ---------------------------------------------- */
+/* The hand you are holding while you decide a bid. It takes the room going
+   spare between the round header and the pad, rather than sitting in a thin
+   strip with a gap underneath it. */
 .peek {
   display: flex;
   justify-content: center;
-  align-items: flex-end;
+  align-items: center;
+  flex: 1;
+  min-height: 0;
   gap: 2px;
   padding: 6px 0;
 }
 
-.peek__card + .peek__card { margin-left: -10px; }
+.peek__card + .peek__card { margin-left: -8px; }
 
-.peek--forehead { flex-direction: column; gap: 8px; }
-.peek__note { margin: 0; font-size: 13px; color: var(--gold); font-weight: 800; text-align: center; }
-.peek__row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
-.peek__seat { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.peek__name { font-size: 11px; color: var(--ink-faint); }
+/* Long hands overlap harder and shrink, so seven cards still fit across a
+   phone without the fan running off the edge. */
+.peek--squeeze .peek__card { --w: 46px; }
+.peek--squeeze .peek__card + .peek__card { margin-left: -14px; }
+
+/* `align-items: flex-end` sits the fanned hand on a line; in a column it means
+   the cross axis, which pinned this whole block to the right-hand edge. */
+.peek--forehead {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  gap: 14px;
+}
+
+.peek__note { margin: 0; font-size: 15px; color: var(--gold); font-weight: 800; text-align: center; }
+.peek__row { display: flex; justify-content: center; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.peek__seat { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.peek__name { font-size: 13px; color: var(--ink-faint); }
 
 /* -- The Master's way out of a stalled hand -------------------------------- */
 .skip-offer {

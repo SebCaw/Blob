@@ -348,6 +348,27 @@ function pickScreen() {
   return welcomeScreen(ctx);
 }
 
+/**
+ * Which screen this is, for deciding whether arriving at it is a new arrival.
+ *
+ * Every state the server pushes rebuilds the whole screen, so the entry
+ * animation has to be told the difference between arriving somewhere and
+ * repainting where you already are — otherwise the screen twitches every time
+ * anybody plays a card.
+ */
+function screenKey() {
+  if (ui.pendingCode) return 'switch';
+  if (ui.route === 'history') return `history:${ui.historyRecord ? 'one' : 'list'}`;
+  if (!state || ui.route !== 'game') return `welcome:${ui.route}`;
+  if (ui.takeover) return 'takeover';
+  return `game:${state.phase}:${ui.correcting ? 'fix' : ''}`;
+}
+
+let lastScreenKey = null;
+let enteredAt = 0;
+/** How long an arrival stays an arrival, in ms — the entry animation's length. */
+const ENTER_MS = 280;
+
 function render() {
   // Keep whatever the player was typing in, and where their cursor was.
   const active = document.activeElement;
@@ -355,6 +376,16 @@ function render() {
   const caret = focusKey && 'selectionStart' in active ? active.selectionStart : null;
 
   const screen = pickScreen();
+  const key = screenKey();
+  const arriving = key !== lastScreenKey;
+  if (arriving) {
+    lastScreenKey = key;
+    enteredAt = Date.now();
+  }
+  // A command usually lands twice — once as its reply, once as the pushed state
+  // — and the second render would otherwise wipe the animation off a screen that
+  // had only just started playing it.
+  if (arriving || Date.now() - enteredAt < ENTER_MS) screen.classList.add('screen--enter');
   const overlay = state ? electionOverlay(ctx) : null;
   fill(root, screen, overlay);
 

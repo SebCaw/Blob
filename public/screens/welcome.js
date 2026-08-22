@@ -27,20 +27,24 @@ export function welcomeScreen(ctx) {
  */
 export function switchGameScreen(ctx) {
   const code = ctx.ui.pendingCode;
-  return shell(
-    wordmark(),
-    mascot('think', { size: 'sm' }),
+  // A question rather than a page: it sits in the middle of the screen, not
+  // stacked in the top corner with the rest of the glass left empty.
+  return h(
+    'div.screen.screen--scroll.screen--centre',
+    h('div.stack.center', wordmark(), mascot('think', { size: 'lg' })),
     h('h2.lede', { text: `Join game ${code}?` }),
     h('p.muted', {
       text: 'You are still in another game on this phone. Joining this one will leave it.',
     }),
-    h('div.spacer'),
-    action(`Join game ${code}`, () => ctx.switchToPendingGame()),
-    h('button.btn.btn--link', {
-      text: 'Stay in my game',
-      type: 'button',
-      onClick: () => ctx.keepCurrentGame(),
-    })
+    h(
+      'div.stack',
+      action(`Join game ${code}`, () => ctx.switchToPendingGame()),
+      h('button.btn.btn--link', {
+        text: 'Stay in my game',
+        type: 'button',
+        onClick: () => ctx.keepCurrentGame(),
+      })
+    )
   );
 }
 

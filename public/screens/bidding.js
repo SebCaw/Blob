@@ -73,18 +73,24 @@ function yourCards(ctx) {
         others.map((player) =>
           h(
             'div.peek__seat',
-            cardFace(player.card, { size: 'sm' }),
+            cardFace(player.card, { size: 'lg' }),
             h('span.peek__name', { text: player.name })
           )
         ),
-        h('div.peek__seat', cardBack({ size: 'sm', label: 'your card' }), h('span.peek__name', { text: 'You' }))
+        h('div.peek__seat', cardBack({ size: 'lg', label: 'your card' }), h('span.peek__name', { text: 'You' }))
       )
     );
   }
 
   const cards = sortHand(state.you.hand || []);
   if (!cards.length) return null;
-  return h('div.peek', cards.map((cardId, index) => cardFace(cardId, { size: 'sm', index, className: 'peek__card' })));
+  // You are looking at these while you decide a bid, so they are as big as the
+  // screen allows — only squeezed once a hand gets long enough to need it.
+  return h(
+    'div',
+    { className: `peek${cards.length > 6 ? ' peek--squeeze' : ''}` },
+    cards.map((cardId, index) => cardFace(cardId, { size: 'lg', index, className: 'peek__card' }))
+  );
 }
 
 /** A latecomer waits out the hand that was already being played. */
