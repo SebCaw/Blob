@@ -75,7 +75,7 @@ function wordmark() {
 function homeView(ctx) {
   return shell(
     h(
-      'div.stack.center',
+      'div.stack.center.home-hero',
       mascot('idle', { size: 'lg', label: 'Blob, the mascot' }),
       wordmark(),
       h('p.lede.center', { text: 'The bidding, the scoring and the arguments — sorted.' })
@@ -97,6 +97,21 @@ function homeView(ctx) {
         blurb: 'No cards to hand? Blob deals for you.',
         kind: 'quiet',
         onClick: () => ctx.go('nudge'),
+      }),
+      // The third honest answer to "how are you playing?", so it sits with the
+      // other two rather than below the fold as a footnote — which is where it
+      // landed as a plain button once the type was set any larger than default,
+      // and somebody using the big type is exactly who wants a practice game.
+      //
+      // Not behind Online, either: that route asks "are you sure you have no
+      // cards?", which is a question about the GROUP, and there is no group.
+      // Nothing is asked here at all — it deals you a lobby with three
+      // opponents already sat down.
+      modeCard({
+        title: 'On your own',
+        blurb: 'Play against Blob. Nobody else needed.',
+        kind: 'quiet',
+        onClick: () => ctx.playSolo(),
       })
     ),
     h('div.spacer'),

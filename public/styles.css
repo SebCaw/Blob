@@ -2700,3 +2700,15 @@ html[data-size='huge'] .bid__current {
   cursor: pointer;
   flex: 0 0 auto;
 }
+
+/* The front door at the larger sizes.
+ 
+   The three choices are what this screen is FOR; the mascot and the tagline are
+   decoration, and they scale up with everything else until "On your own" is
+   pushed off the bottom. Somebody who has asked for big type should not have to
+   scroll past a picture to find the thing they came for — same rule as the
+   bidding pad, where the captions go and the controls stay. */
+html[data-size='large'] .home-hero .mascot-wrap--lg { width: 64px; }
+html[data-size='huge'] .home-hero .mascot-wrap--lg { display: none; }
+html[data-size='large'] .home-hero .lede,
+html[data-size='huge'] .home-hero .lede { display: none; }

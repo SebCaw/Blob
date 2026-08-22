@@ -1,6 +1,6 @@
 import { h, buzz, initials } from '../ui.js';
 import { mascot } from '../mascot.js';
-import { topbar, roundPips, progress, action } from './common.js';
+import { topbar, roundPips, progress, action, ownName } from './common.js';
 import { cardFace, cardBack, sortHand, trumpBadge } from '../cards.js';
 import { uiZoom } from '../size.js';
 
@@ -177,7 +177,7 @@ function playerLine(player, state) {
   return h(
     'li.player',
     h('div.player__badge', { text: initials(player.name) }),
-    h('div', { style: { flex: '1' } }, h('div.player__name', { text: player.name + (you ? ' (you)' : '') })),
+    h('div', { style: { flex: '1' } }, h('div.player__name', { text: ownName(player.name, you) })),
     h('span', {
       className: `player__state state--${player.hasBid ? 'in' : 'offline'}`,
       text: player.hasBid ? 'Bid in' : 'Bidding',

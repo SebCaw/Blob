@@ -29,6 +29,17 @@ const root = document.getElementById('app');
 const net = new Net();
 
 /** Local, throwaway view state — never anything the game depends on. */
+/**
+ * A solo game is three opponents, which makes four round the table — the size
+ * Oh Hell plays best at, and the size the seats were laid out for.
+ *
+ * Medium to start: Easy does not teach you anything and Hard is a rough
+ * welcome. Whoever wants a different fight changes it in the lobby, which is
+ * right there.
+ */
+const SOLO_BOTS = 3;
+const SOLO_LEVEL = 'medium';
+
 const ui = {
   route: 'home',
   name: lastName(),
@@ -123,6 +134,42 @@ const ctx = {
       ui.route = 'game';
       net.connect();
       render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /**
+   * A game against three bots, from the front door, in one tap.
+   *
+   * The whole point is that it costs nothing to start: no name to type, no
+   * mode to choose, no code to share. It lands in the ordinary lobby rather
+   * than dealing straight away, because that is where you change the
+   * difficulty or the hand size — a screen that already exists, doing the job
+   * it already does.
+   *
+   * The bots go in one at a time and a failure is survivable: a lobby with two
+   * bots in it is a game you can still play, so a wobbly connection loses you a
+   * seat rather than the whole thing.
+   */
+  async playSolo() {
+    try {
+      const name = (ui.name || '').trim() || lastName() || 'You';
+      lastName(name);
+      state = await net.createGame(name, ui.handSize || 7, 'online');
+      ui.route = 'game';
+      net.connect();
+      render();
+      // Each one is caught on its own: the game already exists and you are
+      // already stood in its lobby, so a dropped request should cost a seat you
+      // can add back by hand, not the game. `send` emits the new state, which
+      // is what repaints the lobby as they arrive.
+      for (let i = 0; i < SOLO_BOTS; i += 1) {
+        try {
+          await net.send({ type: 'player/addBot', level: SOLO_LEVEL });
+        } catch {
+          /* the lobby's own "+ Add a bot" is right there */
+        }
+      }
     } catch (error) {
       toast(error.message);
     }

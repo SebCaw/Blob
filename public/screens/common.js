@@ -59,6 +59,18 @@ export function woodenSpoon() {
   return wrap;
 }
 
+/**
+ * Your own name, marked as yours.
+ *
+ * Somebody who has never typed a name in gets the default "You", and
+ * "You (you)" reads like a bug — so the marker is dropped when the name is
+ * already saying it.
+ */
+export function ownName(name, isYou) {
+  if (!isYou) return name;
+  return String(name).trim().toLowerCase() === 'you' ? name : `${name} (you)`;
+}
+
 /** Pieces that turn up on more than one screen. */
 
 /**
@@ -159,7 +171,7 @@ export function playerRow(player, state, options = {}) {
     h(
       'div',
       { style: { flex: '1', 'min-width': '0' } },
-      h('div.player__name', { text: player.name + (you ? ' (you)' : '') }),
+      h('div.player__name', { text: ownName(player.name, you) }),
       h(
         'div.player__meta',
         player.isMaster ? h('span.player__crown', crown(), h('span', { text: 'Master' })) : null,
@@ -237,7 +249,7 @@ export function leaderboard(state, previousOrder = [], options = {}) {
           : h('div.board-row__rank', {
               text: entry.rank <= 3 && !allLevel ? medals[entry.rank - 1] : String(entry.rank),
             }),
-        h('div.board-row__name', { text: entry.name + (you ? ' (you)' : '') }),
+        h('div.board-row__name', { text: ownName(entry.name, you) }),
         gained !== null && gained !== undefined
           ? h('div', {
               className: `board-row__delta${gained ? '' : ' board-row__delta--zero'}`,

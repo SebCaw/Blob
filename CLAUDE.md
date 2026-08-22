@@ -274,6 +274,18 @@ must be idempotent — a second tap is a no-op, not an error.
   won and stay visible in the rounds they played, but drop out of the leaderboard, the
   winners and every later deal. Coming back means joining again — a new seat, from the next
   hand, on nothing.
+- **"On your own" is a mode, not a shortcut.** It sits with the other two answers to
+  "how are you playing?" rather than behind Online — whose nudge asks whether the GROUP
+  has cards, which is not a question when there is no group — and it asks nothing at all:
+  `ctx.playSolo()` creates the online game, sits three bots down and lands in the ordinary
+  lobby, which is where the difficulty and the hand size already live. No new screen, and
+  none wanted. A first-timer with no stored name becomes "You", which is why `ownName()`
+  exists: "You (you)" reads like a bug.
+- **The front door sheds its decoration at the larger sizes.** The mascot shrinks and the
+  tagline goes, because the three choices are what the screen is for and everything scales
+  together until they fall off the bottom. Somebody using the big type is exactly who wants
+  a practice game, so they must not have to scroll past a picture to find it. Same rule as
+  the bidding pad.
 - **A bot is a player, not a special case.** It sits in `state.players` with `isBot`,
   `botLevel` and a private `botSeed`, so the deck limit, the hand-size ceiling, the round
   roster, scoring and the history all treat it like anybody else. What it is NOT: a
