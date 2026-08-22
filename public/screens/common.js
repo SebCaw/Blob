@@ -79,7 +79,7 @@ export function playerRow(player, state, options = {}) {
     'player',
     player.isMaster ? 'player--master' : '',
     you ? 'player--you' : '',
-    !player.connected && !player.isOffline ? 'player--gone' : '',
+    (!player.connected && !player.isOffline) || player.left ? 'player--gone' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -107,6 +107,9 @@ export function playerRow(player, state, options = {}) {
 }
 
 function defaultStatus(player) {
+  if (player.left) return { text: 'Left', kind: 'gone' };
+  if (player.inRound === false) return { text: `In from round ${player.joinsAtRound || '?'}`, kind: 'offline' };
+  if (player.skipped) return { text: 'Being played for', kind: 'gone' };
   if (player.isOffline) return { text: 'On Master phone', kind: 'offline' };
   if (!player.connected) return { text: 'Reconnecting', kind: 'gone' };
   return { text: 'Ready', kind: 'in' };

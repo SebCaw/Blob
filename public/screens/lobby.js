@@ -14,12 +14,19 @@ export function lobbyScreen(ctx) {
   const state = ctx.state;
   const you = state.you;
   const isMaster = you && you.isMaster;
+  const online = state.mode === 'online';
 
   return h(
     'div.screen.screen--scroll',
     topbar(state, { title: 'Lobby' }),
+    h('div.mode-strip', { className: online ? 'mode-strip--online' : '' },
+      h('span.mode-strip__label', { text: online ? 'Blob is dealing' : 'You are dealing' }),
+      h('span.mode-strip__note', {
+        text: online ? 'Everyone plays from their own phone.' : 'Real cards, round a table.',
+      })
+    ),
     codeCard(state),
-    deckWarning(ctx),
+    online ? null : deckWarning(ctx),
     h(
       'div.stack.stack--tight',
       h(
@@ -30,7 +37,7 @@ export function lobbyScreen(ctx) {
       ),
       h('ul.players', state.players.map((player) => playerRow(player, state, { status: lobbyStatus(player) })))
     ),
-    isMaster ? offlineAdder(ctx) : null,
+    isMaster && !online ? offlineAdder(ctx) : null,
     isMaster ? handSizeControl(ctx) : null,
     h('div.spacer'),
     isMaster ? masterActions(ctx) : waitingNote(state),
@@ -94,6 +101,10 @@ function handSizeControl(ctx) {
   // A pending change the server has caught up with is no longer pending.
   if (ctx.ui.lobbyHandSize === server) ctx.ui.lobbyHandSize = null;
   const shown = typeof ctx.ui.lobbyHandSize === 'number' ? ctx.ui.lobbyHandSize : server;
+  // Online there is one deck between everybody and a card has to be left over to
+  // turn for trumps, so the stepper stops where the deck does. Round a table it
+  // never stops — a group can shuffle in a second deck.
+  const ceiling = typeof ctx.state.maxHandSize === 'number' ? ctx.state.maxHandSize : Infinity;
 
   const valueEl = h('div.stepper__value', { text: String(shown) });
   const roundsEl = h('div', {
@@ -106,6 +117,13 @@ function handSizeControl(ctx) {
     'aria-label': 'Fewer cards',
     disabled: shown <= MIN_HAND,
     onClick: () => change(-1),
+  });
+  const plusBtn = h('button.stepper__btn', {
+    text: '+',
+    type: 'button',
+    'aria-label': 'More cards',
+    disabled: shown >= ceiling,
+    onClick: () => change(1),
   });
 
   const current = () =>
@@ -124,12 +142,13 @@ function handSizeControl(ctx) {
    * is the only one who can touch it, and a refusal puts it straight back.
    */
   function change(delta) {
-    const next = Math.max(MIN_HAND, current() + delta);
+    const next = Math.min(ceiling, Math.max(MIN_HAND, current() + delta));
     if (next === current()) return;
     ctx.ui.lobbyHandSize = next;
     valueEl.textContent = String(next);
     roundsEl.textContent = `${rounds(next)} rounds`;
     minusBtn.disabled = next <= MIN_HAND;
+    plusBtn.disabled = next >= ceiling;
 
     if (sendTimer) clearTimeout(sendTimer);
     sendTimer = setTimeout(async () => {
@@ -158,8 +177,18 @@ function handSizeControl(ctx) {
       h('div', { style: { flex: '1' } }, h('div.eyebrow', { text: 'Starting hand' }), roundsEl),
       minusBtn,
       valueEl,
-      h('button.stepper__btn', { text: '+', type: 'button', 'aria-label': 'More cards', onClick: () => change(1) })
-    )
+      plusBtn
+    ),
+    ceiling !== Infinity && shown >= ceiling
+      ? h('p.muted', {
+          style: { 'font-size': '13px', 'margin-top': '10px' },
+          text: `${ceiling} each is all one deck stretches to with ${plural(
+            ctx.state.players.length,
+            'player',
+            'players'
+          )} — a card has to be left over to turn for trumps.`,
+        })
+      : null
   );
 }
 

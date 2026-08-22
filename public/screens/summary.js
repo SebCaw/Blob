@@ -7,6 +7,36 @@ import { topbar, leaderboard, action } from './common.js';
  * the table. The leaderboard animates anyone who has climbed.
  */
 
+/**
+ * Between hands, the Master can let go of a phone that has gone for good.
+ *
+ * Deliberately quiet, and never a nudge: most people who drop out come back, and
+ * this is only worth reaching for once it is clear somebody is not going to.
+ * They keep the points they won, and they can rejoin whenever they like.
+ */
+function letGoOffer(ctx) {
+  const targets = (ctx.state.you && ctx.state.you.canRemove) || [];
+  if (!targets.length) return null;
+  return h(
+    'div.card.card--quiet',
+    h('div.eyebrow', { text: 'Gone for good?' }),
+    h('p.muted', {
+      style: { 'font-size': '14px', margin: '6px 0 10px' },
+      text: 'They keep the points they have won, and can join again from any later hand.',
+    }),
+    h(
+      'div.btn-row',
+      targets.map((target) =>
+        h('button.btn.btn--ghost.btn--small', {
+          text: `Let ${target.name} go`,
+          type: 'button',
+          onClick: () => ctx.send({ type: 'player/remove', playerId: target.id }),
+        })
+      )
+    )
+  );
+}
+
 export function summaryScreen(ctx) {
   const state = ctx.state;
   const you = state.you;
@@ -23,7 +53,9 @@ export function summaryScreen(ctx) {
     h(
       'div.stack.stack--tight',
       h('span.eyebrow', { text: 'The round' }),
-      state.players.map((player, index) =>
+      // Somebody who joined part-way through was not in this hand, and somebody
+      // who has left is not in any more — neither belongs in its scores.
+      state.players.filter((p) => p.inRound !== false && !p.left).map((player, index) =>
         h(
           'div',
           {
@@ -51,6 +83,7 @@ export function summaryScreen(ctx) {
       h('span.eyebrow', { text: 'Leaderboard' }),
       leaderboard(state, ctx.previousOrder)
     ),
+    isMaster ? letGoOffer(ctx) : null,
     h('div.spacer'),
     isMaster
       ? action(last ? 'Finish the game' : 'Next round', () => ctx.send({ type: 'round/next' }), {
@@ -91,11 +124,15 @@ function masterExtras(ctx) {
   }
   return h(
     'div.stack.stack--tight.center',
-    h('button.btn.btn--link', {
-      text: 'Fix the scores',
-      type: 'button',
-      onClick: () => ctx.startCorrection(),
-    }),
+    // Nothing was typed in online, so there is nothing to have mistyped — the
+    // tricks are the ones that were actually played.
+    ctx.state.mode === 'online'
+      ? null
+      : h('button.btn.btn--link', {
+          text: 'Fix the scores',
+          type: 'button',
+          onClick: () => ctx.startCorrection(),
+        }),
     h('button.btn.btn--link', { text: 'End game here', type: 'button', onClick: () => ctx.askEnd() })
   );
 }

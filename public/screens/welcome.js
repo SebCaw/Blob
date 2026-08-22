@@ -14,6 +14,7 @@ const MIN_HAND = 3;
 
 export function welcomeScreen(ctx) {
   const route = ctx.ui.route || 'home';
+  if (route === 'nudge') return nudgeView(ctx);
   if (route === 'create') return createView(ctx);
   if (route === 'join') return joinView(ctx);
   return homeView(ctx);
@@ -58,23 +59,92 @@ function wordmark() {
   );
 }
 
+/**
+ * The front door asks one question: how are you playing?
+ *
+ * Round a table is the game Blob is for, and it is the first and larger choice.
+ * Online is offered as what it is — the fallback for when there genuinely are
+ * no cards.
+ */
 function homeView(ctx) {
   return shell(
-    h('div.spacer'),
     h(
       'div.stack.center',
       mascot('idle', { size: 'lg', label: 'Blob, the mascot' }),
       wordmark(),
-      h('p.lede.center', {
-        text: 'The bidding, the scoring and the arguments — sorted. You bring the cards.',
+      h('p.lede.center', { text: 'The bidding, the scoring and the arguments — sorted.' })
+    ),
+    h('div.spacer'),
+    h('span.eyebrow.center', { text: 'How are you playing?' }),
+    h(
+      'div.stack.stack--tight',
+      modeCard({
+        title: 'Round a table',
+        blurb: 'You deal real cards. Blob runs the bidding and keeps the score.',
+        onClick: () => {
+          ctx.ui.mode = 'table';
+          ctx.go('create');
+        },
+      }),
+      modeCard({
+        title: 'Online',
+        blurb: 'No cards to hand? Blob deals for you.',
+        kind: 'quiet',
+        onClick: () => ctx.go('nudge'),
+      })
+    ),
+    h('div.spacer'),
+    h(
+      'div.btn-row.btn-row--split',
+      h('button.btn.btn--link', { text: 'Join a game', type: 'button', onClick: () => ctx.go('join') }),
+      h('button.btn.btn--link', { text: 'Past games', type: 'button', onClick: () => ctx.go('history') })
+    )
+  );
+}
+
+function modeCard({ title, blurb, onClick, kind }) {
+  return h(
+    'button',
+    { className: `mode-card${kind === 'quiet' ? ' mode-card--quiet' : ''}`, type: 'button', onClick },
+    h('span.mode-card__title', { text: title }),
+    h('span.mode-card__blurb', { text: blurb })
+  );
+}
+
+/**
+ * Tapping Online gets one friendly check first.
+ *
+ * Blob is a better game with real cards in your hands, and the app should say
+ * so before it deals for you. One tap either way — a check, not a wall.
+ */
+function nudgeView(ctx) {
+  return shell(
+    backBar(ctx, 'Online'),
+    h('div.spacer'),
+    h(
+      'div.stack.center',
+      mascot('think', { size: 'lg' }),
+      h('h2.lede.center', { text: 'Are you sure you have no cards?' }),
+      h('p.muted.center', {
+        text:
+          'Blob is a better game with real cards in your hands. Online play is here for when that genuinely is not possible.',
       })
     ),
     h('div.spacer'),
     h(
       'div.stack',
-      action('Start a game', () => ctx.go('create')),
-      action('Join a game', () => ctx.go('join'), { kind: 'ghost' }),
-      h('button.btn.btn--link', { text: 'Past games', type: 'button', onClick: () => ctx.go('history') })
+      action('We have no cards', () => {
+        ctx.ui.mode = 'online';
+        ctx.go('create');
+      }),
+      h('button.btn.btn--link', {
+        text: 'Actually, we have cards →',
+        type: 'button',
+        onClick: () => {
+          ctx.ui.mode = 'table';
+          ctx.go('create');
+        },
+      })
     )
   );
 }
@@ -130,11 +200,19 @@ function createView(ctx) {
       return;
     }
     // Read the live value, not the one captured when this screen was built.
-    await ctx.createGame(name, ctx.ui.handSize || MIN_HAND);
+    await ctx.createGame(name, ctx.ui.handSize || MIN_HAND, ctx.ui.mode || 'table');
   };
 
+  const online = ctx.ui.mode === 'online';
+
   return shell(
-    backBar(ctx, 'New game'),
+    backBar(ctx, online ? 'New online game' : 'New game'),
+    online
+      ? h('p.muted.center', {
+          style: { 'font-size': '14px' },
+          text: 'Blob deals. Everyone needs their own phone, and the hand size settles once you know who is playing.',
+        })
+      : null,
     h(
       'div.stack',
       h('div.field', h('label.eyebrow', { text: 'Who are you?', for: 'blob-name' }), nameInput),
@@ -160,7 +238,9 @@ function createView(ctx) {
       ),
       h('p.muted', {
         style: { 'font-size': '14px' },
-        text: 'You can add anyone without a phone once the lobby is open.',
+        text: online
+          ? 'One deck between you, so the hand size may come down as people join.'
+          : 'You can add anyone without a phone once the lobby is open.',
       })
     ),
     h('div.spacer'),

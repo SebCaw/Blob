@@ -79,8 +79,8 @@ export class Net {
   // -- Joining ---------------------------------------------------------------
 
   /** @returns {Promise<object>} the first state */
-  async createGame(name, handSize) {
-    const data = await post('/api/games', { name, handSize });
+  async createGame(name, handSize, mode) {
+    const data = await post('/api/games', { name, handSize, mode: mode === 'online' ? 'online' : 'table' });
     this.setSession(pickSession(data));
     return data.state;
   }

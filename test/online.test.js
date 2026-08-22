@@ -887,3 +887,27 @@ test('a table game still removes players only in the lobby', () => {
   state = ok(state, { type: 'game/start' }, master.id, ctxf).state;
   assert.equal(refused(state, { type: 'player/remove', playerId: hannah }, master.id, ctxf).code, 'not-between-hands');
 });
+
+test('in the forehead round the card need not be named — there is nothing to choose', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  for (let r = 0; r < 2; r++) {
+    state = bidOneEach(state, ctxf);
+    state = playRound(state, ctxf);
+    state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  }
+  const round = game.currentRound(state);
+  assert.equal(round.handSize, 1);
+  state = bidOneEach(state, ctxf);
+
+  const turnId = game.currentRound(state).trick.turnId;
+  const theirCard = game.currentRound(state).hands[turnId][0];
+  state = ok(state, { type: 'trick/play' }, turnId, ctxf).state;
+  assert.equal(game.currentRound(state).trick.plays[0].cardId, theirCard);
+});
+
+test('with more than one card in hand, a card still has to be named', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const turnId = game.currentRound(state).trick.turnId;
+  assert.equal(refused(state, { type: 'trick/play' }, turnId, ctxf).code, 'not-held');
+});

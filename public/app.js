@@ -5,6 +5,7 @@ import { keepAwake, releaseWake } from './wake.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
+import { playingScreen } from './screens/playing.js';
 import { revealScreen } from './screens/reveal.js';
 import { summaryScreen } from './screens/summary.js';
 import { completeScreen } from './screens/complete.js';
@@ -30,6 +31,8 @@ const ui = {
   name: lastName(),
   code: '',
   handSize: 7,
+  /** Which way the game being created is played: 'table' or 'online'. */
+  mode: 'table',
   bid: null,
   tricks: null,
   entering: false,
@@ -101,10 +104,10 @@ const ctx = {
       return false;
     }
   },
-  async createGame(name, handSize) {
+  async createGame(name, handSize, mode) {
     try {
       lastName(name);
-      state = await net.createGame(name, handSize);
+      state = await net.createGame(name, handSize, mode);
       ui.route = 'game';
       net.connect();
       render();
@@ -288,6 +291,11 @@ net.on('state', (next) => {
 
   const startingRound = next.phase === 'bidding' && (roundChanged || lastPhase === null || lastPhase === 'lobby');
 
+  // Online, the table is waiting on you and the phone may be face down on the
+  // arm of a chair. One short buzz the moment the turn arrives, and only then.
+  const wasYourTurn = Boolean(state && state.you && state.you.yourTurn);
+  if (next.phase === 'playing' && next.you && next.you.yourTurn && !wasYourTurn) buzz(12);
+
   // The Master has started a rematch, and it isn't the one we (as Master)
   // already switched into ourselves — everyone else carried in automatically
   // discovers their seat this way, without touching a code.
@@ -333,6 +341,7 @@ function pickScreen() {
   if (ui.takeover) return biddingScreen(ctx);
   if (state.phase === 'lobby') return lobbyScreen(ctx);
   if (state.phase === 'bidding') return biddingScreen(ctx);
+  if (state.phase === 'playing') return playingScreen(ctx);
   if (state.phase === 'reveal') return revealScreen(ctx);
   if (state.phase === 'summary') return summaryScreen(ctx);
   if (state.phase === 'complete') return completeScreen(ctx);

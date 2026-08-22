@@ -56,7 +56,7 @@ export function historyScreen(ctx) {
               game.players.length,
               'player',
               'players'
-            )} · ${game.rounds} rounds`,
+            )} · ${game.rounds} rounds${game.mode === 'online' ? ' · online' : ''}`,
           }),
           h('span.muted', {
             style: { 'font-size': '13px' },

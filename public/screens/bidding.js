@@ -1,6 +1,7 @@
-import { h, buzz } from '../ui.js';
+import { h, buzz, initials } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { topbar, roundPips, progress, action } from './common.js';
+import { cardFace, cardBack, sortHand, trumpBadge } from '../cards.js';
 
 /**
  * Bidding — the screen this app lives or dies by.
@@ -22,6 +23,8 @@ export function biddingScreen(ctx) {
 
   const state = ctx.state;
   const you = state.you;
+  // Somebody who joined mid-game has no hand this round and nothing to bid.
+  if (you.waitingToJoin) return waitingToJoinView(ctx);
 
   return h(
     'div.screen.screen--fixed',
@@ -29,6 +32,7 @@ export function biddingScreen(ctx) {
     h(
       'div.bid',
       head(state),
+      yourCards(ctx),
       you.hasSubmitted ? submitted(ctx) : pad(ctx),
       you.hasSubmitted ? null : h('div.bid__foot', submitBar(ctx), handoverBar(ctx))
     )
@@ -43,8 +47,80 @@ function head(state) {
     h(
       'div.bid__head',
       h('div.bid__cards', h('b', { text: String(round.handSize) }), h('span', { text: round.handSize === 1 ? 'card' : 'cards' })),
+      state.mode === 'online' ? trumpBadge(round) : null,
       h('span.chip', { text: `${round.bidsIn} of ${round.bidsNeeded} in` })
     )
+  );
+}
+
+/**
+ * Online, you bid holding your cards — so they are on the screen while you
+ * choose, small and unpressable. The forehead round turns it round: your own
+ * card is the one thing you cannot see, and everyone else's is face up.
+ */
+function yourCards(ctx) {
+  const state = ctx.state;
+  if (state.mode !== 'online') return null;
+  const round = state.round;
+
+  if (round.forehead) {
+    const others = state.players.filter((p) => p.id !== state.you.id && p.card);
+    return h(
+      'div.peek.peek--forehead',
+      h('p.peek__note', { text: 'One card each. You can see theirs, not your own.' }),
+      h(
+        'div.peek__row',
+        others.map((player) =>
+          h(
+            'div.peek__seat',
+            cardFace(player.card, { size: 'sm' }),
+            h('span.peek__name', { text: player.name })
+          )
+        ),
+        h('div.peek__seat', cardBack({ size: 'sm', label: 'your card' }), h('span.peek__name', { text: 'You' }))
+      )
+    );
+  }
+
+  const cards = sortHand(state.you.hand || []);
+  if (!cards.length) return null;
+  return h('div.peek', cards.map((cardId, index) => cardFace(cardId, { size: 'sm', index, className: 'peek__card' })));
+}
+
+/** A latecomer waits out the hand that was already being played. */
+function waitingToJoinView(ctx) {
+  const state = ctx.state;
+  return h(
+    'div.screen.screen--scroll',
+    topbar(state),
+    h('div.spacer'),
+    h(
+      'div.stack.center',
+      mascot('think', { size: 'lg' }),
+      h('h2.lede.center', { text: "You're in from the next hand" }),
+      h('p.muted.center', {
+        text: 'This one was already being dealt when you arrived, so you sit it out. Nobody loses a card over it.',
+      }),
+      h('span.chip', { text: `Round ${state.you.joinsAtRound} is yours` })
+    ),
+    h('div.spacer'),
+    h(
+      'ul.players',
+      state.players.filter((p) => p.inRound !== false && !p.left).map((player) => playerLine(player, state))
+    )
+  );
+}
+
+function playerLine(player, state) {
+  const you = state.you && state.you.id === player.id;
+  return h(
+    'li.player',
+    h('div.player__badge', { text: initials(player.name) }),
+    h('div', { style: { flex: '1' } }, h('div.player__name', { text: player.name + (you ? ' (you)' : '') })),
+    h('span', {
+      className: `player__state state--${player.hasBid ? 'in' : 'offline'}`,
+      text: player.hasBid ? 'Bid in' : 'Bidding',
+    })
   );
 }
 
