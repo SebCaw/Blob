@@ -2198,3 +2198,210 @@ ul {
 @keyframes sheet-up {
   from { transform: translateY(28px); }
 }
+
+/* -- How to play ----------------------------------------------------------- */
+.help {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 12px) 0 calc(env(safe-area-inset-bottom) + 12px);
+  background: rgba(9, 3, 18, 0.86);
+  animation: sheet-in 160ms ease both;
+}
+
+.help__panel {
+  width: min(100%, 560px);
+  max-height: 100%;
+  margin: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px var(--pad) 20px;
+  border-radius: var(--radius-lg);
+  background: var(--night-800);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  overflow-y: auto;
+  animation: sheet-up 220ms var(--ease-pop) both;
+}
+
+.help__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.help__eyebrow {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* The picture gets a fixed slot, so the words below it do not jump about as the
+   steps change shape. */
+.help__stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 168px;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: radial-gradient(ellipse at 50% 30%, var(--night-600), var(--night-900) 75%);
+}
+
+.help__title { margin: 0; font-size: 21px; font-weight: 900; }
+.help__body { margin: 6px 0 0; font-size: 16px; color: var(--ink-soft); line-height: 1.4; }
+
+.help__dots { display: flex; justify-content: center; gap: 6px; }
+
+.help__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.help__dot--on { background: var(--lime); }
+
+.help__nav { display: flex; gap: 10px; }
+.help__nav .btn { flex: 1; }
+
+/* -- The little pictures --------------------------------------------------- */
+.help-art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 152px;
+}
+
+.help-art .card-face { animation: help-in 420ms var(--ease-pop) both; animation-delay: calc(var(--i, 0) * 160ms); }
+
+@keyframes help-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.86); }
+}
+
+.help-bubble {
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--lime);
+  color: var(--ink-dark);
+  font-weight: 900;
+  animation: help-in 420ms var(--ease-pop) both;
+}
+
+/* The hands, counting down and back up. */
+.help-art--rounds { align-items: flex-end; gap: 5px; height: 120px; }
+
+.help-pip {
+  width: 12px;
+  border-radius: 4px;
+  background: var(--night-500);
+  animation: help-grow 300ms var(--ease-pop) both;
+  animation-delay: calc(var(--i) * 60ms);
+  transform-origin: bottom;
+}
+
+.help-pip:nth-child(7) { background: var(--lime); }
+
+@keyframes help-grow {
+  from { transform: scaleY(0.05); opacity: 0; }
+}
+
+/* The turned card coming off the deck. */
+.help-deck { position: relative; width: 42px; height: 60px; }
+
+.help-deck span {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: var(--night-700);
+  border: 2px solid rgba(200, 255, 61, 0.3);
+}
+
+.help-deck span:last-child { transform: translate(4px, -4px); }
+.help-turned { animation: help-turn 620ms var(--ease-pop) both 260ms; }
+
+@keyframes help-turn {
+  from { transform: translateX(-46px) rotateY(90deg); opacity: 0; }
+}
+
+.help-art--trumps .trump { animation: help-in 420ms var(--ease-pop) both 700ms; }
+
+/* Three bids, landing face down and turning over together. */
+.help-bid {
+  width: 54px;
+  height: 66px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--night-700);
+  border: 2px solid rgba(200, 255, 61, 0.35);
+  animation: help-in 380ms var(--ease-pop) both;
+  animation-delay: calc(var(--i) * 130ms);
+}
+
+.help-bid__face {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--lime);
+  animation: help-reveal 300ms ease both 700ms;
+}
+
+@keyframes help-reveal {
+  from { opacity: 0; transform: scale(0.4); }
+}
+
+.help-art--follow { flex-direction: column; gap: 6px; }
+.help-hand { display: flex; gap: 6px; }
+.help-art--follow .card-face--playable { transform: translateY(-10px); border-color: var(--lime); }
+.help-art--follow .card-face--blocked { filter: brightness(0.6) saturate(0.7); }
+
+.help-led {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.help-note { font-size: 13px; color: var(--ink-faint); text-align: center; }
+
+.help-art--trick .help-card--winner { animation: help-in 420ms var(--ease-pop) both 320ms, help-won 500ms ease 760ms; }
+
+@keyframes help-won {
+  50% { transform: translateY(-10px) scale(1.06); }
+}
+
+.help-art--trick .help-note { position: absolute; bottom: 0; left: 0; right: 0; }
+
+/* Two lines of a scorecard: one made, one blobbed. */
+.help-art--score { flex-direction: column; gap: 10px; }
+
+.help-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: min(100%, 300px);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 800;
+  animation: help-in 420ms var(--ease-pop) both;
+}
+
+.help-score--made { background: rgba(74, 222, 128, 0.16); border: 2px solid rgba(74, 222, 128, 0.5); }
+.help-score--missed { background: rgba(255, 107, 107, 0.14); border: 2px solid rgba(255, 107, 107, 0.45); animation-delay: 300ms; }
+.help-score__points { font-size: 20px; font-weight: 900; }
+.help-score--made .help-score__points { color: var(--good); }
+.help-score--missed .help-score__points { color: var(--bad); }
+
+.help-art--forehead { gap: 22px; }
+.help-seat { display: flex; flex-direction: column; align-items: center; gap: 6px; }

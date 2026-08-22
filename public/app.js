@@ -13,6 +13,7 @@ import { completeScreen } from './screens/complete.js';
 import { historyScreen } from './screens/history.js';
 import { electionOverlay } from './screens/election.js';
 import { settingsSheet } from './screens/settings.js';
+import { helpOverlay } from './screens/help.js';
 
 /**
  * The app shell: one state object from the server, one render, one screen.
@@ -62,6 +63,9 @@ const ui = {
   confettiShownFor: null,
   /** The settings sheet, which can be opened from any screen in a game. */
   settingsOpen: false,
+  /** How to play, and which step of it. */
+  helpOpen: false,
+  helpStep: 0,
 };
 
 let state = null;
@@ -263,6 +267,8 @@ function resetGameView() {
   ui.correction = null;
   ui.lobbyHandSize = null;
   ui.settingsOpen = false;
+  ui.helpOpen = false;
+  ui.helpStep = 0;
   releaseWake();
 }
 
@@ -392,7 +398,7 @@ function render() {
   // had only just started playing it.
   if (arriving || Date.now() - enteredAt < ENTER_MS) screen.classList.add('screen--enter');
   const overlay = state ? electionOverlay(ctx) : null;
-  fill(root, screen, overlay, settingsSheet(ctx));
+  fill(root, screen, overlay, settingsSheet(ctx), helpOverlay(ctx));
 
   if (focusKey) {
     const restored = root.querySelector(`[data-focus-key="${focusKey}"]`);

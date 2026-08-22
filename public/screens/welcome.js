@@ -2,6 +2,7 @@ import { h } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { action } from './common.js';
 import { sizeControl } from '../size.js';
+import { helpButton } from './help.js';
 
 /**
  * Everything before you are in a game: the front door, making a game, and
@@ -102,6 +103,9 @@ function homeView(ctx) {
     // Joining is what most people arriving at this screen are here to do, so it
     // is a button of its own rather than a line of small print.
     action('Join a game', () => ctx.go('join'), { kind: 'ghost' }),
+    // Never played before? This is the first place to look, so it is on the
+    // front page rather than buried behind a settings cog.
+    helpButton(ctx, { kind: 'link' }),
     // Last thing on the front page, where somebody who needs it will find it
     // before they start rather than halfway through a hand.
     sizeControl(ctx)

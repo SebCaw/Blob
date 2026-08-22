@@ -1,5 +1,6 @@
 import { h } from '../ui.js';
 import { sizeControl } from '../size.js';
+import { helpButton } from './help.js';
 
 /**
  * Settings, as a sheet over whatever you were doing.
@@ -41,6 +42,18 @@ export function settingsSheet(ctx) {
         h('p.sheet__hint', {
           text: 'Takes effect straight away, and is remembered on this device.',
         })
+      ),
+      // The rules, reachable mid-hand — which is when somebody usually needs
+      // them. Opening it closes this, so they are not stacked two deep.
+      helpButton(
+        {
+          ...ctx,
+          render: () => {
+            ctx.ui.settingsOpen = false;
+            ctx.render();
+          },
+        },
+        { kind: 'ghost' }
       ),
       h('button.btn.btn--ghost', { text: 'Done', type: 'button', onClick: close })
     )
