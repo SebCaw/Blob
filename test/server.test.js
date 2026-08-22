@@ -947,3 +947,40 @@ test('an online game cannot be asked for typed-in results', async (t) => {
   assert.equal(res.status, 409, res.text);
   assert.match(res.text, /already knows who won what/);
 });
+
+test('a phone that goes mid-trick puts the choice in front of the Master', async (t) => {
+  // A short stall window so the test is not sat waiting ten real seconds.
+  const app = await startServer({ stallMs: 120 });
+  t.after(() => app.stop());
+  const { host, sessions, streams } = await onlineTable(app, ['Seb', 'James', 'Alex']);
+  t.after(() => streams.forEach((s) => s.close()));
+
+  for (const session of sessions) await send(app, session, { type: 'bid/submit', playerId: session.playerId, value: 0 });
+  const opened = await streams[0].waitFor((s) => s.phase === 'playing', 'playing');
+
+  // The Master leads, so the next player to act is somebody else — then their
+  // phone goes, mid-trick, with everyone else sat waiting.
+  assert.equal(opened.round.trick.turnId, host.playerId);
+  await send(app, host, { type: 'trick/play', cardId: opened.you.playable[0] });
+  const waiting = await streams[0].waitFor((s) => s.round && s.round.trick && s.round.trick.plays.length === 1, 'one card down');
+  const missingIndex = sessions.findIndex((s) => s.playerId === waiting.round.trick.turnId);
+  assert.ok(missingIndex > 0);
+  streams[missingIndex].close();
+
+  const offered = await streams[0].waitFor((s) => s.you.canSkipTurnsFor, 'the skip offer');
+  assert.equal(offered.you.canSkipTurnsFor.id, sessions[missingIndex].playerId);
+
+  // Nobody else is offered it.
+  const bystander = sessions.findIndex((s, i) => i !== 0 && i !== missingIndex);
+  const theirView = await streams[bystander].waitFor((s) => s.round && s.round.trick && s.round.trick.plays.length === 1, 'same moment');
+  assert.equal(theirView.you.canSkipTurnsFor, null);
+
+  await send(app, host, { type: 'trick/skipTurns', playerId: sessions[missingIndex].playerId });
+  const played = await streams[0].waitFor(
+    (s) => s.round && s.round.trick && s.round.trick.plays.length >= 2,
+    'played for them'
+  );
+  assert.equal(played.round.trick.plays[1].playerId, sessions[missingIndex].playerId);
+  assert.equal(played.players[missingIndex].skipped, true);
+  assert.equal(played.you.canSkipTurnsFor, null, 'and the offer is spent');
+});

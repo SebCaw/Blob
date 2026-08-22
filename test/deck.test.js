@@ -15,6 +15,7 @@ const {
   deal,
   maxOnlineHandSize,
   legalPlays,
+  lowestPlay,
   isLegalPlay,
   trickWinner,
 } = require('../lib/deck');
@@ -281,4 +282,31 @@ test('every card dealt in a round can be walked through a trick', () => {
 
   assert.equal(Object.values(won).reduce((a, b) => a + b, 0), 3);
   assert.ok(FOUR.every((id) => hands[id].length === 0));
+});
+
+// ── Playing for somebody who is not there ────────────────────────────────────
+
+test('the card played for an absent player is their worst legal one', () => {
+  // Leading: a plain suit ahead of a trump, lowest rank of what is left.
+  assert.equal(lowestPlay(['9S', '2H', 'AS', '4D'], null, 'H'), '4D');
+  assert.equal(lowestPlay(['9S', 'AS', '4D'], null, null), '4D');
+});
+
+test('it never spends a trump while a plain suit will do', () => {
+  assert.equal(lowestPlay(['2H', '9S'], null, 'H'), '9S', 'the nine beats throwing the trump two');
+  assert.equal(lowestPlay(['2H', '3H', '9S'], null, 'H'), '9S');
+});
+
+test('it still has to follow suit', () => {
+  assert.equal(lowestPlay(['9S', '4S', 'AS', '2D'], 'S', 'H'), '4S');
+  assert.equal(lowestPlay(['9S', '4S', '2D'], 'D', 'H'), '2D');
+});
+
+test('with nothing but trumps, the lowest trump goes', () => {
+  assert.equal(lowestPlay(['KH', '2H', '9H'], null, 'H'), '2H');
+  assert.equal(lowestPlay(['KH', '2H', '9H'], 'S', 'H'), '2H', 'void in spades, so anything goes');
+});
+
+test('an empty hand has nothing to play', () => {
+  assert.equal(lowestPlay([], null, 'H'), null);
 });

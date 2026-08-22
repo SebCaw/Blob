@@ -85,7 +85,7 @@ Commands live in `HANDLERS` in `lib/game.js`. The current set:
 player/join  player/addOffline  player/remove
 game/setHandSize  game/acknowledgeDeck  game/start  game/end  game/rematchStarted
 bid/submit  results/submit  results/amend  round/next
-trick/play
+trick/play  trick/stalled  trick/skipTurns
 conn/set  conn/takeover
 election/start  election/vote  election/resolve
 ```
@@ -125,10 +125,22 @@ must be idempotent — a second tap is a no-op, not an error.
   `trick` and `tricksWon`; a table round has none of those fields at all, so table state is
   byte-for-byte what it was before the mode existed. Both score through `scoreRound`, and
   that must stay true — a mode-specific scoring path is how the two would drift apart.
-- **A dropped phone stalls an online round.** The Master can cover a missing player's
-  *bid*, but not their cards: doing so would mean showing the Master their hand. There is
-  currently no way out but `game/end`, and auto-playing a legal card is the obvious fix
-  when it matters.
+- **A dropped phone never gets covered — it gets skipped.** The Master can cover a missing
+  player's *bid*, but never their cards: that would mean showing the Master their hand. So
+  after ten seconds of a trick not moving (`STALL_MS` in `server/room.js`) the server
+  dispatches `trick/stalled`, which only puts the choice on the Master's screen. If they
+  take it, `trick/skipTurns` plays that player's **worst legal card** each turn until the
+  hand ends — a plain suit before a trump, lowest rank of what is left. It lasts one hand
+  and is cancelled the moment they reconnect. Being absent should cost you the hand, not be
+  quietly played well on your behalf.
+- **Auto-plays go through `playCard`, the same as tapped ones.** There is deliberately no
+  second, quieter path through the rules. `advanceAutoPlays` just keeps calling it while
+  the turn lands on somebody being skipped.
+- **Letting a player go is not deleting them.** Between hands (`summary`, online) the Master
+  can remove a phone that has gone for good: they are flagged `left`, keep the points they
+  won and stay visible in the rounds they played, but drop out of the leaderboard, the
+  winners and every later deal. Coming back means joining again — a new seat, from the next
+  hand, on nothing.
 - **Correcting a scored round rebuilds every later running total.** `results/amend` does
   not patch in place; it recomputes from the bottom. A correction made after the game has
   finished also has to re-save the history record, which is written once on completion.

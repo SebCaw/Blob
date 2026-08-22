@@ -15,11 +15,12 @@ const IDLE_TTL_MS = 12 * 60 * 60 * 1000;
  */
 class Rooms {
   /** @param {{store:object, graceMs?:number, electionMs?:number}} deps */
-  constructor({ store, graceMs, electionMs, presenceMs }) {
+  constructor({ store, graceMs, electionMs, presenceMs, stallMs }) {
     this.store = store;
     this.graceMs = graceMs;
     this.electionMs = electionMs;
     this.presenceMs = presenceMs;
+    this.stallMs = stallMs;
     /** @type {Map<string, Room>} */
     this.byId = new Map();
     /** @type {Map<string, string>} game code -> game id */
@@ -54,6 +55,7 @@ class Rooms {
         graceMs: this.graceMs ? this.graceMs * 4 : undefined,
         electionMs: this.electionMs,
         presenceMs: this.presenceMs,
+        stallMs: this.stallMs,
       });
       this._register(room);
       restored += 1;
@@ -77,6 +79,7 @@ class Rooms {
       graceMs: this.graceMs,
       electionMs: this.electionMs,
       presenceMs: this.presenceMs,
+      stallMs: this.stallMs,
     });
     const token = room.issueSession(player.id);
     this._register(room);

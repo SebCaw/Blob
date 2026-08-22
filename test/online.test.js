@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const game = require('../lib/game');
 const { viewFor, historyRecord } = require('../lib/view');
 const { scoreRound } = require('../lib/scoring');
-const { deal, legalPlays, suitOf, trickWinner } = require('../lib/deck');
+const { deal, legalPlays, lowestPlay, suitOf, trickWinner } = require('../lib/deck');
 
 // ── Harness ──────────────────────────────────────────────────────────────────
 // Ids count up rather than being random, so a deal is the same on every run and
@@ -689,4 +689,201 @@ test('a latecomer sees a seat, not a hand, until they are dealt in', () => {
   assert.equal(seat.inRound, false);
   assert.equal(seat.joinsAtRound, 2);
   assert.equal(seat.total, 0);
+});
+
+// ── A phone that goes mid-hand ───────────────────────────────────────────────
+
+/** Take a player's phone away. */
+function drop(state, ctxf, playerId) {
+  return ok(state, { type: 'conn/set', playerId, connected: false }, null, ctxf).state;
+}
+
+test('the Master is offered the skip only once the hand has actually stalled', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const waitingOn = game.currentRound(state).trick.turnId;
+  const other = state.players.find((p) => p.id !== waitingOn && p.id !== masterId) || state.players[1];
+
+  // Nothing on offer while everyone is connected.
+  assert.equal(viewFor(state, masterId).you.canSkipTurnsFor, null);
+  assert.equal(refused(state, { type: 'trick/skipTurns', playerId: waitingOn }, masterId, ctxf).code, 'still-here');
+
+  state = drop(state, ctxf, waitingOn);
+  assert.equal(viewFor(state, masterId).you.canSkipTurnsFor, null, 'not until the server says it has stalled');
+
+  state = ok(state, { type: 'trick/stalled', playerId: waitingOn }, null, ctxf).state;
+  const offer = viewFor(state, masterId).you.canSkipTurnsFor;
+  assert.equal(offer.id, waitingOn);
+  assert.equal(offer.name, state.players.find((p) => p.id === waitingOn).name);
+  assert.equal(viewFor(state, other.id).you.canSkipTurnsFor, null, 'and only to the Master');
+});
+
+test('a stall offer is dropped the moment they reconnect', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const waitingOn = game.currentRound(state).trick.turnId;
+
+  state = drop(state, ctxf, waitingOn);
+  state = ok(state, { type: 'trick/stalled', playerId: waitingOn }, null, ctxf).state;
+  assert.ok(viewFor(state, masterId).you.canSkipTurnsFor);
+
+  state = ok(state, { type: 'conn/set', playerId: waitingOn, connected: true }, null, ctxf).state;
+  assert.equal(viewFor(state, masterId).you.canSkipTurnsFor, null);
+  assert.equal(game.currentRound(state).stalledPlayerId, null);
+});
+
+test('skipping plays their worst legal card, and the hand moves on', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  let round = game.currentRound(state);
+  const missingId = round.trick.turnId;
+  const handBefore = round.hands[missingId].slice();
+  const expected = lowestPlay(handBefore, round.trick.ledSuit, round.trumpSuit);
+
+  state = drop(state, ctxf, missingId);
+  state = ok(state, { type: 'trick/stalled', playerId: missingId }, null, ctxf).state;
+  state = ok(state, { type: 'trick/skipTurns', playerId: missingId }, masterId, ctxf).state;
+
+  round = game.currentRound(state);
+  assert.equal(round.trick.plays[0].playerId, missingId, 'their card went down');
+  assert.equal(round.trick.plays[0].cardId, expected);
+  assert.ok(!round.hands[missingId].includes(expected), 'and left their hand');
+  assert.notEqual(round.trick.turnId, missingId, 'the turn moved on');
+  assert.equal(round.stalledPlayerId, null, 'the offer is spent');
+  assert.equal(viewFor(state, masterId).players.find((p) => p.id === missingId).skipped, true);
+});
+
+test('a skipped player keeps being played for, all the way to the end of the hand', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const missingId = game.currentRound(state).trick.turnId;
+  state = drop(state, ctxf, missingId);
+  state = ok(state, { type: 'trick/skipTurns', playerId: missingId }, masterId, ctxf).state;
+
+  // The other two play their own cards; the missing player never blocks a turn.
+  let guard = 20;
+  while (state.phase === 'playing' && guard-- > 0) {
+    const round = game.currentRound(state);
+    const { turnId, ledSuit } = round.trick;
+    assert.notEqual(turnId, missingId, 'their turn is taken for them, never waited on');
+    const cardId = legalPlays(round.hands[turnId], ledSuit)[0];
+    state = ok(state, { type: 'trick/play', cardId }, turnId, ctxf).state;
+  }
+
+  const round = game.currentRound(state);
+  assert.equal(state.phase, 'summary', 'the hand finished without them');
+  assert.equal(round.hands[missingId].length, 0, 'their cards all got played');
+  assert.equal(Object.values(round.tricksWon).reduce((a, b) => a + b, 0), 3);
+  assert.equal(round.scores[missingId], scoreRound(round.bids[missingId].value, round.tricksWon[missingId]));
+});
+
+test('skipping is for one hand only — a phone back between rounds is simply back', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const missingId = game.currentRound(state).trick.turnId;
+  state = drop(state, ctxf, missingId);
+  state = ok(state, { type: 'trick/skipTurns', playerId: missingId }, masterId, ctxf).state;
+  state = playRound(state, ctxf);
+
+  state = ok(state, { type: 'conn/set', playerId: missingId, connected: true }, null, ctxf).state;
+  state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  const round = game.currentRound(state);
+  assert.deepEqual(round.autoPlay, {}, 'the new hand starts clean');
+  assert.equal(round.hands[missingId].length, 2, 'and they are dealt in as normal');
+});
+
+test('only the Master can skip, and only for somebody who is actually gone', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const missingId = game.currentRound(state).trick.turnId;
+  const notMaster = state.players.find((p) => p.id !== masterId).id;
+  state = drop(state, ctxf, missingId);
+
+  assert.equal(refused(state, { type: 'trick/skipTurns', playerId: missingId }, notMaster, ctxf).code, 'not-master');
+  const stillHere = state.players.find((p) => p.id !== missingId).id;
+  assert.equal(refused(state, { type: 'trick/skipTurns', playerId: stillHere }, masterId, ctxf).code, 'still-here');
+
+  state = ok(state, { type: 'trick/skipTurns', playerId: missingId }, masterId, ctxf).state;
+  // A second tap is a no-op rather than an error.
+  ok(state, { type: 'trick/skipTurns', playerId: missingId }, masterId, ctxf);
+});
+
+// ── Letting somebody go between hands ────────────────────────────────────────
+
+test('the Master can let a lost phone go once the hand is over, and not before', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const missingId = game.currentRound(state).trick.turnId;
+  state = drop(state, ctxf, missingId);
+  state = ok(state, { type: 'trick/skipTurns', playerId: missingId }, masterId, ctxf).state;
+
+  // Mid-hand, no.
+  assert.equal(refused(state, { type: 'player/remove', playerId: missingId }, masterId, ctxf).code, 'not-between-hands');
+  assert.deepEqual(viewFor(state, masterId).you.canRemove, []);
+
+  state = playRound(state, ctxf);
+  const offered = viewFor(state, masterId).you.canRemove;
+  assert.deepEqual(offered.map((p) => p.id), [missingId]);
+
+  state = ok(state, { type: 'player/remove', playerId: missingId }, masterId, ctxf).state;
+  const gone = state.players.find((p) => p.id === missingId);
+  assert.equal(gone.left, true, 'kept on the scoresheet rather than deleted');
+  assert.ok(gone.leftAt);
+
+  // Letting go of the Master hands the crown on rather than leaving the game
+  // without one — this deal put the Master on lead, so that is what happened.
+  assert.notEqual(state.masterId, missingId);
+  const master = state.masterId;
+
+  const view = viewFor(state, master);
+  assert.equal(view.players.find((p) => p.id === missingId).left, true);
+  assert.ok(!view.leaderboard.some((p) => p.id === missingId), 'but out of the running');
+
+  state = ok(state, { type: 'round/next' }, master, ctxf).state;
+  assert.ok(!game.currentRound(state).playerIds.includes(missingId), 'and not dealt into the next hand');
+  assert.equal(viewFor(state, master).round.bidsNeeded, 2);
+});
+
+test('somebody who was let go can come back, from the next hand and on nothing', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const missingId = game.currentRound(state).trick.turnId;
+  state = drop(state, ctxf, missingId);
+  state = ok(state, { type: 'trick/skipTurns', playerId: missingId }, masterId, ctxf).state;
+  state = playRound(state, ctxf);
+  state = ok(state, { type: 'player/remove', playerId: missingId }, masterId, ctxf).state;
+
+  const name = state.players.find((p) => p.id === missingId).name;
+  const rejoined = ok(state, { type: 'player/join', name }, null, ctxf);
+  state = rejoined.state;
+  const back = rejoined.result.player;
+
+  assert.notEqual(back.id, missingId, 'a fresh seat, not the old one');
+  assert.equal(back.total, 0);
+  assert.equal(back.name, `${name} 2`, 'and a name they can be told apart by');
+  state = ok(state, { type: 'round/next' }, state.masterId, ctxf).state;
+  assert.ok(game.currentRound(state).playerIds.includes(back.id));
+  assert.equal(game.currentRound(state).hands[back.id].length, 2);
+});
+
+test('the Master cannot let go of a connected player, or the last of a pair', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah'], 3);
+  state = bidOneEach(state, ctxf);
+  state = playRound(state, ctxf);
+  const other = state.players.find((p) => p.id !== masterId).id;
+
+  assert.equal(refused(state, { type: 'player/remove', playerId: other }, masterId, ctxf).code, 'still-here');
+  state = drop(state, ctxf, other);
+  assert.equal(refused(state, { type: 'player/remove', playerId: other }, masterId, ctxf).code, 'too-few');
+  assert.deepEqual(viewFor(state, masterId).you.canRemove, [], 'so it is never offered');
+});
+
+test('a table game still removes players only in the lobby', () => {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: 'Ed', code: '1234', startHandSize: 3 }, ctxf.next(null));
+  const master = state.players[0];
+  state = ok(state, { type: 'player/join', name: 'Hannah' }, null, ctxf).state;
+  const hannah = state.players[1].id;
+  state = ok(state, { type: 'game/start' }, master.id, ctxf).state;
+  assert.equal(refused(state, { type: 'player/remove', playerId: hannah }, master.id, ctxf).code, 'not-between-hands');
 });

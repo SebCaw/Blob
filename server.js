@@ -59,6 +59,7 @@ async function build(options = {}) {
     graceMs: options.graceMs ?? GRACE_MS,
     electionMs: options.electionMs ?? ELECTION_MS,
     presenceMs: options.presenceMs ?? PRESENCE_MS,
+    stallMs: options.stallMs,
   });
   const restored = await rooms.restore();
 

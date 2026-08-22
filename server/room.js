@@ -26,6 +26,12 @@ const GRACE_MS = 45_000;
 const PRESENCE_TIMEOUT_MS = 25_000;
 /** How long a Master election waits for stragglers before tallying what it has. */
 const ELECTION_TIMEOUT_MS = 60_000;
+/**
+ * How long a missing player is given to play their card before the Master is
+ * offered the chance to play the hand out for them. Much shorter than the grace
+ * window, because everyone else is sat watching a trick that cannot move.
+ */
+const STALL_MS = 10_000;
 /** How many command ids to remember for duplicate suppression. */
 const SEEN_LIMIT = 300;
 
@@ -42,6 +48,7 @@ class Room {
       graceMs = GRACE_MS,
       electionMs = ELECTION_TIMEOUT_MS,
       presenceMs = PRESENCE_TIMEOUT_MS,
+      stallMs = STALL_MS,
     }
   ) {
     this.state = state;
@@ -49,6 +56,10 @@ class Room {
     this.graceMs = graceMs;
     this.electionMs = electionMs;
     this.presenceMs = presenceMs;
+    this.stallMs = stallMs;
+    /** Timer watching a trick that a missing player is holding up. */
+    this.stallTimer = null;
+    this.stallFor = null;
     /** playerId -> when we last heard from that phone */
     this.lastSeen = new Map();
 
@@ -196,6 +207,8 @@ class Room {
       this.electionTimer = null;
     }
 
+    this._watchForStall();
+
     // Re-saved on a correction too: the record is written once on completion,
     // so without this a score fixed after the final round would be right on
     // screen and wrong in the history for good.
@@ -206,6 +219,37 @@ class Room {
         console.error('[blob] could not save history', err.message);
       });
     }
+  }
+
+  /**
+   * Watch a trick that a missing player is holding up.
+   *
+   * Armed whenever it is a disconnected player's turn, cancelled the moment the
+   * turn moves on or they come back. When it fires the reducer only records that
+   * the hand has stalled — the Master is offered the choice, and nothing is
+   * played on anyone's behalf until they take it.
+   */
+  _watchForStall() {
+    const round = game.currentRound(this.state);
+    const turnId = this.state.phase === 'playing' && round && round.trick ? round.trick.turnId : null;
+    const player = turnId ? game.findPlayer(this.state, turnId) : null;
+    const skipping = Boolean(round && round.autoPlay && round.autoPlay[turnId]);
+    // Once the offer is on the Master's screen there is nothing left to wait for.
+    const alreadyOffered = Boolean(round && round.stalledPlayerId === turnId);
+    const waitingOn = player && !player.connected && !skipping && !alreadyOffered ? turnId : null;
+
+    if (this.stallFor === waitingOn) return; // already watching the right person
+    if (this.stallTimer) clearTimeout(this.stallTimer);
+    this.stallTimer = null;
+    this.stallFor = waitingOn;
+    if (!waitingOn) return;
+
+    this.stallTimer = setTimeout(() => {
+      this.stallTimer = null;
+      this.stallFor = null;
+      this.dispatch({ type: 'trick/stalled', playerId: waitingOn }, { actorId: null });
+    }, this.stallMs);
+    if (this.stallTimer.unref) this.stallTimer.unref();
   }
 
   // ── Subscribers ────────────────────────────────────────────────────────────
