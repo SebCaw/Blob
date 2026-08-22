@@ -18,6 +18,47 @@ function crown() {
   return wrap;
 }
 
+/**
+ * Settings, drawn rather than set in type.
+ *
+ * The ⚙ character arrives as a system emoji — a different weight, a different
+ * colour, sometimes a different century — and sits in the topbar looking like it
+ * wandered in from another app. Same reasoning as the crown above.
+ */
+function cog() {
+  const wrap = h('span.icon', { 'aria-hidden': 'true' });
+  wrap.appendChild(
+    fragment(
+      '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" ' +
+        'stroke-width="2.4" stroke-linecap="round">' +
+        '<line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/>' +
+        '<circle cx="10" cy="8" r="2.6" fill="currentColor" stroke="none"/>' +
+        '<circle cx="15" cy="16" r="2.6" fill="currentColor" stroke="none"/>' +
+        '</svg>'
+    )
+  );
+  return wrap;
+}
+
+/**
+ * The wooden spoon: last place, once there are enough of you for it to be funny.
+ *
+ * Drawn for the same reason as the crown, and because no emoji spoon is wooden.
+ */
+export function woodenSpoon() {
+  const wrap = h('span.spoon', { 'aria-hidden': 'true' });
+  wrap.appendChild(
+    fragment(
+      '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+        '<ellipse cx="12" cy="6.6" rx="4.6" ry="5.4" fill="#b8813f"/>' +
+        '<ellipse cx="12" cy="6.2" rx="2.9" ry="3.6" fill="#8f5f26"/>' +
+        '<rect x="10.4" y="10.4" width="3.2" height="11.4" rx="1.6" fill="#b8813f"/>' +
+        '</svg>'
+    )
+  );
+  return wrap;
+}
+
 /** Pieces that turn up on more than one screen. */
 
 /**
@@ -55,7 +96,7 @@ function settingsButton(ctx) {
         ctx.render();
       },
     },
-    h('span.icon-btn__glyph', { text: '⚙', 'aria-hidden': 'true' })
+    cog()
   );
 }
 
@@ -147,6 +188,17 @@ export function leaderboard(state, previousOrder = [], options = {}) {
   // gold medals for a 0-0-0 table reads as a bug, so plain numbers until the
   // scores actually separate.
   const allLevel = state.leaderboard.every((entry) => entry.total === state.leaderboard[0].total);
+
+  /*
+   * The wooden spoon goes to whoever is bottom — but only at a table of four or
+   * more, where being last is a running joke rather than simply losing, and only
+   * once the scores have separated. Ties share it: if two of you are bottom, two
+   * of you are bottom.
+   */
+  const bigEnough = state.leaderboard.length >= 4;
+  const lowest = state.leaderboard.length ? state.leaderboard[state.leaderboard.length - 1].total : 0;
+  const spoonFor = (entry) => bigEnough && !allLevel && entry.total === lowest;
+
   return h(
     'div.board',
     state.leaderboard.map((entry, index) => {
@@ -154,6 +206,7 @@ export function leaderboard(state, previousOrder = [], options = {}) {
       const climbed = was > index && was !== -1;
       const you = state.you && state.you.id === entry.id;
       const gained = options.hideDelta ? null : entry.roundScore;
+      const spooned = spoonFor(entry);
 
       return h(
         'div',
@@ -161,15 +214,22 @@ export function leaderboard(state, previousOrder = [], options = {}) {
           className: [
             'board-row',
             entry.rank <= 3 && !allLevel ? `board-row--${entry.rank}` : '',
+            spooned ? 'board-row--spoon' : '',
             you ? 'board-row--you' : '',
             climbed ? 'board-row--climbed' : '',
           ]
             .filter(Boolean)
             .join(' '),
         },
-        h('div.board-row__rank', {
-          text: entry.rank <= 3 && !allLevel ? medals[entry.rank - 1] : String(entry.rank),
-        }),
+        spooned
+          ? h(
+              'div.board-row__rank',
+              { 'aria-label': `${entry.name}, last with the wooden spoon` },
+              woodenSpoon()
+            )
+          : h('div.board-row__rank', {
+              text: entry.rank <= 3 && !allLevel ? medals[entry.rank - 1] : String(entry.rank),
+            }),
         h('div.board-row__name', { text: entry.name + (you ? ' (you)' : '') }),
         gained !== null && gained !== undefined
           ? h('div', {

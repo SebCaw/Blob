@@ -1,6 +1,7 @@
 import { h } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { cardFace, cardBack } from '../cards.js';
+import { fragment } from '../ui.js';
 
 /**
  * How to play — shown, and asked about.
@@ -344,12 +345,25 @@ function askView(ctx) {
     h(
       'div.chat__compose',
       input,
-      h('button.chat__send', { type: 'button', 'aria-label': 'Send', text: '➤', onClick: () => say(ctx.ui.helpDraft) })
+      h('button.chat__send', { type: 'button', 'aria-label': 'Send', onClick: () => say(ctx.ui.helpDraft) }, sendArrow())
     )
   );
 }
 
 let thinkTimer = null;
+
+/** Drawn, not typed — an arrow character is a different weight on every phone. */
+function sendArrow() {
+  const wrap = h('span.icon', { 'aria-hidden': 'true' });
+  wrap.appendChild(
+    fragment(
+      '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+        '<path d="M3 20 L21 12 L3 4 L5.4 12 Z" fill="currentColor"/>' +
+        '</svg>'
+    )
+  );
+  return wrap;
+}
 
 /**
  * Find the best answer for what was typed.

@@ -2524,3 +2524,36 @@ ul {
   font-family: inherit;
   cursor: pointer;
 }
+
+/* Drawn icons, sized to the button rather than to a font. */
+.icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+
+.icon svg { width: 100%; height: 100%; display: block; }
+
+/* -- The wooden spoon ------------------------------------------------------ */
+.spoon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 30px;
+  margin: 0 auto;
+  animation: spoon-in 420ms var(--ease-pop) both;
+}
+
+.spoon svg { width: 100%; height: 100%; display: block; }
+
+/* Bottom of a table of four or more. Marked, but not shouted at: a wooden spoon
+   is a joke among friends, so the row is tinted rather than alarmed. */
+.board-row--spoon {
+  background: rgba(184, 129, 63, 0.14);
+  border-color: rgba(184, 129, 63, 0.4);
+}
+
+@keyframes spoon-in {
+  from { opacity: 0; transform: rotate(-24deg) scale(0.7); }
+}
