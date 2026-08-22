@@ -114,10 +114,12 @@ so laying them out and looking is the only honest test.
 behind, so it cannot end up fighting the stylesheet rule holding a card at rest, or the lift
 that follows it. It runs once per round, keyed on `game id + round index`.
 
-**The layout is responsive first; zoom is only the player's preference.** Card sizes, seat
-badges and the table typography are `clamp(phone, Nvmin, cap)`, so a bigger screen gets a
-bigger design rather than the phone design blown up. `vmin` deliberately: a tall narrow
-screen must not get wide cards.
+**A bigger screen gets a bigger layout, not bigger type.** The table spreads and the column
+widens, but card sizes, seat badges and the table typography are **fixed pixels**, so the
+smallest setting is the size Blob has always been drawn at on every device. Scaling them
+with the viewport was tried and reverted: it made the default quietly bigger than the design
+it came from. How big the type should be is the player's call, not the screen's — that is
+what the size setting is for.
 
 **The table is a shape, not a column.** `.table` is the space going spare; `.table__ring`
 inside it takes the largest square-ish area that fits and centres in what is left, and
