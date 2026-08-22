@@ -157,17 +157,26 @@ class Rooms {
     // Everyone else, in the order they originally joined — carried in with
     // the same name, so the new lobby reads like a continuation, not a
     // stranger's game. A no-phone player has no session to hand out; they
-    // travel with the Master exactly as they did the first time.
+    // travel with the Master exactly as they did the first time, and so do the
+    // bots, which live on the server and are always here.
     for (const p of roster) {
       if (p.id === actorId) continue;
       // An offline player is added BY the Master ('player/addOffline' checks
       // that), so it needs the new game's fresh Master id here, not null —
       // unlike 'player/join', which anyone may do unauthenticated.
-      const command = p.isOffline ? { type: 'player/addOffline', name: p.name } : { type: 'player/join', name: p.name };
+      // A bot is added by the Master in the same way, and comes back at the same
+      // level. Its private seed is minted fresh, so a rematch is not the same
+      // bot with the same habits — it plays the new game its own way.
+      const managed = p.isOffline || p.isBot;
+      const command = p.isBot
+        ? { type: 'player/addBot', name: p.name, level: p.botLevel }
+        : p.isOffline
+        ? { type: 'player/addOffline', name: p.name }
+        : { type: 'player/join', name: p.name };
       const outcome = await created.room.dispatch(command, {
-        actorId: p.isOffline ? created.player.id : null,
+        actorId: managed ? created.player.id : null,
       });
-      if (!outcome.ok || p.isOffline) continue;
+      if (!outcome.ok || managed) continue;
       const newPlayer = outcome.result.player;
       sessions.set(p.id, {
         gameId: created.room.state.id,

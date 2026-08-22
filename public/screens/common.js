@@ -63,8 +63,14 @@ export function woodenSpoon() {
 
 /**
  * The slim bar at the top of every in-game screen.
+ *
+ * `left` replaces the title outright, for a screen with something more useful
+ * to put in the corner your eye goes to first. The playing screen uses it for
+ * the trump card: which suit is trumps decides every card you play, and a round
+ * number does not.
+ *
  * @param {object} state
- * @param {{title?:string, right?:Node|Node[]}} [options]
+ * @param {{title?:string, left?:Node, right?:Node|Node[]}} [options]
  */
 export function topbar(state, options = {}) {
   const title =
@@ -72,7 +78,7 @@ export function topbar(state, options = {}) {
     (state.round ? `Round ${state.round.number} of ${state.round.totalRounds}` : 'Lobby');
   return h(
     'div.topbar',
-    h('div.topbar__title', { text: title }),
+    options.left || h('div.topbar__title', { text: title }),
     h(
       'div.topbar__right',
       options.right || null,
@@ -168,6 +174,7 @@ export function playerRow(player, state, options = {}) {
 
 function defaultStatus(player) {
   if (player.left) return { text: 'Left', kind: 'gone' };
+  if (player.isBot) return { text: 'Bot', kind: 'bot' };
   if (player.inRound === false) return { text: `In from round ${player.joinsAtRound || '?'}`, kind: 'offline' };
   if (player.skipped) return { text: 'Being played for', kind: 'gone' };
   if (player.isOffline) return { text: 'On Master phone', kind: 'offline' };

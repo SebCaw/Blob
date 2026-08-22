@@ -2592,3 +2592,108 @@ html[data-size='huge'] .bid__current {
 @keyframes spoon-in {
   from { opacity: 0; transform: rotate(-24deg) scale(0.7); }
 }
+
+/* -- Trumps, in the corner ------------------------------------------------- */
+/* The turned card itself, where the round number used to be. A pill reading
+   "♠ TRUMPS" on the right was missed constantly — it sat next to the game code
+   and the settings button, and at that size the four pips are near enough the
+   same shape. The suit decides every card you play, so it gets the corner. */
+.card-face--xs { --w: 30px; border-radius: 6px; border-width: 1.5px; }
+
+.trump-corner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 201, 60, 0.16);
+  border: 1.5px solid rgba(255, 201, 60, 0.5);
+  color: var(--gold);
+  flex: 0 0 auto;
+}
+
+.trump-corner__card { box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); }
+
+.trump-corner__text {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1;
+}
+
+.trump-corner__suit { font-size: 19px; }
+.trump-corner--red .trump-corner__suit { color: var(--pink); }
+
+.trump-corner__label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.trump-corner--none {
+  gap: 4px;
+  padding: 5px 11px;
+  color: var(--ink-faint);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.chip--round { color: var(--ink-faint); }
+
+/* Your own trumps, marked. Which suit is trumps is the one thing you have to
+   carry in your head all hand; re-reading four small pips every turn is exactly
+   the work this app exists to take off you. */
+.hand__card--trump {
+  border-color: var(--gold);
+  box-shadow: var(--lift-sm) rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(255, 201, 60, 0.35);
+}
+
+/* -- Bots ------------------------------------------------------------------ */
+.state--bot {
+  color: var(--ink-dark);
+  background: var(--cyan);
+}
+
+.seat__badge--bot {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgba(55, 224, 255, 0.3);
+}
+
+/* Picking a level. Four rows rather than a slider: they are not points on a
+   scale to be nudged between, they are four different opponents. */
+.levels {
+  display: grid;
+  gap: 8px;
+}
+
+.level {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+.level:active { transform: translateY(1px); }
+.level[disabled] { opacity: 0.45; cursor: default; }
+.level__name { font-weight: 900; font-size: 15px; }
+.level__blurb { font-size: 13px; color: var(--ink-faint); }
+
+.btn--tiny {
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  flex: 0 0 auto;
+}

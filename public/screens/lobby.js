@@ -36,9 +36,18 @@ export function lobbyScreen(ctx) {
         h('span.eyebrow', { text: plural(state.players.length, 'player', 'players') }),
         h('span.eyebrow', { text: `${state.startHandSize} cards to start` })
       ),
-      h('ul.players', state.players.map((player) => playerRow(player, state, { status: lobbyStatus(player) })))
+      h(
+        'ul.players',
+        state.players.map((player) =>
+          playerRow(player, state, {
+            status: lobbyStatus(player),
+            trailing: isMaster && player.isBot ? dropBot(ctx, player) : null,
+          })
+        )
+      )
     ),
     isMaster && !online ? offlineAdder(ctx) : null,
+    isMaster && online ? botAdder(ctx) : null,
     isMaster ? handSizeControl(ctx) : null,
     h('div.spacer'),
     isMaster ? masterActions(ctx) : waitingNote(state),
@@ -50,6 +59,7 @@ export function lobbyScreen(ctx) {
 }
 
 function lobbyStatus(player) {
+  if (player.isBot) return { text: BOT_LEVELS[player.botLevel] ? BOT_LEVELS[player.botLevel].name : 'Bot', kind: 'bot' };
   if (player.isOffline) return { text: 'No phone', kind: 'offline' };
   if (!player.connected) return { text: 'Away', kind: 'gone' };
   return { text: 'Here', kind: 'in' };
@@ -263,6 +273,91 @@ function offlineAdder(ctx) {
       ctx.ui.addingOffline = true;
       ctx.render();
     },
+  });
+}
+
+/**
+ * The four settings, and what the lobby says about each.
+ *
+ * Deliberately vague about HOW any of them plays. A blurb that gave the game
+ * away — "always leads trumps" — would hand you the way to beat it, and the
+ * whole point of the personas in `lib/bot.js` is that you cannot read one off.
+ */
+const BOT_LEVELS = {
+  easy: { name: 'Easy', blurb: 'Still learning. Kind to a beginner.' },
+  medium: { name: 'Medium', blurb: 'Plays a sensible hand.' },
+  hard: { name: 'Hard', blurb: 'Pays attention. Hard to shake off.' },
+  impossible: { name: 'Impossible', blurb: 'You have been warned.' },
+};
+const BOT_ORDER = ['easy', 'medium', 'hard', 'impossible'];
+
+/** Filling the empty seats. Online only — a bot has to be dealt a hand. */
+function botAdder(ctx) {
+  const full = typeof ctx.state.maxPlayers === 'number' && ctx.state.players.length >= ctx.state.maxPlayers;
+
+  if (!ctx.ui.addingBot) {
+    return h('button.btn.btn--ghost', {
+      text: '+ Add a bot',
+      type: 'button',
+      disabled: full,
+      onClick: () => {
+        ctx.ui.addingBot = true;
+        ctx.render();
+      },
+    });
+  }
+
+  const add = async (level) => {
+    const sent = await ctx.send({ type: 'player/addBot', level });
+    if (!sent) return;
+    // Left open on purpose: two bots is the common ask, and closing after each
+    // one would mean finding this button again.
+    ctx.render();
+  };
+
+  return h(
+    'div.card',
+    h('div.eyebrow', { text: 'Add a bot' }),
+    h('p.muted', {
+      style: { 'font-size': '14px', margin: '6px 0 10px' },
+      text: 'It gets dealt a hand like everybody else, and it only sees what you see.',
+    }),
+    h(
+      'div.levels',
+      BOT_ORDER.map((level) =>
+        h(
+          'button.level',
+          { type: 'button', disabled: full, onClick: () => add(level) },
+          h('span.level__name', { text: BOT_LEVELS[level].name }),
+          h('span.level__blurb', { text: BOT_LEVELS[level].blurb })
+        )
+      )
+    ),
+    full
+      ? h('p.muted', { style: { 'font-size': '13px', 'margin-top': '10px' }, text: 'This table is full.' })
+      : null,
+    h(
+      'div.btn-row',
+      { style: { 'margin-top': '12px' } },
+      h('button.btn.btn--ghost.btn--small', {
+        text: 'Done',
+        type: 'button',
+        onClick: () => {
+          ctx.ui.addingBot = false;
+          ctx.render();
+        },
+      })
+    )
+  );
+}
+
+/** Changed your mind about one of them. */
+function dropBot(ctx, player) {
+  return h('button.btn--tiny', {
+    text: 'Remove',
+    type: 'button',
+    'aria-label': `Remove ${player.name}`,
+    onClick: () => ctx.send({ type: 'player/remove', playerId: player.id }),
   });
 }
 

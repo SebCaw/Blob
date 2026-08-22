@@ -36,7 +36,7 @@ export const isRed = (suit) => RED.includes(suit);
  * One card, face up.
  *
  * @param {string} cardId
- * @param {{size?:'sm'|'md'|'lg', className?:string, onClick?:Function, index?:number,
+ * @param {{size?:'xs'|'sm'|'md'|'lg', className?:string, onClick?:Function, index?:number,
  *          state?:'playable'|'blocked'|null, ring?:'win'|'turn'|null, crown?:boolean}} [options]
  */
 export function cardFace(cardId, options = {}) {

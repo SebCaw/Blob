@@ -140,7 +140,16 @@ const ANSWERS = [
   {
     ask: 'What are trumps?',
     words: ['trump', 'trumps', 'boss', 'suit'],
-    reply: 'Blob turns over one card at the start. That shape is trumps. Any trump beats any other shape, even an ace.',
+    reply:
+      'Blob turns over one card at the start. That shape is trumps, and it sits in the top left corner all hand. ' +
+      'Any trump beats any other shape, even an ace. Your own trumps have a gold edge on them.',
+  },
+  {
+    ask: 'Can I play against the computer?',
+    words: ['bot', 'bots', 'computer', 'robot', 'ai', 'on my own', 'alone', 'by myself'],
+    reply:
+      'Yes. Whoever made the game can add bots before it starts, from Easy up to Impossible. They get dealt a hand ' +
+      'like everybody else and they only see what you see — no peeking at your cards.',
   },
   {
     ask: 'How do points work?',

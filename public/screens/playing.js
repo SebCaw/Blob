@@ -1,6 +1,6 @@
 import { h, initials, buzz, reducedMotion } from '../ui.js';
 import { topbar } from './common.js';
-import { cardFace, cardBack, trickPile, sortHand, trumpBadge, suitName } from '../cards.js';
+import { cardFace, cardBack, trickPile, sortHand, suitName, suitGlyph, parseCard } from '../cards.js';
 import { uiZoom } from '../size.js';
 
 /**
@@ -63,8 +63,17 @@ const DEAL_MS = 520;
 const DEAL_STAGGER_MS = 150;
 const DEAL_TOTAL_MAX_MS = 1900;
 
-/** How long a finished trick stays on the table before it is cleared away. */
-const TRICK_HOLD_MS = 1700;
+/**
+ * The beat between one trick and the next: the cards sit there long enough to
+ * be read, then slide over to whoever won them.
+ *
+ * Sweeping them is what makes the winner unmistakable. A trick that simply
+ * vanished left people asking who had taken it; cards travelling to a seat
+ * answers that without a word, and doubles as the pause before the next lead.
+ */
+const TRICK_HOLD_MS = 1250;
+const SWEEP_MS = 460;
+const SWEEP_STAGGER_MS = 45;
 
 /** The round whose deal has already been animated, so it happens once. */
 let dealtFor = null;
@@ -101,8 +110,10 @@ export function playingScreen(ctx) {
     holdingTrick = trickKey;
     clearTimeout(holdTimer);
     holdTimer = setTimeout(() => {
-      clearedTrick = trickKey;
-      ctx.render();
+      sweepTrick(round.lastTrick.winnerId, () => {
+        clearedTrick = trickKey;
+        ctx.render();
+      });
     }, TRICK_HOLD_MS);
   }
 
@@ -114,7 +125,7 @@ export function playingScreen(ctx) {
 
   const screen = h(
     'div.screen.screen--fixed.playing',
-    topbar(state, { right: trumpBadge(round), ctx }),
+    topbar(state, { left: trumpCorner(round), right: roundChip(round), ctx }),
     forehead ? h('p.forehead-note', { text: 'Everyone can see your card. You cannot.' }) : null,
     table(ctx, ordered, trick, round, forehead, you, holding),
     statusBar(ctx, you, trick, round),
@@ -138,6 +149,50 @@ export function playingScreen(ctx) {
     if (firstPaintOfRound) dealAnimation(screen, ordered, you);
   });
   return screen;
+}
+
+/**
+ * Trumps, in the corner your eye lands on first — and as the actual card that
+ * was turned, not a word for it.
+ *
+ * This used to be a small pill on the right reading "♠ TRUMPS", and it was
+ * missed constantly: it was competing with the game code and the settings
+ * button, and a pip at that size is four almost-identical shapes. The turned
+ * card is the thing everybody was already looking for, so it goes where the
+ * round number used to be — the round number matters once a hand, the trump
+ * suit matters on every single card you play.
+ */
+function trumpCorner(round) {
+  if (round.noTrumps) {
+    return h(
+      'div.trump-corner.trump-corner--none',
+      h('span.trump-corner__label', { text: 'NO' }),
+      h('span.trump-corner__label', { text: 'TRUMPS' })
+    );
+  }
+  if (!round.trumpSuit) return null;
+  const red = round.trumpSuit === 'H' || round.trumpSuit === 'D';
+  return h(
+    'div',
+    {
+      className: `trump-corner${red ? ' trump-corner--red' : ''}`,
+      'aria-label': `${suitName(round.trumpSuit)} are trumps`,
+    },
+    round.trumpCard ? cardFace(round.trumpCard, { size: 'xs', className: 'trump-corner__card' }) : null,
+    h(
+      'div.trump-corner__text',
+      h('span.trump-corner__suit', { text: suitGlyph(round.trumpSuit), 'aria-hidden': 'true' }),
+      h('span.trump-corner__label', { text: 'TRUMPS', 'aria-hidden': 'true' })
+    )
+  );
+}
+
+/** The round number, which the trump card displaced. */
+function roundChip(round) {
+  return h('span.chip.chip--round.tabular', {
+    text: `${round.number}/${round.totalRounds}`,
+    'aria-label': `Round ${round.number} of ${round.totalRounds}`,
+  });
 }
 
 /** The oval, the seats round it, and whatever is on it. */
@@ -265,10 +320,15 @@ function seat(ctx, player, options) {
 
   return h(
     'div',
-    { className: classes, style: options.style },
+    { className: classes, style: options.style, 'data-player-id': player.id },
     h(
       'div.seat__who',
-      h('div.seat__badge', { text: options.you ? 'YOU' : initials(player.name) }, player.isMaster ? h('span.seat__crown', { text: '♔' }) : null),
+      h(
+        'div.seat__badge',
+        { className: player.isBot ? 'seat__badge seat__badge--bot' : 'seat__badge' },
+        h('span', { text: options.you ? 'YOU' : initials(player.name) }),
+        player.isMaster ? h('span.seat__crown', { text: '♔' }) : null
+      ),
       // Your own badge already says YOU, so the name under it would be saying it
       // twice in a place where every pixel is spoken for.
       options.crowded || options.you ? null : h('div.seat__name', { text: player.name }),
@@ -357,6 +417,7 @@ function hand(ctx, you, trick, round, forehead) {
   const cards = sortHand(you.hand || []);
   const playable = new Set(you.playable || []);
   const yourTurn = Boolean(you.yourTurn);
+  const trumpSuit = round.trumpSuit || null;
 
   return h(
     'div',
@@ -365,7 +426,11 @@ function hand(ctx, you, trick, round, forehead) {
       cardFace(cardId, {
         size: 'lg',
         index,
-        className: 'hand__card',
+        // Marked in the hand as well as on the table. Which suit is trumps is
+        // the one thing you have to hold in your head all hand, and reading it
+        // off four small pips every turn is exactly the sort of work the app is
+        // supposed to be doing for you.
+        className: `hand__card${trumpSuit && parseCard(cardId).suit === trumpSuit ? ' hand__card--trump' : ''}`,
         state: yourTurn ? (playable.has(cardId) ? 'playable' : 'blocked') : null,
         onClick: () => play(ctx, cardId, yourTurn, playable),
       })
@@ -546,6 +611,72 @@ function fitHand(screen) {
   const gaps = cards.length - 1;
   const overlap = (available - cards.length * cardWidth) / gaps / zoom;
   hand.style.setProperty('--fan-overlap', `${Math.min(overlap, -14)}px`);
+}
+
+/**
+ * The finished trick slides over to whoever won it.
+ *
+ * Cards moving to a seat say who took the trick better than any label does, and
+ * the travel time doubles as the reset beat between one trick and the next —
+ * the pause a real table gets for free while somebody gathers the cards up.
+ *
+ * `done` runs whichever way this goes, so a browser without the Web Animations
+ * API, a reduced-motion setting, or a screen that changed underneath still ends
+ * up with a cleared table. Play must never wait on an animation.
+ */
+function sweepTrick(winnerId, done) {
+  const table = document.querySelector('.playing .table__ring');
+  if (!table || reducedMotion()) return done();
+
+  const cards = [...table.querySelectorAll('.seat__card')];
+  const target = table.querySelector(`.seat[data-player-id="${winnerId}"]`);
+  if (!cards.length || !target || typeof cards[0].animate !== 'function') return done();
+
+  const to = target.getBoundingClientRect();
+  const zoom = uiZoom();
+  let last = null;
+
+  cards.forEach((card, index) => {
+    const box = card.getBoundingClientRect();
+    if (!box.width) return;
+    // Measured on screen, moved inside the zoomed subtree — so the distance has
+    // to come back out of the zoom, the same as the deal.
+    const dx = (to.left + to.width / 2 - (box.left + box.width / 2)) / zoom;
+    const dy = (to.top + to.height / 2 - (box.top + box.height / 2)) / zoom;
+    last = card.animate(
+      [
+        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) scale(0.6) rotate(4deg)`, opacity: 0 },
+      ],
+      {
+        duration: SWEEP_MS,
+        delay: index * SWEEP_STAGGER_MS,
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        fill: 'forwards',
+      }
+    );
+  });
+
+  const banner = table.querySelector('.won-banner');
+  if (banner && typeof banner.animate === 'function') {
+    banner.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: SWEEP_MS,
+      easing: 'ease-in',
+      fill: 'forwards',
+    });
+  }
+
+  if (!last) return done();
+  // A safety net as well as a callback: if the animation never settles because
+  // the screen went away underneath it, the table still gets cleared.
+  let cleared = false;
+  const finish = () => {
+    if (cleared) return;
+    cleared = true;
+    done();
+  };
+  last.finished.then(finish).catch(finish);
+  setTimeout(finish, SWEEP_MS + cards.length * SWEEP_STAGGER_MS + 300);
 }
 
 /**

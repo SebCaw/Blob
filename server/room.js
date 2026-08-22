@@ -1,6 +1,7 @@
 'use strict';
 
 const game = require('../lib/game');
+const bot = require('../lib/bot');
 const { viewFor, historyRecord } = require('../lib/view');
 const { makeId, makeToken, tokensMatch } = require('../lib/ids');
 
@@ -60,6 +61,9 @@ class Room {
     /** Timer watching a trick that a missing player is holding up. */
     this.stallTimer = null;
     this.stallFor = null;
+    /** Timer for the bot whose turn it is, and what it is waiting to do. */
+    this.botTimer = null;
+    this.botFor = null;
     /** playerId -> when we last heard from that phone */
     this.lastSeen = new Map();
 
@@ -86,6 +90,10 @@ class Room {
      * the same way every other authenticated action here works.
      */
     this.rematchSessions = null;
+
+    // A room restored from disk mid-hand may already be waiting on a bot, and
+    // nothing has changed to trigger `_afterChange`.
+    this._scheduleBotMove();
   }
 
   // ── Sessions ───────────────────────────────────────────────────────────────
@@ -116,7 +124,8 @@ class Room {
   sweepPresence(now = Date.now()) {
     const gone = [];
     for (const player of this.state.players) {
-      if (player.isOffline || !player.connected) continue;
+      // A bot has no phone to hear from, so it can never fail to answer.
+      if (player.isOffline || player.isBot || !player.connected) continue;
       const seen = this.lastSeen.get(player.id) || 0;
       if (now - seen <= this.presenceMs) continue;
 
@@ -208,6 +217,7 @@ class Room {
     }
 
     this._watchForStall();
+    this._scheduleBotMove();
 
     // Re-saved on a correction too: the record is written once on completion,
     // so without this a score fixed after the final round would be right on
@@ -250,6 +260,124 @@ class Room {
       this.dispatch({ type: 'trick/stalled', playerId: waitingOn }, { actorId: null });
     }, this.stallMs);
     if (this.stallTimer.unref) this.stallTimer.unref();
+  }
+
+  // ── Bots ────────────────────────────────────────────────────────────────
+
+  /**
+   * The one thing a bot owes the table right now, if anything.
+   *
+   * One at a time on purpose: each move is a command, every command re-runs
+   * this, and so three bots bid one after another rather than all at once.
+   */
+  _botOwing() {
+    const state = this.state;
+    if (state.mode !== 'online') return null;
+    const round = game.currentRound(state);
+    if (!round) return null;
+
+    if (state.phase === 'bidding' && !round.locked) {
+      const owing = game.roundPlayers(state, round).find((p) => p.isBot && !round.bids[p.id]);
+      if (owing) return { playerId: owing.id, kind: 'bid', at: `${round.index}` };
+    }
+    if (state.phase === 'playing' && round.trick) {
+      const turn = game.findPlayer(state, round.trick.turnId);
+      if (turn && turn.isBot) {
+        return {
+          playerId: turn.id,
+          kind: 'play',
+          at: `${round.index}:${round.trick.number}:${round.trick.plays.length}`,
+        };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Arm the timer for whichever bot is up.
+   *
+   * Same shape as `_watchForStall`: a key describing exactly what is owed, so a
+   * broadcast that changes nothing about whose turn it is leaves the timer
+   * alone rather than restarting the pause every time somebody's phone
+   * reconnects.
+   */
+  _scheduleBotMove() {
+    const owed = this._botOwing();
+    const key = owed ? `${owed.kind}:${owed.playerId}:${owed.at}` : null;
+    if (this.botFor === key) return;
+    if (this.botTimer) clearTimeout(this.botTimer);
+    this.botTimer = null;
+    this.botFor = key;
+    if (!owed) return;
+
+    const player = game.findPlayer(this.state, owed.playerId);
+    let delay = 900;
+    try {
+      delay = bot.thinkMs(this.viewFor(player.id), this._botSecret(player), owed.kind);
+    } catch {
+      /* a broken brain still gets a pause, and the fallback below still moves */
+    }
+    this.botTimer = setTimeout(() => {
+      this.botTimer = null;
+      this.botFor = null;
+      this._runBotMove(owed);
+    }, delay);
+    if (this.botTimer.unref) this.botTimer.unref();
+  }
+
+  /** Its own private settings — never sent anywhere. */
+  _botSecret(player) {
+    return { seed: player.botSeed || player.id, level: player.botLevel || 'medium' };
+  }
+
+  /**
+   * Take the move.
+   *
+   * The position is read again here rather than trusted from when the timer was
+   * set: somebody may have reconnected, been skipped, or played in the meantime.
+   *
+   * Everything is wrapped, and a brain that throws falls back to a legal card
+   * (or a bid of nothing). A bot that cannot decide must never be able to leave
+   * a table sat waiting — that is worse than a bad play.
+   */
+  _runBotMove(owed) {
+    const player = game.findPlayer(this.state, owed.playerId);
+    if (!player || !player.isBot) return;
+    const now = this._botOwing();
+    if (!now || now.playerId !== owed.playerId || now.kind !== owed.kind || now.at !== owed.at) {
+      this._scheduleBotMove();
+      return;
+    }
+
+    const view = this.viewFor(player.id);
+    const secret = this._botSecret(player);
+
+    if (owed.kind === 'bid') {
+      let value = 0;
+      try {
+        value = bot.chooseBid(view, secret);
+      } catch (err) {
+        console.error('[blob] bot could not bid', err.message);
+      }
+      const handSize = (view.round && view.round.handSize) || 0;
+      if (!Number.isInteger(value) || value < 0 || value > handSize) value = 0;
+      this.dispatch({ type: 'bid/submit', playerId: player.id, value }, { actorId: player.id });
+      return;
+    }
+
+    const playable = (view.you && view.you.playable) || [];
+    let cardId = null;
+    try {
+      cardId = bot.chooseCard(view, secret);
+    } catch (err) {
+      console.error('[blob] bot could not choose a card', err.message);
+    }
+    // A null card is right in the forehead round, where it is holding one card
+    // it is not allowed to see and the reducer plays it unnamed. Anywhere else
+    // it means the brain gave up, and any legal card beats a frozen table.
+    if (!cardId && playable.length > 1) cardId = playable[0];
+    const command = cardId ? { type: 'trick/play', cardId } : { type: 'trick/play' };
+    this.dispatch(command, { actorId: player.id });
   }
 
   // ── Subscribers ────────────────────────────────────────────────────────────
@@ -365,6 +493,10 @@ class Room {
 
   /** Stop every timer — called when the room is evicted. */
   dispose() {
+    if (this.botTimer) clearTimeout(this.botTimer);
+    this.botTimer = null;
+    if (this.stallTimer) clearTimeout(this.stallTimer);
+    this.stallTimer = null;
     this.graceTimers.forEach(clearTimeout);
     this.graceTimers.clear();
     if (this.electionTimer) clearTimeout(this.electionTimer);

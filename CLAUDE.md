@@ -8,7 +8,7 @@ have actually been made here.
 
 ```bash
 node server.js     # http://localhost:4100 — no build step, no install needed
-npm test           # node --test, 178 tests
+npm test           # node --test, 200 tests
 node --check <f>   # quick syntax check on a single file
 ```
 
@@ -39,11 +39,18 @@ must be **absent from the payload**, not merely hidden by the UI. Bid values whi
 is open, election votes, and — online — the cards in everyone else's hand already work this
 way. `test/server.test.js` asserts that neither a hidden bid nor a hand ever appears in
 anyone else's payload — those tests are load-bearing, and any new secret needs its
-equivalent.
+equivalent. A bot's private seed is one of those secrets and `test/bot.test.js`
+pins it.
 
 Hands are read through `handFor()` and nowhere else, and keys are left **out** rather than
 set to `null` when the viewer may not see them, so a secret cannot arrive as an
 empty-looking field that a later change quietly fills in.
+
+**2b. A bot is a client too.** It is driven from `viewFor(state, botId)` — the same
+redacted payload a phone gets — and `lib/bot.js` cannot reach `state` at all. That is
+what makes "Impossible" mean *thinks well* rather than *sees your hand*, and it is
+structural rather than a promise: if the payload does not carry it, no amount of skill
+in there can invent it. Never add a wider view "just for the bots".
 
 **3. The client draws what the server says.** `public/` holds no game logic and applies
 nothing optimistically: a bid that appeared to land and then did not would be far worse
@@ -168,6 +175,22 @@ overrides, so an oversized screen grows the page rather than scrolling inside it
 non-default size the page is allowed to scroll, because a Submit button that cannot be
 reached is worse than a screen that is not perfectly still.
 
+**Trumps live in the top-left corner, as the actual card.** It used to be a `♠ TRUMPS`
+pill on the right and it was missed constantly: it was competing with the game code and
+the settings button, and at that size the four pips are near enough the same shape. The
+turned card takes the corner and the round number moves to a chip, because the round
+matters once a hand and the trump suit matters on every card you play. Your own trumps
+carry a gold edge in the fan for the same reason.
+
+**A finished trick slides to whoever won it.** `sweepTrick()` animates every `.seat__card`
+to the winner's seat before the table is cleared, which is why seats carry
+`data-player-id`. It says who took the trick better than a label does and doubles as the
+reset beat between tricks. `TRICK_HOLD_MS` was shortened to pay for it, so the whole beat
+is the length it always was. Like the deal it measures on screen and moves inside the
+zoomed subtree, so it divides by `uiZoom()`; and it calls `done` on every path — a
+browser with no Web Animations, reduced motion, or a screen that changed underneath must
+still end up with a cleared table.
+
 **Buzz for the three moments the game is waiting on you** — a new hand, your bid, your card
 — and nothing else. `[14, 70, 14]` for a hand starting, a single `12` for your turn to play.
 More than that and people stop noticing any of it.
@@ -182,7 +205,7 @@ via `data-focus-key`.
 Commands live in `HANDLERS` in `lib/game.js`. The current set:
 
 ```
-player/join  player/addOffline  player/remove
+player/join  player/addOffline  player/addBot  player/remove
 game/setHandSize  game/acknowledgeDeck  game/start  game/end  game/rematchStarted
 bid/submit  results/submit  results/amend  round/next
 trick/play  trick/stalled  trick/skipTurns
@@ -241,6 +264,22 @@ must be idempotent — a second tap is a no-op, not an error.
   won and stay visible in the rounds they played, but drop out of the leaderboard, the
   winners and every later deal. Coming back means joining again — a new seat, from the next
   hand, on nothing.
+- **A bot is a player, not a special case.** It sits in `state.players` with `isBot`,
+  `botLevel` and a private `botSeed`, so the deck limit, the hand-size ceiling, the round
+  roster, scoring and the history all treat it like anybody else. What it is NOT: a
+  candidate for Master (`eligibleForMaster`), something `conn/set` or `sweepPresence` can
+  mark away, or something the stall/skip machinery ever fires for. Adding a bot is
+  online-only and lobby-only.
+- **`server/room.js` drives the bots, one move at a time.** `_scheduleBotMove()` uses the
+  same key-and-timer shape as `_watchForStall`, so a broadcast that does not change whose
+  turn it is leaves the pause alone rather than restarting it. The position is read again
+  when the timer fires, and a brain that throws falls back to a legal card — a bot that
+  cannot decide must never be able to freeze a table.
+- **Three ways to play at every level, rechosen each round.** One policy per level is
+  readable after two hands. The persona lives only in `lib/bot.js`, is picked from
+  `botSeed + roundIndex`, and must never reach a view — which is also why the lobby
+  blurbs say nothing about method. `test/bot.test.js` measures that the levels actually
+  separate; if you change the play policy, re-run that.
 - **Correcting a scored round rebuilds every later running total.** `results/amend` does
   not patch in place; it recomputes from the bottom. A correction made after the game has
   finished also has to re-save the history record, which is written once on completion.
@@ -262,8 +301,14 @@ queue and can take 10–15 minutes.
 ## Testing
 
 `npm test` runs `node --test` over `test/`: the rules (round sequences, scoring, bid
-authority, corrections, elections, ties), the real HTTP and SSE surface, and the QR encoder
-against pinned reference output.
+authority, corrections, elections, ties), the real HTTP and SSE surface, the bots, and the
+QR encoder against pinned reference output.
+
+`test/bot.test.js` plays whole games through the reducer with the brain deciding, so an
+illegal choice surfaces as a refusal rather than as a bad hand months later. Bot strength
+is not asserted — it is noisy — but the ordering easy < medium < hard < impossible was
+measured over 80 five-seat games and should hold; a change to the play policy that
+inverts it is a bug, not a tuning preference.
 
 Anything touching scoring or the round structure needs tests before it ships — a wrong
 score is the one bug this app cannot afford, since settling arguments is its entire job.
