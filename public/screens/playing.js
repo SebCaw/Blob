@@ -261,7 +261,9 @@ function seat(ctx, player, options) {
     h(
       'div.seat__who',
       h('div.seat__badge', { text: options.you ? 'YOU' : initials(player.name) }, player.isMaster ? h('span.seat__crown', { text: '♔' }) : null),
-      options.crowded ? null : h('div.seat__name', { text: options.you ? 'You' : player.name }),
+      // Your own badge already says YOU, so the name under it would be saying it
+      // twice in a place where every pixel is spoken for.
+      options.crowded || options.you ? null : h('div.seat__name', { text: player.name }),
       h('div.seat__meta', {
         text: meta(player, options.forehead, options.crowded),
         title: meta(player, options.forehead, false),

@@ -1730,13 +1730,21 @@ ul {
 }
 
 /* Out of the seat's flow and offset toward the middle, so a seat stays the size
-   of the person sitting in it whether or not they have played. */
+   of the person sitting in it whether or not they have played.
+ 
+   The offset has to clear the seat itself, not just lean towards the middle: at
+   46px the card sat straight on top of the badge and the name for whoever was at
+   the bottom of the ring, which is always you. */
 .seat__card {
   position: absolute;
   left: 50%;
   top: 50%;
   margin: 0;
-  transform: translate(calc(-50% + var(--in-x, 0) * 46px), calc(-50% + var(--in-y, 1) * 46px));
+  transform: translate(calc(-50% + var(--in-x, 0) * 62px), calc(-50% + var(--in-y, 1) * 76px));
+}
+
+.table--crowded .seat__card {
+  transform: translate(calc(-50% + var(--in-x, 0) * 46px), calc(-50% + var(--in-y, 1) * 54px));
 }
 
 /* Once a seat is too narrow for a name, the initials in the badge carry it. */
