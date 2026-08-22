@@ -9,18 +9,27 @@
 
 /* -- Tokens ---------------------------------------------------------------- */
 :root {
+  /* The one number a game is themed by.
+ 
+     Every dark step and every tinted ink below is this hue at a FIXED lightness
+     and saturation, so a different game is a different colour and not a
+     different amount of contrast. Cards need a dark, low-saturation ground to
+     read against — that part does not get to vary. Set per game by
+     `applyGameTheme` in public/games.js; this is Blob's, and the fallback. */
+  --hue: 265;
+
   /* Night */
-  --night-900: #150826;
-  --night-800: #1e0d36;
-  --night-700: #2a1250;
-  --night-600: #371a63;
-  --night-500: #482579;
+  --night-900: hsl(var(--hue) 65% 9%);
+  --night-800: hsl(var(--hue) 61% 13%);
+  --night-700: hsl(var(--hue) 63% 19%);
+  --night-600: hsl(var(--hue) 58% 25%);
+  --night-500: hsl(var(--hue) 53% 31%);
 
   /* Ink */
   --ink: #ffffff;
-  --ink-soft: #c3aee6;
-  --ink-faint: #9b86c2;
-  --ink-dark: #1b0b33;
+  --ink-soft: hsl(var(--hue) 53% 79%);
+  --ink-faint: hsl(var(--hue) 33% 64%);
+  --ink-dark: hsl(var(--hue) 65% 12%);
 
   /* One loud accent, then supporting colour */
   --lime: #c8ff3d;
@@ -2829,4 +2838,83 @@ html[data-size='huge'] .bid__lead { display: none; }
 .toggle--on .toggle__knob {
   transform: translateX(22px);
   background: var(--lime);
+}
+
+/* -- The shelf ------------------------------------------------------------- */
+/* Pick a game. Each tile wears its OWN hue rather than the one the app is
+   currently dressed in, so you can see what you are choosing between — "the
+   purple one" and "the green one" is how people will ask for these long before
+   they remember which is called what. */
+.shelf__title {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 6px;
+}
+
+.shelf__list {
+  display: grid;
+  gap: 12px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  border: 2px solid hsl(var(--tile-hue) 55% 42%);
+  background: linear-gradient(
+    145deg,
+    hsl(var(--tile-hue) 58% 25%),
+    hsl(var(--tile-hue) 63% 16%)
+  );
+  color: var(--ink);
+  font-family: var(--font);
+  box-shadow: var(--lift) hsl(var(--tile-hue) 65% 11%);
+  cursor: pointer;
+}
+
+.tile:active { transform: translateY(3px); box-shadow: 0 2px 0 hsl(var(--tile-hue) 65% 11%); }
+
+.tile__name {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  color: var(--tile-accent);
+}
+
+.tile__tagline { font-size: 15px; color: var(--ink); }
+
+.tile__players {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+
+/* A game that does not exist yet says so. A tile promising one that never
+   arrives is worse than an empty shelf. */
+.tile--soon {
+  opacity: 0.55;
+  border-style: dashed;
+  box-shadow: none;
+  cursor: default;
+}
+
+.tile--soon:active { transform: none; }
+
+.tile__soon {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 2px;
 }

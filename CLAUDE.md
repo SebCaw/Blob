@@ -62,6 +62,27 @@ stops. It is a lobby setting rather than anything scored, only the Master can ch
 and a refusal puts it straight back. Do not widen this exception without the same
 reasoning.
 
+## More than one game
+
+`public/games.js` is the shelf: one row per game, and the row IS the definition —
+name, hue, accent, whether it is ready. `screens/shelf.js` renders them and is the front
+door; picking one calls `ctx.openGame(id)`, which puts that game's colours on and moves to
+its own front page. Anything arriving with a destination — a scanned code, a shared link,
+a game already in progress — skips the shelf in `boot()`, because nobody being handed a
+code should have to pick a game first.
+
+**A game gets a hue, not a palette.** `--hue` in `:root` rotates the whole dark ground,
+and every step keeps its lightness and saturation — so a green game has exactly the
+contrast the purple one does, in the same dim pub, with no screen redesigned. Verified:
+purple `rgb(20, 8, 38)` and green `rgb(8, 38, 22)` are the same three numbers permuted.
+Cards need a dark, low-saturation ground to read against, and that part does not get to
+vary; a bright green background with playing cards on it is worse than no theme at all.
+The accent moves with the hue, because an accent sitting close to its own background has
+stopped being one.
+
+Do not hand-pick a second set of hex values for a new game. If a game needs more than a
+hue to look right, the thing to fix is the design it is fighting, not the token list.
+
 ## UI conventions
 
 **Steppers patch the DOM in place. They never re-render.** Rebuilding a screen under the

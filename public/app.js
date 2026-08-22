@@ -5,6 +5,8 @@ import { keepAwake, releaseWake } from './wake.js';
 import { applySize, currentSize } from './size.js';
 import { play as sound } from './sound.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
+import { shelfScreen } from './screens/shelf.js';
+import { applyGameTheme } from './games.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
 import { playingScreen } from './screens/playing.js';
@@ -42,7 +44,12 @@ const SOLO_BOTS = 3;
 const SOLO_LEVEL = 'medium';
 
 const ui = {
-  route: 'home',
+  // The shelf is the front door now that there is more than one game behind it.
+  // Everything that arrives with a destination — a code, a link, a game already
+  // in progress — skips it in `boot()`.
+  route: 'shelf',
+  /** Which game the app is currently wearing. */
+  game: 'blob',
   name: lastName(),
   code: '',
   handSize: 7,
@@ -105,6 +112,13 @@ const ctx = {
   },
   render,
   toast,
+  /** Open a game from the shelf: put its colours on, then its front page. */
+  openGame(id) {
+    ui.game = id;
+    applyGameTheme(id);
+    ui.route = 'home';
+    render();
+  },
   go(route) {
     ui.route = route;
     if (route === 'history') ui.historyList = undefined;
@@ -414,6 +428,7 @@ net.on('gone', (error) => {
 function pickScreen() {
   if (ui.pendingCode) return switchGameScreen(ctx);
   if (ui.route === 'history') return historyScreen(ctx);
+  if (!state && ui.route === 'shelf') return shelfScreen(ctx);
   if (!state || ui.route !== 'game') return welcomeScreen(ctx);
   // Handing the phone to someone else outranks the phase. Their bid is often
   // the one that locks the round, and without this the phone would jump
@@ -440,6 +455,7 @@ function pickScreen() {
 function screenKey() {
   if (ui.pendingCode) return 'switch';
   if (ui.route === 'history') return `history:${ui.historyRecord ? 'one' : 'list'}`;
+  if (!state && ui.route === 'shelf') return 'shelf';
   if (!state || ui.route !== 'game') return `welcome:${ui.route}`;
   if (ui.takeover) return 'takeover';
   return `game:${state.phase}:${ui.correcting ? 'fix' : ''}`;
@@ -606,8 +622,10 @@ window.addEventListener('unhandledrejection', (event) => {
 // -- Boot --------------------------------------------------------------------
 
 function boot() {
-  // Before the first paint, so nobody sees the default size flash past.
+  // Both before the first paint, so nobody sees the default size or the default
+  // colours flash past.
   applySize(currentSize());
+  applyGameTheme(ui.game);
 
   // A scanned QR or a shared link lands on /?c=4827 with the code filled in.
   const params = new URLSearchParams(location.search);

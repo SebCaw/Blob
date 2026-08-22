@@ -75,6 +75,17 @@ function wordmark() {
  */
 function homeView(ctx) {
   return shell(
+    // Back to the shelf. Small, because most of the time you are here to play
+    // the game you just picked, not to pick a different one.
+    h(
+      'div.topbar',
+      h('button.btn.btn--link', {
+        text: '‹ All games',
+        type: 'button',
+        style: { 'text-decoration': 'none', 'min-height': '44px' },
+        onClick: () => ctx.go('shelf'),
+      })
+    ),
     h(
       'div.stack.center.home-hero',
       mascot('idle', { size: 'lg', label: 'Blob, the mascot' }),
