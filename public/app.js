@@ -63,9 +63,13 @@ const ui = {
   confettiShownFor: null,
   /** The settings sheet, which can be opened from any screen in a game. */
   settingsOpen: false,
-  /** How to play, and which step of it. */
+  /** How to play: which step, which tab, and the conversation so far. */
   helpOpen: false,
   helpStep: 0,
+  helpTab: 'steps',
+  helpChat: null,
+  helpDraft: '',
+  helpThinking: false,
 };
 
 let state = null;
@@ -269,6 +273,8 @@ function resetGameView() {
   ui.settingsOpen = false;
   ui.helpOpen = false;
   ui.helpStep = 0;
+  ui.helpChat = null;
+  ui.helpDraft = '';
   releaseWake();
 }
 
@@ -302,9 +308,14 @@ net.on('state', (next) => {
 
   const startingRound = next.phase === 'bidding' && (roundChanged || lastPhase === null || lastPhase === 'lobby');
 
-  // Online, the table is waiting on you and the phone may be face down on the
-  // arm of a chair. One short buzz the moment the turn arrives, and only then.
+  /*
+   * The phone buzzes for the three moments it is waiting on you, and for
+   * nothing else — a new hand, your bid, your card. Anything more and people
+   * stop noticing it, which defeats the point.
+   */
   const wasYourTurn = Boolean(state && state.you && state.you.yourTurn);
+  if (startingRound) buzz([14, 70, 14]); // a new hand, for everybody
+  else if (next.phase === 'bidding' && next.you && !next.you.hasSubmitted && phaseChanged) buzz([14, 70, 14]);
   if (next.phase === 'playing' && next.you && next.you.yourTurn && !wasYourTurn) buzz(12);
 
   // The Master has started a rematch, and it isn't the one we (as Master)

@@ -3,23 +3,42 @@ import { mascot } from '../mascot.js';
 import { cardFace, cardBack } from '../cards.js';
 
 /**
- * How to play, one idea at a time.
+ * How to play — shown, and asked about.
+ *
+ * Two ways in, because people learn differently: step through the pictures, or
+ * ask Blob a question and get an answer back.
+ *
+ * The words are deliberately small. Somebody being taught this game is often a
+ * child at a kitchen table, so a sentence is short, a word is common, and the
+ * jargon is introduced rather than assumed: a trick is explained before it is
+ * used, and trumps is called the boss shape first.
  *
  * An overlay rather than a screen, for the same reason settings is: the moment
  * somebody needs the rules is usually the middle of a hand, and coming back to
  * exactly where you were matters more than the URL being tidy.
  *
- * Each step draws its own little picture with the real card components, so the
- * ace of spades you are shown here is the ace of spades you will be dealt. The
- * pictures animate on arrival because every step is built fresh — there is no
- * animation state to keep in step with anything.
+ * Each step draws its own picture with the real card components, so the cards
+ * shown here are the cards you will be dealt. The pictures animate on arrival
+ * because every step is built fresh — there is no animation state to keep in
+ * step with anything, forwards or backwards.
  */
 
 const STEPS = [
   {
-    title: 'Say what you will win',
-    body:
-      'Every hand you say how many tricks you think you will take. Get it exactly right and you score. Take one too many and you get nothing — that is the blob.',
+    title: 'Everyone puts down one card',
+    body: 'The best card wins all of them. That is called a trick. Winning tricks is the whole game.',
+    art: () =>
+      h(
+        'div.help-art.help-art--trick',
+        cardFace('7S', { size: 'md', className: 'help-card', index: 0 }),
+        cardFace('KS', { size: 'md', className: 'help-card help-card--winner', index: 1, ring: 'win', crown: true }),
+        cardFace('4S', { size: 'md', className: 'help-card', index: 2 }),
+        h('span.help-note', { text: 'The king is biggest. It wins this trick.' })
+      ),
+  },
+  {
+    title: 'Guess how many you will win',
+    body: 'Before you play, say how many tricks you think you will win. Guess right and you get points.',
     art: () =>
       h(
         'div.help-art.help-art--say',
@@ -28,27 +47,9 @@ const STEPS = [
       ),
   },
   {
-    title: 'The hands count down, then back up',
-    body:
-      'Start with seven cards each, then six, then five, all the way to one — and back up again. Thirteen hands in all, and the short ones are the hardest.',
-    art: () => {
-      const sizes = [7, 6, 5, 4, 3, 2, 1, 2, 3, 4, 5, 6, 7];
-      return h(
-        'div.help-art.help-art--rounds',
-        sizes.map((size, index) =>
-          h('span.help-pip', {
-            style: { height: `${(size / 7) * 100}%`, '--i': String(index) },
-            'aria-hidden': 'true',
-          })
-        )
-      );
-    },
-  },
-  {
-    title: 'One suit is trumps',
-    body:
-      'After the deal, the next card off the deck is turned over. Whatever suit it is, that suit beats everything else for the whole hand.',
-    art: (round) =>
+    title: 'One shape is the boss',
+    body: 'Blob turns over a card. That shape is called trumps. A trump beats every other shape, even a big one.',
+    art: () =>
       h(
         'div.help-art.help-art--trumps',
         h('div.help-deck', { 'aria-hidden': 'true' }, h('span'), h('span')),
@@ -57,70 +58,58 @@ const STEPS = [
       ),
   },
   {
-    title: 'Everyone bids at once',
-    body:
-      'You choose your number in private and it is locked in. Nobody sees anybody else’s bid until all of them are in — so nobody can wait and see.',
+    title: 'Everyone guesses at once',
+    body: 'You pick your number in secret. Nobody sees it until everybody has picked. No peeking.',
     art: () =>
       h(
         'div.help-art.help-art--bids',
-        ['?', '?', '?'].map((_, index) =>
-          h('span.help-bid', { style: { '--i': String(index) } }, h('span.help-bid__face', { text: ['1', '0', '2'][index] }))
+        ['1', '0', '2'].map((value, index) =>
+          h('span.help-bid', { style: { '--i': String(index) } }, h('span.help-bid__face', { text: value }))
         )
       ),
   },
   {
-    title: 'Follow the suit that was led',
-    body:
-      'If you have a card of the suit that was led, you must play one. Only when you have none of it can you play anything — including a trump.',
+    title: 'Play the same shape',
+    body: 'If a spade is played first, you must play a spade too. Only if you have none can you play anything else.',
     art: () =>
       h(
         'div.help-art.help-art--follow',
-        h('span.help-led', { text: '♠ led' }),
+        h('span.help-led', { text: '♠ played first' }),
         h(
           'div.help-hand',
           cardFace('4S', { size: 'md', state: 'playable', className: 'help-card' }),
           cardFace('KS', { size: 'md', state: 'playable', className: 'help-card' }),
           cardFace('AH', { size: 'md', state: 'blocked', className: 'help-card' })
         ),
-        h('span.help-note', { text: 'Blob lifts the cards you are allowed to play.' })
+        h('span.help-note', { text: 'Blob lifts up the cards you are allowed to play.' })
       ),
   },
   {
-    title: 'Highest card takes the trick',
-    body:
-      'Highest of the suit led wins it — unless somebody played a trump, and then the highest trump wins. The winner leads the next one.',
-    art: () =>
-      h(
-        'div.help-art.help-art--trick',
-        cardFace('7S', { size: 'md', className: 'help-card', index: 0 }),
-        cardFace('KS', { size: 'md', className: 'help-card', index: 1 }),
-        cardFace('2H', { size: 'md', className: 'help-card help-card--winner', index: 2, ring: 'win', crown: true }),
-        h('span.help-note', { text: 'The two of hearts wins it — hearts are trumps.' })
-      ),
-  },
-  {
-    title: 'Exactly right, or nothing',
-    body:
-      'Hit your bid and you score ten plus the tricks you won. Miss it by any amount, over or under, and you score nothing at all.',
+    title: 'Get it right, get points',
+    body: 'Said 2 and won 2? Lots of points. Said 2 and won 3? No points at all. That is a blob.',
     art: () =>
       h(
         'div.help-art.help-art--score',
-        h(
-          'div.help-score.help-score--made',
-          h('span', { text: 'Bid 2 · won 2' }),
-          h('span.help-score__points', { text: '+12' })
-        ),
-        h(
-          'div.help-score.help-score--missed',
-          h('span', { text: 'Bid 2 · won 3' }),
-          h('span.help-score__points', { text: '0' })
-        )
+        h('div.help-score.help-score--made', h('span', { text: 'Said 2 · won 2' }), h('span.help-score__points', { text: '+12' })),
+        h('div.help-score.help-score--missed', h('span', { text: 'Said 2 · won 3' }), h('span.help-score__points', { text: '0' }))
       ),
   },
   {
-    title: 'And then there is one card each',
-    body:
-      'In the one-card hand you hold your card against your forehead: everybody can see it except you. Bid nought or one, and good luck.',
+    title: 'The cards go down, then up',
+    body: 'You get 7 cards, then 6, then 5, all the way down to 1. Then it climbs back up again.',
+    art: () => {
+      const sizes = [7, 6, 5, 4, 3, 2, 1, 2, 3, 4, 5, 6, 7];
+      return h(
+        'div.help-art.help-art--rounds',
+        sizes.map((size, index) =>
+          h('span.help-pip', { style: { height: `${(size / 7) * 100}%`, '--i': String(index) }, 'aria-hidden': 'true' })
+        )
+      );
+    },
+  },
+  {
+    title: 'The silly one',
+    body: 'When you get one card, you hold it on your head. Everybody can see it except you!',
     art: () =>
       h(
         'div.help-art.help-art--forehead',
@@ -130,21 +119,100 @@ const STEPS = [
   },
 ];
 
+/**
+ * What Blob knows how to answer.
+ *
+ * Matched on words rather than parsed: somebody typing "whats trumps" and
+ * somebody typing "what is the boss shape again" want the same answer, and a
+ * list of words gets both without pretending to understand English.
+ *
+ * There is no cleverness behind this and it is not meant to look like there is —
+ * it answers the questions people actually ask at a kitchen table, and says so
+ * plainly when it does not know.
+ */
+const ANSWERS = [
+  {
+    ask: 'What is a trick?',
+    words: ['trick', 'tricks', 'what do i win'],
+    reply: 'Everyone puts down one card. The best card wins all of them — that is a trick. The winner starts the next one.',
+  },
+  {
+    ask: 'What are trumps?',
+    words: ['trump', 'trumps', 'boss', 'suit'],
+    reply: 'Blob turns over one card at the start. That shape is trumps. Any trump beats any other shape, even an ace.',
+  },
+  {
+    ask: 'How do points work?',
+    words: ['point', 'points', 'score', 'scoring', 'win the game'],
+    reply: 'You only score if you win exactly the number you said. Then you get 10 plus the tricks you won. So saying 2 and winning 2 is 12 points.',
+  },
+  {
+    ask: 'What is a blob?',
+    words: ['blob', 'zero', 'nothing', 'missed'],
+    reply: 'A blob is when you get your number wrong — too many or too few. You score nothing at all for that hand. That is where the name comes from.',
+  },
+  {
+    ask: 'Why can I not play that card?',
+    words: [
+      'cannot play', 'can not play', 'cant play', "can't play", 'let me play', 'wont let', "won't let",
+      'will not let', 'not let me', 'play my card', 'play that', 'grey', 'greyed', 'dark', 'stuck', 'follow',
+    ],
+    reply: 'You have to play the same shape that was played first, if you have one. Blob lifts up the cards you are allowed to play, and the rest go dark.',
+  },
+  {
+    ask: 'Can I change my bid?',
+    words: [
+      'change my bid', 'change bid', 'change my number', 'change number', 'change it', 'undo',
+      'wrong number', 'said the wrong', 'mistake', 'take it back',
+    ],
+    reply: 'No — once your number is in it is locked. That is what makes it fair, because nobody can wait and see what everyone else said.',
+  },
+  {
+    ask: 'Who goes first?',
+    words: ['who goes first', 'first', 'start', 'lead', 'my turn'],
+    reply: 'It moves round one seat every hand, so it is not always the same person. Whoever wins a trick starts the next one.',
+  },
+  {
+    ask: 'How many hands are there?',
+    words: ['how many', 'how long', 'rounds', 'hands', 'finish'],
+    reply: 'The cards count down and back up. Starting at 7 that is 13 hands: 7, 6, 5, 4, 3, 2, 1, then 2, 3, 4, 5, 6, 7.',
+  },
+  {
+    ask: 'What is the Master?',
+    words: ['master', 'crown', 'host', 'in charge'],
+    reply: 'The Master is whoever started the game. They deal the next hand and sort things out if somebody drops off. The crown shows who it is.',
+  },
+  {
+    ask: 'What if someone leaves?',
+    words: ['leave', 'left', 'quit', 'disconnect', 'phone died', 'gone', 'away'],
+    reply: 'Blob waits a moment, then the Master can play that hand for them, and let them go at the end of it. They can come back any time — they just start again on nothing.',
+  },
+  {
+    ask: 'What is the one card hand?',
+    words: ['one card', 'forehead', 'head', 'silly', 'last hand'],
+    reply: 'You hold your one card on your forehead. Everybody can see it except you, so you are guessing from their faces. It is the best one.',
+  },
+  {
+    ask: 'Do we need real cards?',
+    words: ['real cards', 'no cards', 'deck', 'online', 'need cards'],
+    reply: 'Real cards are better, and Blob will just keep the score. If you have none, pick Online on the front page and Blob deals for you.',
+  },
+];
+
+/** The questions offered as taps, so nobody has to think of one. */
+const SUGGESTED = [0, 1, 2, 4];
+
 export function helpOverlay(ctx) {
   if (!ctx.ui.helpOpen) return null;
+  const asking = ctx.ui.helpTab === 'ask';
 
-  const index = Math.min(Math.max(ctx.ui.helpStep || 0, 0), STEPS.length - 1);
-  const step = STEPS[index];
-  const first = index === 0;
-  const last = index === STEPS.length - 1;
-
-  const goTo = (next) => {
-    ctx.ui.helpStep = next;
-    ctx.render();
-  };
   const close = () => {
     ctx.ui.helpOpen = false;
     ctx.ui.helpStep = 0;
+    ctx.render();
+  };
+  const switchTo = (tab) => {
+    ctx.ui.helpTab = tab;
     ctx.render();
   };
 
@@ -152,41 +220,158 @@ export function helpOverlay(ctx) {
     'div.help',
     { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'How to play' },
     h(
-      'div.help__panel',
+      'div',
+      { className: `help__panel${asking ? ' help__panel--ask' : ''}` },
       h(
         'div.help__head',
-        h('span.help__eyebrow', { text: `How to play · ${index + 1} of ${STEPS.length}` }),
+        h(
+          'div.help__tabs',
+          { role: 'tablist' },
+          tab('Show me', !asking, () => switchTo('steps')),
+          tab('Ask Blob', asking, () => switchTo('ask'))
+        ),
         h('button.icon-btn', { type: 'button', 'aria-label': 'Close', onClick: close }, h('span.icon-btn__glyph', { text: '✕' }))
       ),
-      // Keyed on the step so the browser builds a new subtree each time and the
-      // arrival animations run again, forwards or backwards.
-      h('div.help__stage', { 'data-step': String(index) }, step.art()),
-      h(
-        'div.help__words',
-        h('h2.help__title', { text: step.title }),
-        h('p.help__body', { text: step.body })
-      ),
-      h(
-        'div.help__dots',
-        { 'aria-hidden': 'true' },
-        STEPS.map((_, i) => h('span', { className: `help__dot${i === index ? ' help__dot--on' : ''}` }))
-      ),
-      h(
-        'div.help__nav',
-        h('button.btn.btn--ghost', {
-          text: 'Back',
-          type: 'button',
-          disabled: first,
-          onClick: () => goTo(index - 1),
-        }),
-        h('button.btn.btn--primary', {
-          text: last ? 'Got it' : 'Next',
-          type: 'button',
-          onClick: () => (last ? close() : goTo(index + 1)),
-        })
-      )
+      asking ? askView(ctx) : stepsView(ctx, close)
     )
   );
+}
+
+function tab(label, on, onClick) {
+  return h('button', {
+    className: `help__tab${on ? ' help__tab--on' : ''}`,
+    type: 'button',
+    role: 'tab',
+    'aria-selected': on ? 'true' : 'false',
+    text: label,
+    onClick,
+  });
+}
+
+// ── Show me ──────────────────────────────────────────────────────────────────
+
+function stepsView(ctx, close) {
+  const index = Math.min(Math.max(ctx.ui.helpStep || 0, 0), STEPS.length - 1);
+  const step = STEPS[index];
+  const last = index === STEPS.length - 1;
+
+  const goTo = (next) => {
+    ctx.ui.helpStep = next;
+    ctx.render();
+  };
+
+  return h(
+    'div.help__body-wrap',
+    h('div.help__stage', { 'data-step': String(index) }, step.art()),
+    h('div.help__words', h('h2.help__title', { text: step.title }), h('p.help__body', { text: step.body })),
+    h(
+      'div.help__dots',
+      { 'aria-hidden': 'true' },
+      STEPS.map((_, i) => h('span', { className: `help__dot${i === index ? ' help__dot--on' : ''}` }))
+    ),
+    h(
+      'div.help__nav',
+      h('button.btn.btn--ghost', { text: 'Back', type: 'button', disabled: index === 0, onClick: () => goTo(index - 1) }),
+      h('button.btn.btn--primary', {
+        text: last ? 'Got it' : 'Next',
+        type: 'button',
+        onClick: () => (last ? close() : goTo(index + 1)),
+      })
+    ),
+    h('p.help__step-count', { text: `${index + 1} of ${STEPS.length}` })
+  );
+}
+
+// ── Ask Blob ─────────────────────────────────────────────────────────────────
+
+/** The first thing Blob says, before anybody has asked anything. */
+const GREETING = { from: 'blob', text: 'Ask me anything about the game. Tap one below if you like.' };
+
+function askView(ctx) {
+  const thread = ctx.ui.helpChat && ctx.ui.helpChat.length ? ctx.ui.helpChat : [GREETING];
+
+  const say = (question) => {
+    const asked = String(question || '').trim();
+    if (!asked) return;
+    ctx.ui.helpChat = [...thread, { from: 'you', text: asked }];
+    ctx.ui.helpDraft = '';
+    ctx.ui.helpThinking = true;
+    ctx.render();
+
+    // A beat before the reply. An instant answer reads as a lookup table, which
+    // is what it is — but the pause is what makes it feel like being answered.
+    clearTimeout(thinkTimer);
+    thinkTimer = setTimeout(() => {
+      ctx.ui.helpThinking = false;
+      ctx.ui.helpChat = [...(ctx.ui.helpChat || []), { from: 'blob', text: answerFor(asked) }];
+      ctx.render();
+    }, 520);
+  };
+
+  const input = h('input.input.chat__input', {
+    type: 'text',
+    value: ctx.ui.helpDraft || '',
+    placeholder: 'Ask a question…',
+    maxlength: '120',
+    'aria-label': 'Ask a question about the game',
+    'data-focus-key': 'help-ask',
+    enterkeyhint: 'send',
+    onInput: (event) => {
+      ctx.ui.helpDraft = event.target.value;
+    },
+    onKeyDown: (event) => {
+      if (event.key === 'Enter') say(ctx.ui.helpDraft);
+    },
+  });
+
+  return h(
+    'div.help__body-wrap.chat',
+    h(
+      'div.chat__thread',
+      thread.map((message) =>
+        h('div', { className: `chat__row chat__row--${message.from}` }, h('span.chat__bubble', { text: message.text }))
+      ),
+      ctx.ui.helpThinking
+        ? h('div.chat__row.chat__row--blob', h('span.chat__bubble.chat__bubble--typing', { 'aria-label': 'Blob is typing' }, h('i'), h('i'), h('i')))
+        : null
+    ),
+    h(
+      'div.chat__chips',
+      SUGGESTED.map((i) =>
+        h('button.chat__chip', { type: 'button', text: ANSWERS[i].ask, onClick: () => say(ANSWERS[i].ask) })
+      )
+    ),
+    h(
+      'div.chat__compose',
+      input,
+      h('button.chat__send', { type: 'button', 'aria-label': 'Send', text: '➤', onClick: () => say(ctx.ui.helpDraft) })
+    )
+  );
+}
+
+let thinkTimer = null;
+
+/**
+ * Find the best answer for what was typed.
+ *
+ * Scored on how many of an answer's words turn up, so a long question still
+ * lands on the right one. No match is a plain "I do not know that one" rather
+ * than a guess — a wrong answer about the rules is worse than no answer.
+ */
+function answerFor(question) {
+  const asked = question.toLowerCase();
+  let best = null;
+  let bestScore = 0;
+  for (const entry of ANSWERS) {
+    let score = 0;
+    for (const word of entry.words) if (asked.includes(word)) score += word.length;
+    if (score > bestScore) {
+      bestScore = score;
+      best = entry;
+    }
+  }
+  if (best) return best.reply;
+  return 'I do not know that one, sorry. Try asking about trumps, points, whose turn it is, or what a blob is — or have a look at Show me.';
 }
 
 /** The way in, from the front page and from settings. */
@@ -198,6 +383,7 @@ export function helpButton(ctx, options = {}) {
     onClick: () => {
       ctx.ui.helpOpen = true;
       ctx.ui.helpStep = 0;
+      ctx.ui.helpTab = 'steps';
       ctx.render();
     },
   });

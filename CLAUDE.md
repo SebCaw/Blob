@@ -148,6 +148,16 @@ short, and a screen that must not scroll cannot be scaled by its width alone.
 scheduled that way, so a backgrounded phone runs them when it comes back. Do not put
 anything load-bearing behind one without that being fine.
 
+**Ask Blob is a lookup table, not a model.** `screens/help.js` scores a typed question
+against word lists and replies with a written answer, with a short pause so being answered
+feels like being answered. There is no backend and no key, and it works with no signal. If
+nothing matches it says so — a wrong answer about the rules is worse than no answer, so
+never make the fallback guess.
+
+**Buzz for the three moments the game is waiting on you** — a new hand, your bid, your card
+— and nothing else. `[14, 70, 14]` for a hand starting, a single `12` for your turn to play.
+More than that and people stop noticing any of it.
+
 **`h()` in `public/ui.js` takes text, never markup.** `text:` sets `textContent`; there is
 no way to inject HTML, which is what keeps a player called `<script>` uninteresting.
 Props starting with `on` become `addEventListener`. Inputs keep their focus across renders
