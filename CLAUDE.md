@@ -154,6 +154,20 @@ feels like being answered. There is no backend and no key, and it works with no 
 nothing matches it says so — a wrong answer about the rules is worse than no answer, so
 never make the fallback guess.
 
+**On the bidding screen the hand outranks the pad.** Your cards are what you are reading
+while you decide; the pad is a keypad and a keypad does not need half the glass. So `.peek`
+is weighted above `.pad` and has a floor, `.pad` is capped against the viewport, and at the
+larger size settings the pad sheds its captions — the question and the box showing your
+choice both repeat what the pad and the Submit button already say. Controls stay, captions
+go.
+
+Two traps to know: a percentage `max-height` needs a definite parent, and a flex item has
+none — `max-height: 46%` on `.pad` silently did nothing, so it is `calc(Ndvh /
+var(--ui-zoom))` instead. And `.screen--fixed` sets a height that `flex: 1` on `.screen`
+overrides, so an oversized screen grows the page rather than scrolling inside itself; at a
+non-default size the page is allowed to scroll, because a Submit button that cannot be
+reached is worse than a screen that is not perfectly still.
+
 **Buzz for the three moments the game is waiting on you** — a new hand, your bid, your card
 — and nothing else. `[14, 70, 14]` for a hand starting, a single `12` for your turn to play.
 More than that and people stop noticing any of it.

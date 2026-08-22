@@ -171,6 +171,22 @@ ul {
   overflow: hidden;
 }
 
+html[data-size] .screen--fixed {
+  overflow-y: auto;
+}
+
+/* At the largest setting the pad sheds its labels.
+ 
+   "How many tricks?" and the box showing your choice are both saying what the
+   pad and the Submit button already say — and somebody who has asked for the
+   biggest cards has told us plainly what they want the room spent on. Controls
+   stay, captions go. */
+html[data-size='large'] .bid__question,
+html[data-size='huge'] .bid__question,
+html[data-size='huge'] .bid__current {
+  display: none;
+}
+
 .screen--scroll {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -726,7 +742,7 @@ ul {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
 }
 
@@ -750,7 +766,7 @@ ul {
 }
 
 .bid__question {
-  font-size: clamp(19px, 5.4vw, 24px);
+  font-size: clamp(16px, 4.4vw, 20px);
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -762,7 +778,7 @@ ul {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  min-height: 66px;
+  min-height: 44px;
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.06);
   border: 2px dashed rgba(255, 255, 255, 0.18);
@@ -784,7 +800,7 @@ ul {
 }
 
 .bid__current-value {
-  font-size: 40px;
+  font-size: 30px;
   font-weight: 900;
   line-height: 1;
   color: var(--lime);
@@ -810,6 +826,16 @@ ul {
   /* Auto margins soak up whatever height is spare, so the pad sits in the
      middle of the screen and the actions stay on the bottom edge. */
   margin-block: auto;
+  /* Never more than its share of the screen. The cards in your hand are what
+     you are actually reading while you decide; the number pad is a keypad, and
+     a keypad does not need half the glass. Without this it grew with the size
+     setting until it pushed Submit clean off the bottom.
+ 
+     Measured against the viewport rather than the parent: a percentage height
+     needs a definite parent to resolve against, and a flex item has no such
+     thing — so `max-height: 46%` silently did nothing. The zoom is divided back
+     out for the same reason the screen heights are. */
+  max-height: calc(38dvh / var(--ui-zoom));
 }
 
 /* A round with no numbers above 2 has room to spare - spend it on the buttons. */
@@ -822,6 +848,7 @@ ul {
   flex-direction: column;
   gap: 8px;
   padding-top: 10px;
+  flex: 0 0 auto;
 }
 
 .pad__primary {
@@ -831,8 +858,8 @@ ul {
   /* Grows into the space going, but capped: a thumb-sized button is the point,
      a button the height of the screen just looks broken. */
   flex: 3 1 0;
-  min-height: 112px;
-  max-height: 220px;
+  min-height: 76px;
+  max-height: 168px;
 }
 
 .pad__rest {
@@ -849,10 +876,10 @@ ul {
 /* A 46px basis is what lets 3 to 7 sit on one row even on a 320px phone,
    while still growing to a comfortable size on a big one. */
 .pad__rest .bid-btn {
-  flex: 1 1 46px;
-  min-width: 46px;
+  flex: 1 1 40px;
+  min-width: 40px;
   max-width: 116px;
-  min-height: 54px;
+  min-height: 44px;
 }
 
 .pad__rest:empty {
@@ -875,7 +902,7 @@ ul {
 }
 
 .bid-btn--big {
-  font-size: clamp(40px, 13vw, 58px);
+  font-size: clamp(30px, 10vw, 44px);
 }
 
 .bid-btn--small {
@@ -1467,14 +1494,20 @@ ul {
 }
 
 /* Short phones: give the pad every pixel going. */
+/* A short phone has the least room of all, so the pad gives up the most: the
+   caption goes at every size, and what is left is sized to the thumb rather
+   than to the space. */
 @media (max-height: 700px) {
-  .bid__current { min-height: 52px; }
-  .bid__current-value { font-size: 30px; }
+  .bid__question { display: none; }
+  .bid__current { min-height: 44px; }
+  .bid__current-value { font-size: 26px; }
   .mascot-wrap { width: 78px; }
-  .pad__primary { max-height: 152px; }
-  .pad__rest .bid-btn { min-height: 48px; }
-  .bid-btn--big { font-size: clamp(32px, 11vw, 46px); }
+  .pad { max-height: calc(34dvh / var(--ui-zoom)); }
+  .pad__primary { max-height: 132px; min-height: 68px; }
+  .pad__rest .bid-btn { min-height: 42px; }
+  .bid-btn--big { font-size: clamp(28px, 9vw, 40px); }
   .pips { height: 16px; }
+  .peek { min-height: 84px; }
 }
 
 /* -- Reduced motion -------------------------------------------------------- */
@@ -1929,8 +1962,10 @@ ul {
   display: flex;
   justify-content: center;
   align-items: center;
-  flex: 1;
-  min-height: 0;
+  /* Weighted over the pad, with a floor: your cards are the thing you are
+     reading while you decide, so they are the last thing to give up space. */
+  flex: 3 1 auto;
+  min-height: 96px;
   gap: 2px;
   padding: 6px 0;
 }
