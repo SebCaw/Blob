@@ -12,6 +12,7 @@ import { summaryScreen } from './screens/summary.js';
 import { completeScreen } from './screens/complete.js';
 import { historyScreen } from './screens/history.js';
 import { electionOverlay } from './screens/election.js';
+import { settingsSheet } from './screens/settings.js';
 
 /**
  * The app shell: one state object from the server, one render, one screen.
@@ -59,6 +60,8 @@ const ui = {
   lobbyHandSize: null,
   /** The game whose win has already been celebrated, so it happens once. */
   confettiShownFor: null,
+  /** The settings sheet, which can be opened from any screen in a game. */
+  settingsOpen: false,
 };
 
 let state = null;
@@ -259,6 +262,7 @@ function resetGameView() {
   ui.correcting = false;
   ui.correction = null;
   ui.lobbyHandSize = null;
+  ui.settingsOpen = false;
   releaseWake();
 }
 
@@ -388,7 +392,7 @@ function render() {
   // had only just started playing it.
   if (arriving || Date.now() - enteredAt < ENTER_MS) screen.classList.add('screen--enter');
   const overlay = state ? electionOverlay(ctx) : null;
-  fill(root, screen, overlay);
+  fill(root, screen, overlay, settingsSheet(ctx));
 
   if (focusKey) {
     const restored = root.querySelector(`[data-focus-key="${focusKey}"]`);

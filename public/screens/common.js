@@ -35,8 +35,27 @@ export function topbar(state, options = {}) {
     h(
       'div.topbar__right',
       options.right || null,
-      state.code ? h('span.chip.chip--code', { text: state.code }) : null
+      state.code ? h('span.chip.chip--code', { text: state.code }) : null,
+      // Reachable from every screen in a game, because the moment you discover
+      // the cards are too small to read is the middle of a hand, not the lobby.
+      options.ctx ? settingsButton(options.ctx) : null
     )
+  );
+}
+
+/** The way in to settings, mid-game. */
+function settingsButton(ctx) {
+  return h(
+    'button.icon-btn',
+    {
+      type: 'button',
+      'aria-label': 'Settings',
+      onClick: () => {
+        ctx.ui.settingsOpen = true;
+        ctx.render();
+      },
+    },
+    h('span.icon-btn__glyph', { text: '⚙', 'aria-hidden': 'true' })
   );
 }
 

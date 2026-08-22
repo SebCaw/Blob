@@ -60,7 +60,7 @@ export function summaryScreen(ctx) {
 
   return h(
     'div.screen.screen--scroll',
-    topbar(state, { title: `Round ${round.number} done` }),
+    topbar(state, { title: `Round ${round.number} done`, ctx }),
     verdict(you),
     h(
       'div.stack.stack--tight',

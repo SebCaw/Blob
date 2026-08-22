@@ -70,12 +70,14 @@ export function uiZoom() {
  * No numbers and no words to read — which matters, because the person reaching
  * for this is the person who cannot comfortably read the screen yet.
  */
-export function sizeControl(ctx) {
+export function sizeControl(ctx, options = {}) {
   const current = currentSize();
   return h(
     'div.size',
     { role: 'group', 'aria-label': 'Text size' },
-    h('span.size__label', { text: 'Size' }),
+    // The settings sheet has already said what this is; saying it twice in a row
+    // is the sort of thing that makes a panel feel cluttered.
+    options.bare ? null : h('span.size__label', { text: 'Size' }),
     h(
       'div.size__options',
       SIZES.map((size) =>

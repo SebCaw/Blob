@@ -1,0 +1,48 @@
+import { h } from '../ui.js';
+import { sizeControl } from '../size.js';
+
+/**
+ * Settings, as a sheet over whatever you were doing.
+ *
+ * It lives over the top rather than as a screen of its own because the moment
+ * you want it is mid-hand — the cards are too small to read and the game is
+ * waiting on you. Nothing here touches the game: it is all about this device.
+ */
+export function settingsSheet(ctx) {
+  if (!ctx.ui.settingsOpen) return null;
+
+  const close = () => {
+    ctx.ui.settingsOpen = false;
+    ctx.render();
+  };
+
+  return h(
+    'div.sheet',
+    {
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-label': 'Settings',
+      // A tap on the dark surround closes it, the way every sheet does.
+      onClick: (event) => {
+        if (event.target.classList.contains('sheet')) close();
+      },
+    },
+    h(
+      'div.sheet__panel',
+      h(
+        'div.sheet__head',
+        h('span.sheet__title', { text: 'Settings' }),
+        h('button.icon-btn', { type: 'button', 'aria-label': 'Close settings', onClick: close }, h('span.icon-btn__glyph', { text: '✕' }))
+      ),
+      h(
+        'div.sheet__row',
+        h('span.sheet__label', { text: 'Card and text size' }),
+        sizeControl(ctx, { bare: true }),
+        h('p.sheet__hint', {
+          text: 'Takes effect straight away, and is remembered on this device.',
+        })
+      ),
+      h('button.btn.btn--ghost', { text: 'Done', type: 'button', onClick: close })
+    )
+  );
+}

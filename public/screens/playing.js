@@ -114,7 +114,7 @@ export function playingScreen(ctx) {
 
   const screen = h(
     'div.screen.screen--fixed.playing',
-    topbar(state, { right: trumpBadge(round) }),
+    topbar(state, { right: trumpBadge(round), ctx }),
     forehead ? h('p.forehead-note', { text: 'Everyone can see your card. You cannot.' }) : null,
     table(ctx, ordered, trick, round, forehead, you, holding),
     statusBar(ctx, you, trick, round),
@@ -179,15 +179,21 @@ function table(ctx, ordered, trick, round, forehead, you, holding) {
       className: `table${crowded || seatScale.value < 0.8 ? ' table--crowded' : ''}`,
       style: { '--seat-pct': String(widthPct), '--seat-scale': String(seatScale.value) },
     },
-    h('div.table__felt', { 'aria-hidden': 'true' }),
+    // Everything positioned sits inside the ring, so the percentages it is
+    // placed by are percentages of a shape rather than of whatever space
+    // happened to be left over.
     h(
-      'div.table__middle',
-      h('div.deck', { 'aria-hidden': 'true' }, h('span.deck__back'), h('span.deck__back')),
-      round.trumpCard ? cardFace(round.trumpCard, { size: 'sm', className: 'deck__trump' }) : null,
-      round.noTrumps ? h('span.deck__no-trumps', { text: 'no trumps' }) : null
-    ),
-    seatNodes,
-    wonBanner(ctx, trick, round, played)
+      'div.table__ring',
+      h('div.table__felt', { 'aria-hidden': 'true' }),
+      h(
+        'div.table__middle',
+        h('div.deck', { 'aria-hidden': 'true' }, h('span.deck__back'), h('span.deck__back')),
+        round.trumpCard ? cardFace(round.trumpCard, { size: 'sm', className: 'deck__trump' }) : null,
+        round.noTrumps ? h('span.deck__no-trumps', { text: 'no trumps' }) : null
+      ),
+      seatNodes,
+      wonBanner(ctx, trick, round, played)
+    )
   );
 }
 
@@ -416,7 +422,7 @@ function skipOffer(ctx) {
  * at most, and on the common counts none at all.
  */
 function fitSeats(screen) {
-  const table = screen.querySelector('.table');
+  const table = screen.querySelector('.table__ring');
   if (!table) return;
   const seats = [...table.querySelectorAll('.seat')];
   if (seats.length < 2) return;
@@ -463,7 +469,7 @@ function fitSeats(screen) {
  */
 function dealAnimation(screen, ordered, you) {
   if (reducedMotion() || !screen.isConnected) return;
-  const table = screen.querySelector('.table');
+  const table = screen.querySelector('.table__ring');
   const middle = screen.querySelector('.table__middle');
   const yourCards = [...screen.querySelectorAll('.hand__card')];
   if (!table || !middle || typeof middle.animate !== 'function') return;

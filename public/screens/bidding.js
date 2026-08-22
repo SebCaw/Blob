@@ -28,7 +28,7 @@ export function biddingScreen(ctx) {
 
   return h(
     'div.screen.screen--fixed',
-    topbar(state),
+    topbar(state, { ctx }),
     h(
       'div.bid',
       head(state),
@@ -98,7 +98,7 @@ function waitingToJoinView(ctx) {
   const state = ctx.state;
   return h(
     'div.screen.screen--scroll',
-    topbar(state),
+    topbar(state, { ctx }),
     h('div.spacer'),
     h(
       'div.stack.center',

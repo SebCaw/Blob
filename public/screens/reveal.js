@@ -19,7 +19,7 @@ export function revealScreen(ctx) {
 
   return h(
     'div.screen.screen--scroll',
-    topbar(state),
+    topbar(state, { ctx }),
     h(
       'div.center.stack.stack--tight',
       h('span.eyebrow', { text: 'Bids locked' }),

@@ -19,7 +19,7 @@ export function lobbyScreen(ctx) {
 
   return h(
     'div.screen.screen--scroll',
-    topbar(state, { title: 'Lobby' }),
+    topbar(state, { title: 'Lobby', ctx }),
     h('div.mode-strip', { className: online ? 'mode-strip--online' : '' },
       h('span.mode-strip__label', { text: online ? 'Blob is dealing' : 'You are dealing' }),
       h('span.mode-strip__note', {

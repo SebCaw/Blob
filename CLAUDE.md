@@ -114,6 +114,18 @@ so laying them out and looking is the only honest test.
 behind, so it cannot end up fighting the stylesheet rule holding a card at rest, or the lift
 that follows it. It runs once per round, keyed on `game id + round index`.
 
+**The layout is responsive first; zoom is only the player's preference.** Card sizes, seat
+badges and the table typography are `clamp(phone, Nvmin, cap)`, so a bigger screen gets a
+bigger design rather than the phone design blown up. `vmin` deliberately: a tall narrow
+screen must not get wide cards.
+
+**The table is a shape, not a column.** `.table` is the space going spare; `.table__ring`
+inside it takes the largest square-ish area that fits and centres in what is left, and
+everything positioned — seats, felt, deck, banner — is a percentage of the ring. Left as one
+stretched box it gave a tall empty oval with small pieces marooned on it. The playing screen
+also gets a wider `max-width` than the text screens, which stay narrow because a line of
+prose 800px wide is harder to read, not easier.
+
 **One knob scales the whole app.** `--ui-zoom` in `:root` is `--ui-base` (what the screen
 suggests — a phone gets 1, an iPad and a laptop more) times `--ui-step` (what the player
 chose, stored per device by `public/size.js`), applied as `zoom` on `#app`. Never enlarge a

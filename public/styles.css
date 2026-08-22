@@ -75,11 +75,7 @@ html[data-size='huge'] { --ui-step: 1.4; }
    a screen that must not scroll by its width alone pushes the hand off the
    bottom of it. */
 @media (min-width: 700px) and (min-height: 780px) {
-  :root { --ui-base: 1.2; }
-}
-
-@media (min-width: 1100px) and (min-height: 900px) {
-  :root { --ui-base: 1.35; }
+  :root { --ui-base: 1.06; }
 }
 
 /* -- Reset ----------------------------------------------------------------- */
@@ -1460,15 +1456,17 @@ ul {
   .peek__row { gap: 20px; }
 }
 
-/* The column widens with the glass. It is still a column — a card table spread
-   across a whole laptop screen would be a worse game, not a better one — but a
-   table of eight has room to breathe. */
+/* The column widens with the glass. Text screens stay narrow, because a line of
+   prose 800px wide is harder to read, not easier — but the table is a shape
+   rather than a column and wants the room. */
 @media (min-width: 700px) {
   .screen { max-width: 620px; }
+  .screen.playing { max-width: 900px; }
 }
 
 @media (min-width: 1100px) {
   .screen { max-width: 700px; }
+  .screen.playing { max-width: 1000px; }
 }
 
 /* Short phones: give the pad every pixel going. */
@@ -1596,9 +1594,9 @@ ul {
   flex: 0 0 auto;
 }
 
-.card-face--sm { --w: 42px; }
-.card-face--md { --w: 54px; }
-.card-face--lg { --w: 62px; }
+.card-face--sm { --w: clamp(42px, 6.4vmin, 76px); }
+.card-face--md { --w: clamp(54px, 8.2vmin, 98px); }
+.card-face--lg { --w: clamp(62px, 9.6vmin, 116px); }
 
 .card-face--red { color: var(--pink-deep); }
 .card-face--black { color: #211135; }
@@ -1648,19 +1646,36 @@ ul {
 /* -- The table ------------------------------------------------------------- */
 .playing { gap: 0; }
 
+/* The table is the space going spare; the ring inside it is a shape.
+ 
+   Left as one stretched box, a tall screen gave a tall empty oval with small
+   pieces marooned on it — everything scaled, nothing rearranged. The ring takes
+   the largest square-ish area that fits and sits in the middle of what is left,
+   so the seats stay evenly spaced round a circle at any screen size. */
 .table {
   position: relative;
   flex: 1;
   min-height: 190px;
   margin: 4px 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table__ring {
+  position: relative;
+  width: 100%;
+  max-width: min(100%, 760px);
+  max-height: 100%;
+  aspect-ratio: 1 / 0.92;
 }
 
 .table__felt {
   position: absolute;
   left: 50%;
   top: 45%;
-  width: 62%;
-  height: 46%;
+  width: 74%;
+  height: 62%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: radial-gradient(ellipse at 50% 35%, var(--night-600), var(--night-800) 70%);
@@ -1719,8 +1734,8 @@ ul {
 
 .seat__badge {
   position: relative;
-  width: 34px;
-  height: 34px;
+  width: clamp(34px, 5vmin, 60px);
+  height: clamp(34px, 5vmin, 60px);
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -1739,7 +1754,7 @@ ul {
 }
 
 .seat__name {
-  font-size: 13px;
+  font-size: clamp(13px, 1.9vmin, 20px);
   font-weight: 800;
   max-width: 100%;
   overflow: hidden;
@@ -1747,7 +1762,7 @@ ul {
   white-space: nowrap;
 }
 
-.seat__meta { font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
+.seat__meta { font-size: clamp(11px, 1.6vmin, 17px); color: var(--ink-faint); white-space: nowrap; }
 
 /* Lime ring: waiting on them. Never used for anything else on this screen. */
 .seat--turn .seat__badge {
@@ -1812,10 +1827,10 @@ ul {
   color: var(--ink-faint);
 }
 
-.playbar__bid-value { font-size: 22px; font-weight: 900; color: var(--ink); }
+.playbar__bid-value { font-size: clamp(22px, 3.2vmin, 34px); font-weight: 900; color: var(--ink); }
 
 .playbar__turn { text-align: center; }
-.playbar__turn-name { display: block; font-size: 15px; font-weight: 900; }
+.playbar__turn-name { display: block; font-size: clamp(15px, 2.2vmin, 24px); font-weight: 900; }
 .playbar__turn--you .playbar__turn-name { color: var(--lime); }
 .playbar__follow { display: block; font-size: 12px; color: var(--ink-faint); }
 
@@ -2097,4 +2112,88 @@ ul {
 .size__btn--on {
   background: var(--lime);
   color: var(--ink-dark);
+}
+
+/* -- Settings, over the top of whatever you were doing ---------------------- */
+.icon-btn {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink-soft);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.icon-btn__glyph { font-size: 17px; line-height: 1; }
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(9, 3, 18, 0.66);
+  animation: sheet-in 160ms ease both;
+}
+
+.sheet__panel {
+  width: min(100%, 520px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px var(--pad) calc(env(safe-area-inset-bottom) + 24px);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--night-800);
+  border-top: 2px solid rgba(255, 255, 255, 0.1);
+  animation: sheet-up 220ms var(--ease-pop) both;
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sheet__title {
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.sheet__row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sheet__label {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.sheet__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+@keyframes sheet-in {
+  from { opacity: 0; }
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(28px); }
 }
