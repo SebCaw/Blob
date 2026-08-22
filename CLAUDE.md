@@ -101,9 +101,20 @@ must be idempotent — a second tap is a no-op, not an error.
 
 - **Add new client modules to `SHELL` in `public/sw.js`.** Caching is network-first so a
   miss is survivable, but the shell should list every module.
-- **Leaving a running game is one-way.** `leaveGame()` clears the session and
-  `player/join` refuses once a game has started, so there is no way back in. Anything that
-  discards a session mid-game needs to ask first.
+- **Leaving a running game is one-way.** `leaveGame()` clears the session, and round a
+  table `player/join` refuses once the game has started, so there is no way back in.
+  Anything that discards a session mid-game needs to ask first. (Online a *new* player can
+  join a game in progress — but a player who left has lost their seat either way.)
+- **A round remembers who was in it.** Someone joining an online game mid-hand cannot be
+  dealt into a hand already being played, so `round.playerIds` records the seats that were
+  dealt and they sit that one out. Read it through `roundPlayers(state, round)`, never
+  `state.players`, anywhere inside a round: bidding, the play order, and scoring all use
+  the roster. A round without `playerIds` — every table round — is everybody, so nothing
+  about the original game changed shape.
+- **A latecomer never shrinks the hand.** Joining before the off trims `startHandSize` to
+  what the deck can deal; joining after it does not, because the people already holding
+  cards would lose one. Instead the join is refused when the deck cannot stretch to the
+  biggest hand still to come.
 - **A player's seat is worth keeping until it is replaced.** Do not clear a session on the
   way to joining a different game — only once the new join has landed.
 - **A one-card round still has trumps.** No-trumps only happens when a deal consumes the

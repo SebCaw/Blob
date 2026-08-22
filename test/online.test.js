@@ -535,3 +535,158 @@ test('a table game says nothing about cards at all', () => {
   assert.equal(view.you.hand, undefined);
   assert.equal(view.players[0].cardsHeld, null);
 });
+
+// ── Joining a game already under way ─────────────────────────────────────────
+
+test('a latecomer is dealt in from the next hand, on nothing', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 4);
+  state = bidOneEach(state, ctxf);
+  state = playRound(state, ctxf);
+
+  const joined = ok(state, { type: 'player/join', name: 'Ali' }, null, ctxf);
+  state = joined.state;
+  const ali = joined.result.player;
+
+  assert.equal(state.players.length, 4);
+  assert.equal(ali.total, 0, 'everyone starts on nothing');
+  assert.equal(ali.joinsAtRound, 1, 'in from round two');
+  assert.equal(game.currentRound(state).hands[ali.id], undefined, 'not dealt into the hand just played');
+
+  state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  const round = game.currentRound(state);
+  assert.equal(round.hands[ali.id].length, 3, 'dealt in properly from here');
+  assert.deepEqual(round.playerIds.sort(), state.players.map((p) => p.id).sort());
+});
+
+test('a latecomer does not shrink anybody"s hand', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah'], 12);
+  const before = game.currentRound(state).handSize;
+  state = bidOneEach(state, ctxf);
+  state = playRound(state, ctxf);
+  state = ok(state, { type: 'player/join', name: 'Sol' }, null, ctxf).state;
+  state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+
+  assert.equal(state.startHandSize, 12, 'the starting hand size is left alone');
+  assert.equal(before, 12);
+  assert.equal(game.currentRound(state).handSize, 11, 'the sequence counts down as it always would');
+  for (const player of state.players) assert.equal(game.currentRound(state).hands[player.id].length, 11);
+});
+
+test('the hand already being played carries on without the newcomer', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  // Ali arrives with one bid already down — mid-round is the awkward case.
+  const first = state.players[0];
+  state = ok(state, { type: 'bid/submit', playerId: first.id, value: 1 }, first.id, ctxf).state;
+  const joined = ok(state, { type: 'player/join', name: 'Ali' }, null, ctxf);
+  state = joined.state;
+  const ali = joined.result.player;
+
+  // This hand is not theirs to bid in or play into.
+  assert.equal(refused(state, { type: 'bid/submit', playerId: ali.id, value: 0 }, ali.id, ctxf).code, 'not-in-round');
+
+  for (const player of state.players.slice(1, 3)) {
+    state = ok(state, { type: 'bid/submit', playerId: player.id, value: 0 }, player.id, ctxf).state;
+  }
+  assert.equal(state.phase, 'playing', 'three bids still closed the bidding');
+  assert.equal(refused(state, { type: 'trick/play', cardId: '2S' }, ali.id, ctxf).code, 'not-your-turn');
+
+  state = playRound(state, ctxf);
+  const round = game.currentRound(state);
+  assert.equal(state.phase, 'summary', 'the round still finished with three players');
+  assert.equal(Object.values(round.tricksWon).reduce((a, b) => a + b, 0), 3);
+  assert.equal(round.scores[ali.id], undefined, 'no score for a hand you were not in');
+  assert.equal(round.totalsAfter[ali.id], 0, 'but the scoreboard still has your line');
+});
+
+test('a latecomer plays the rest of the game as an equal', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah'], 3);
+  state = bidOneEach(state, ctxf);
+  state = playRound(state, ctxf);
+  state = ok(state, { type: 'player/join', name: 'Sol' }, null, ctxf).state;
+  const solId = state.players[2].id;
+
+  while (state.phase !== 'complete') {
+    state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+    const round = game.currentRound(state);
+    assert.ok(round.playerIds.includes(solId));
+    const bids = Object.fromEntries(state.players.map((p, i) => [p.id, i === 0 ? Math.min(1, round.handSize) : 0]));
+    state = allBid(state, ctxf, bids);
+    state = playRound(state, ctxf);
+    if (state.rounds.length === state.sequence.length) {
+      state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+    }
+  }
+  assert.equal(state.phase, 'complete');
+  const sol = state.players.find((p) => p.id === solId);
+  assert.equal(viewFor(state, solId).you.total, sol.total);
+  assert.ok(sol.total > 0, 'a latecomer scores like anybody else');
+  assert.ok(
+    viewFor(state, solId).leaderboard.some((p) => p.id === solId),
+    'and stands on the final leaderboard'
+  );
+});
+
+test('nobody joins a hand the deck cannot stretch to', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 17);
+  state = bidOneEach(state, ctxf);
+  state = playRound(state, ctxf);
+  // 17 each for three is 52 with the trump. A fourth would need 69.
+  const error = refused(state, { type: 'player/join', name: 'Ali' }, null, ctxf);
+  assert.equal(error.code, 'game-full');
+  assert.match(error.message, /not enough cards/);
+});
+
+test('nobody joins the last hand of a game, or one that is over', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah'], 3);
+  // 3,2,1,2,3 — get to the last round.
+  for (let r = 0; r < 4; r++) {
+    state = bidOneEach(state, ctxf);
+    state = playRound(state, ctxf);
+    state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  }
+  assert.equal(state.roundIndex, 4);
+  assert.equal(refused(state, { type: 'player/join', name: 'Late' }, null, ctxf).code, 'too-late');
+
+  state = bidOneEach(state, ctxf);
+  state = playRound(state, ctxf);
+  state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  assert.equal(state.phase, 'complete');
+  assert.equal(refused(state, { type: 'player/join', name: 'Later' }, null, ctxf).code, 'game-over');
+});
+
+test('a table game still refuses a latecomer — the cards are already dealt', () => {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: 'Ed', code: '1234', startHandSize: 3 }, ctxf.next(null));
+  const master = state.players[0];
+  state = ok(state, { type: 'player/join', name: 'Hannah' }, null, ctxf).state;
+  state = ok(state, { type: 'game/start' }, master.id, ctxf).state;
+  assert.equal(refused(state, { type: 'player/join', name: 'Sol' }, null, ctxf).code, 'already-started');
+});
+
+test('a latecomer sees a seat, not a hand, until they are dealt in', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 4);
+  state = bidOneEach(state, ctxf);
+  const joined = ok(state, { type: 'player/join', name: 'Ali' }, null, ctxf);
+  state = joined.state;
+  const ali = joined.result.player;
+
+  const own = viewFor(state, ali.id);
+  assert.equal(own.you.waitingToJoin, true);
+  assert.equal(own.you.joinsAtRound, 2, 'shown as the round number people count in');
+  assert.equal(own.you.hand, undefined);
+  assert.equal(own.you.cardsHeld, 0);
+  assert.equal(own.round.bidsNeeded, 3, 'the round still wants three bids, not four');
+
+  const round = game.currentRound(state);
+  const payload = JSON.stringify(own);
+  for (const player of state.players.slice(0, 3)) {
+    for (const card of round.hands[player.id]) {
+      assert.ok(!payload.includes(`"${card}"`), 'a latecomer cannot see the hand in progress either');
+    }
+  }
+
+  const seat = viewFor(state, state.players[0].id).players.find((p) => p.id === ali.id);
+  assert.equal(seat.inRound, false);
+  assert.equal(seat.joinsAtRound, 2);
+  assert.equal(seat.total, 0);
+});

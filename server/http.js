@@ -171,8 +171,12 @@ function lookupHandler(res, code, { rooms }) {
   return sendJson(res, 200, {
     code: room.state.code,
     phase: room.state.phase,
+    mode: room.state.mode || 'table',
     players: room.state.players.length,
-    open: room.state.phase === 'lobby',
+    // An online game stays open once it has started: a latecomer is dealt in from
+    // the next hand. Round a table the cards are already out, so it does not.
+    open: room.state.phase === 'lobby' || (room.state.mode === 'online' && room.state.phase !== 'complete'),
+    started: room.state.phase !== 'lobby',
     masterName: (room.state.players.find((p) => p.id === room.state.masterId) || {}).name || null,
   });
 }
