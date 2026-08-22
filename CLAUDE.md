@@ -32,9 +32,14 @@ reach for `Date.now()` or `Math.random()`.
 
 **2. `lib/view.js` is the privacy boundary.** A value that a player is not allowed to see
 must be **absent from the payload**, not merely hidden by the UI. Bid values while bidding
-is open, and election votes, already work this way. `test/server.test.js` asserts that a
-hidden bid never appears in anyone else's payload — that test is load-bearing, and any new
-secret needs its equivalent.
+is open, election votes, and — online — the cards in everyone else's hand already work this
+way. `test/server.test.js` asserts that neither a hidden bid nor a hand ever appears in
+anyone else's payload — those tests are load-bearing, and any new secret needs its
+equivalent.
+
+Hands are read through `handFor()` and nowhere else, and keys are left **out** rather than
+set to `null` when the viewer may not see them, so a secret cannot arrive as an
+empty-looking field that a later change quietly fills in.
 
 **3. The client draws what the server says.** `public/` holds no game logic and applies
 nothing optimistically: a bid that appeared to land and then did not would be far worse
@@ -80,9 +85,13 @@ Commands live in `HANDLERS` in `lib/game.js`. The current set:
 player/join  player/addOffline  player/remove
 game/setHandSize  game/acknowledgeDeck  game/start  game/end  game/rematchStarted
 bid/submit  results/submit  results/amend  round/next
+trick/play
 conn/set  conn/takeover
 election/start  election/vote  election/resolve
 ```
+
+`results/submit` and `results/amend` are **table-only**; `trick/play` is **online-only**.
+Each refuses in the other mode rather than doing something surprising.
 
 Every refusal message is shown to a player as-is, so write it in plain English. Give a
 `code` only when the client needs to branch on it. Commands that could be double-tapped
@@ -98,7 +107,17 @@ must be idempotent — a second tap is a no-op, not an error.
 - **A player's seat is worth keeping until it is replaced.** Do not clear a session on the
   way to joining a different game — only once the new join has landed.
 - **A one-card round still has trumps.** No-trumps only happens when a deal consumes the
-  whole deck and there is no card left to turn.
+  whole deck and there is no card left to turn — which the online hand-size cap currently
+  makes unreachable, since it always keeps a card back. `lib/deck.js` handles it anyway.
+- **Two modes share one engine.** `state.mode` is `table` or `online`, and the phase after
+  bidding is `reveal` or `playing` accordingly. Online rounds grow `hands`, `trumpCard`,
+  `trick` and `tricksWon`; a table round has none of those fields at all, so table state is
+  byte-for-byte what it was before the mode existed. Both score through `scoreRound`, and
+  that must stay true — a mode-specific scoring path is how the two would drift apart.
+- **A dropped phone stalls an online round.** The Master can cover a missing player's
+  *bid*, but not their cards: doing so would mean showing the Master their hand. There is
+  currently no way out but `game/end`, and auto-playing a legal card is the obvious fix
+  when it matters.
 - **Correcting a scored round rebuilds every later running total.** `results/amend` does
   not patch in place; it recomputes from the bottom. A correction made after the game has
   finished also has to re-save the history record, which is written once on completion.

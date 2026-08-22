@@ -1,0 +1,537 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const game = require('../lib/game');
+const { viewFor, historyRecord } = require('../lib/view');
+const { scoreRound } = require('../lib/scoring');
+const { deal, legalPlays, suitOf, trickWinner } = require('../lib/deck');
+
+// ── Harness ──────────────────────────────────────────────────────────────────
+// Ids count up rather than being random, so a deal is the same on every run and
+// a failure can be reproduced from the output alone.
+
+function ctxFactory(start = 1_000) {
+  let n = 0;
+  let clock = start;
+  return {
+    next(actorId) {
+      n += 1;
+      clock += 1;
+      return { now: clock, newId: (prefix) => `${prefix}_${n}`, actorId };
+    },
+  };
+}
+
+function ok(state, command, actorId, ctxf) {
+  const out = game.applyCommand(state, command, ctxf.next(actorId));
+  assert.equal(out.error, undefined, `expected success, got: ${out.error && out.error.message}`);
+  return out;
+}
+
+function refused(state, command, actorId, ctxf) {
+  const out = game.applyCommand(state, command, ctxf.next(actorId));
+  assert.ok(out.error, 'expected the command to be refused');
+  return out.error;
+}
+
+/** An online game, started, with the cards dealt for round one. */
+function onlineGame(names, startHandSize = 3) {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: names[0], code: '1234', startHandSize, mode: 'online' }, ctxf.next(null));
+  const master = state.players[0];
+  for (const name of names.slice(1)) {
+    state = ok(state, { type: 'player/join', name }, null, ctxf).state;
+  }
+  state = ok(state, { type: 'game/start' }, master.id, ctxf).state;
+  return { state, ctxf, masterId: master.id };
+}
+
+/** Everyone bids what `bids` says, by player id. */
+function allBid(state, ctxf, bids) {
+  for (const player of state.players) {
+    state = ok(state, { type: 'bid/submit', playerId: player.id, value: bids[player.id] }, player.id, ctxf).state;
+  }
+  return state;
+}
+
+/** Everyone bids 1, or 0 where 1 is not available. */
+function bidOneEach(state, ctxf) {
+  const bids = {};
+  state.players.forEach((p, i) => {
+    bids[p.id] = i === 0 ? 1 : 0;
+  });
+  return allBid(state, ctxf, bids);
+}
+
+/** Play the current trick out, each player choosing their first legal card. */
+function playTrick(state, ctxf) {
+  const players = state.players.length;
+  for (let i = 0; i < players; i++) {
+    const round = game.currentRound(state);
+    if (!round.trick) break;
+    const { turnId, ledSuit } = round.trick;
+    const cardId = legalPlays(round.hands[turnId], ledSuit)[0];
+    state = ok(state, { type: 'trick/play', cardId }, turnId, ctxf).state;
+  }
+  return state;
+}
+
+/** Play every trick of the current round. */
+function playRound(state, ctxf) {
+  const handSize = game.currentRound(state).handSize;
+  for (let t = 0; t < handSize; t++) state = playTrick(state, ctxf);
+  return state;
+}
+
+// ── Dealing ──────────────────────────────────────────────────────────────────
+
+test('starting an online game deals a hand to everybody and turns a trump', () => {
+  const { state } = onlineGame(['Ed', 'Hannah', 'Sol'], 4);
+  const round = game.currentRound(state);
+
+  assert.equal(state.mode, 'online');
+  assert.equal(state.phase, 'bidding');
+  for (const player of state.players) assert.equal(round.hands[player.id].length, 4);
+  assert.ok(round.trumpCard);
+  assert.equal(round.trumpSuit, suitOf(round.trumpCard));
+  assert.ok(round.seed, 'the deal keeps its seed so it can be checked afterwards');
+});
+
+test("no card is dealt to two people, and the trump is nobody's", () => {
+  const { state } = onlineGame(['Ed', 'Hannah', 'Sol', 'Ali'], 6);
+  const round = game.currentRound(state);
+  const dealt = state.players.flatMap((p) => round.hands[p.id]);
+  assert.equal(new Set(dealt).size, dealt.length);
+  assert.ok(!dealt.includes(round.trumpCard));
+});
+
+test('the stored seed deals the same hands again', () => {
+  const { state } = onlineGame(['Ed', 'Hannah', 'Sol'], 5);
+  const round = game.currentRound(state);
+  const again = deal(round.seed, state.players.map((p) => p.id), round.handSize);
+  assert.deepEqual(again.hands, round.hands);
+  assert.equal(again.trumpCard, round.trumpCard);
+});
+
+test('every round is dealt fresh, and the lead moves round a seat', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  const first = game.currentRound(state);
+  state = bidOneEach(state, ctxf);
+  state = playRound(state, ctxf);
+  state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  const second = game.currentRound(state);
+
+  assert.notEqual(second.seed, first.seed);
+  assert.equal(first.leadId, state.players[0].id);
+  assert.equal(second.leadId, state.players[1].id);
+  assert.equal(second.handSize, 2, 'the round sequence still counts down');
+});
+
+// ── Bidding hands over to play, not to the Master ─────────────────────────────
+
+test('the last bid opens the first trick instead of asking the Master for results', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const round = game.currentRound(state);
+
+  assert.equal(state.phase, 'playing');
+  assert.equal(round.trick.number, 1);
+  assert.equal(round.trick.turnId, round.leadId);
+  assert.equal(round.trick.ledSuit, null);
+  assert.deepEqual(round.trick.plays, []);
+});
+
+test('a table game is untouched — it still goes to the Master for the results', () => {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: 'Ed', code: '1234', startHandSize: 3 }, ctxf.next(null));
+  const master = state.players[0];
+  state = ok(state, { type: 'player/join', name: 'Hannah' }, null, ctxf).state;
+  state = ok(state, { type: 'game/start' }, master.id, ctxf).state;
+  assert.equal(state.mode, 'table');
+  assert.equal(game.currentRound(state).hands, undefined, 'a table round holds no cards at all');
+
+  for (const p of state.players) {
+    state = ok(state, { type: 'bid/submit', playerId: p.id, value: 1 }, p.id, ctxf).state;
+  }
+  assert.equal(state.phase, 'reveal');
+});
+
+// ── Playing a card ───────────────────────────────────────────────────────────
+
+test('only the player whose turn it is can play, and the refusal names them', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const round = game.currentRound(state);
+  const waiting = state.players.find((p) => p.id !== round.trick.turnId);
+  const turnName = state.players.find((p) => p.id === round.trick.turnId).name;
+
+  const error = refused(state, { type: 'trick/play', cardId: round.hands[waiting.id][0] }, waiting.id, ctxf);
+  assert.equal(error.code, 'not-your-turn');
+  assert.match(error.message, new RegExp(turnName));
+});
+
+test('you cannot play a card you are not holding', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const round = game.currentRound(state);
+  const other = state.players.find((p) => p.id !== round.trick.turnId);
+
+  const error = refused(
+    state,
+    { type: 'trick/play', cardId: round.hands[other.id][0] },
+    round.trick.turnId,
+    ctxf
+  );
+  assert.equal(error.code, 'not-held');
+});
+
+test('you have to follow suit while you can, and the refusal says which suit', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 5);
+  state = bidOneEach(state, ctxf);
+  let round = game.currentRound(state);
+
+  const leaderId = round.trick.turnId;
+  const led = round.hands[leaderId][0];
+  state = ok(state, { type: 'trick/play', cardId: led }, leaderId, ctxf).state;
+  round = game.currentRound(state);
+
+  const nextId = round.trick.turnId;
+  const ledSuit = suitOf(led);
+  const hand = round.hands[nextId];
+  const canFollow = hand.filter((c) => suitOf(c) === ledSuit);
+  const offSuit = hand.find((c) => suitOf(c) !== ledSuit);
+
+  // Asserted rather than skipped: the deal is deterministic, so if a change ever
+  // stops this hand holding both, the test says so instead of quietly passing.
+  assert.ok(canFollow.length, 'this deal should leave the second player able to follow');
+  assert.ok(offSuit, 'and holding something off-suit to be refused');
+
+  const error = refused(state, { type: 'trick/play', cardId: offSuit }, nextId, ctxf);
+  assert.equal(error.code, 'must-follow');
+  assert.match(error.message, /spades|hearts|diamonds|clubs/);
+
+  // Following is always allowed.
+  const legal = legalPlays(hand, ledSuit)[0];
+  state = ok(state, { type: 'trick/play', cardId: legal }, nextId, ctxf).state;
+  assert.equal(game.currentRound(state).trick.plays.length, 2);
+});
+
+test('a played card leaves your hand, so a double tap cannot play it twice', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const round = game.currentRound(state);
+  const leaderId = round.trick.turnId;
+  const cardId = round.hands[leaderId][0];
+
+  state = ok(state, { type: 'trick/play', cardId }, leaderId, ctxf).state;
+  assert.ok(!game.currentRound(state).hands[leaderId].includes(cardId));
+  const error = refused(state, { type: 'trick/play', cardId }, leaderId, ctxf);
+  assert.equal(error.code, 'not-your-turn');
+});
+
+test('the trick goes to the right player, and they lead the next one', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+  const before = game.currentRound(state);
+  const plays = [];
+  let ledSuit = null;
+
+  for (let i = 0; i < state.players.length; i++) {
+    const round = game.currentRound(state);
+    const { turnId } = round.trick;
+    const cardId = legalPlays(round.hands[turnId], round.trick.ledSuit)[0];
+    if (ledSuit === null) ledSuit = suitOf(cardId);
+    plays.push({ playerId: turnId, cardId });
+    state = ok(state, { type: 'trick/play', cardId }, turnId, ctxf).state;
+  }
+
+  const expected = trickWinner(plays, ledSuit, before.trumpSuit);
+  const round = game.currentRound(state);
+  assert.equal(round.tricksWon[expected], 1);
+  assert.equal(round.tricksPlayed[0].winnerId, expected);
+  assert.equal(round.trick.number, 2);
+  assert.equal(round.trick.turnId, expected, 'the winner leads');
+  assert.equal(round.trick.ledSuit, null, 'a fresh trick has no led suit yet');
+});
+
+test('the tricks in a round always add up to the hand size', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol', 'Ali'], 5);
+  state = bidOneEach(state, ctxf);
+  state = playRound(state, ctxf);
+  const round = game.currentRound(state);
+  const total = Object.values(round.tricksWon).reduce((a, b) => a + b, 0);
+  assert.equal(total, 5);
+  assert.equal(round.tricksPlayed.length, 5);
+});
+
+// ── Scoring itself ───────────────────────────────────────────────────────────
+
+test('the last trick scores the round through the same engine as a table game', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  const bids = {};
+  state.players.forEach((p, i) => {
+    bids[p.id] = i === 0 ? 2 : 0;
+  });
+  state = allBid(state, ctxf, bids);
+  state = playRound(state, ctxf);
+
+  const round = game.currentRound(state);
+  assert.equal(state.phase, 'summary');
+  assert.ok(round.completedAt);
+  for (const player of state.players) {
+    const won = round.tricksWon[player.id];
+    assert.equal(round.tricks[player.id], won, 'the tricks recorded are the tricks played');
+    assert.equal(round.scores[player.id], scoreRound(bids[player.id], won));
+    assert.equal(player.total, round.scores[player.id]);
+    assert.equal(round.totalsAfter[player.id], player.total);
+  }
+});
+
+test('there is nothing for the Master to type in, or to correct afterwards', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  state = bidOneEach(state, ctxf);
+
+  const tricks = Object.fromEntries(state.players.map((p, i) => [p.id, i === 0 ? 3 : 0]));
+  assert.equal(refused(state, { type: 'results/submit', tricks }, masterId, ctxf).code, 'not-table');
+
+  state = playRound(state, ctxf);
+  const amend = refused(state, { type: 'results/amend', roundIndex: 0, tricks }, masterId, ctxf);
+  assert.equal(amend.code, 'not-table');
+});
+
+test('a full online game reaches the end with the totals a scoresheet would give', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  const expected = Object.fromEntries(state.players.map((p) => [p.id, 0]));
+
+  while (state.phase !== 'complete') {
+    const round = game.currentRound(state);
+    const bids = {};
+    state.players.forEach((p, i) => {
+      bids[p.id] = i === 0 ? Math.min(1, round.handSize) : 0;
+    });
+    state = allBid(state, ctxf, bids);
+    state = playRound(state, ctxf);
+
+    const scored = game.currentRound(state);
+    for (const player of state.players) expected[player.id] += scoreRound(bids[player.id], scored.tricksWon[player.id]);
+    state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  }
+
+  assert.equal(state.rounds.length, 5, '3,2,1,2,3');
+  for (const player of state.players) assert.equal(player.total, expected[player.id]);
+
+  const record = historyRecord(state);
+  assert.equal(record.mode, 'online');
+  assert.ok(record.rounds.every((r) => r.seed), 'every finished deal can be dealt again and checked');
+});
+
+// ── The lobby, and what a deck can stretch to ────────────────────────────────
+
+test('the hand size is capped by the number of players, with a card kept back', () => {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: 'Ed', code: '1234', startHandSize: 3, mode: 'online' }, ctxf.next(null));
+  const master = state.players[0];
+  for (const name of ['Hannah', 'Sol', 'Ali']) state = ok(state, { type: 'player/join', name }, null, ctxf).state;
+
+  state = ok(state, { type: 'game/setHandSize', handSize: 12 }, master.id, ctxf).state;
+  assert.equal(state.startHandSize, 12);
+
+  const error = refused(state, { type: 'game/setHandSize', handSize: 13 }, master.id, ctxf);
+  assert.equal(error.code, 'hand-too-big');
+  assert.match(error.message, /turn for trumps/);
+});
+
+test('a late joiner trims the hand size rather than being turned away', () => {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: 'Ed', code: '1234', startHandSize: 3, mode: 'online' }, ctxf.next(null));
+  const master = state.players[0];
+  state = ok(state, { type: 'player/join', name: 'Hannah' }, null, ctxf).state;
+  state = ok(state, { type: 'game/setHandSize', handSize: 25 }, master.id, ctxf).state;
+
+  state = ok(state, { type: 'player/join', name: 'Sol' }, null, ctxf).state;
+  assert.equal(state.startHandSize, 17, 'three players can hold 17 each and still turn a trump');
+  state = ok(state, { type: 'game/start' }, master.id, ctxf).state;
+  assert.equal(game.currentRound(state).hands[master.id].length, 17);
+});
+
+test('round a table the hand size is not capped at all — bring another deck', () => {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: 'Ed', code: '1234', startHandSize: 3 }, ctxf.next(null));
+  const master = state.players[0];
+  for (const name of ['Hannah', 'Sol', 'Ali']) state = ok(state, { type: 'player/join', name }, null, ctxf).state;
+  state = ok(state, { type: 'game/setHandSize', handSize: 20 }, master.id, ctxf).state;
+  assert.equal(state.startHandSize, 20);
+  assert.ok(game.gameDeckCheck(state).exceeds, 'and the deck warning still says so');
+});
+
+test('online has room for 17 players and no more', () => {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: 'Ed', code: '1234', startHandSize: 3, mode: 'online' }, ctxf.next(null));
+  for (let i = 1; i < game.MAX_ONLINE_PLAYERS; i++) {
+    state = ok(state, { type: 'player/join', name: `P${i}` }, null, ctxf).state;
+  }
+  assert.equal(state.players.length, 17);
+  const error = refused(state, { type: 'player/join', name: 'One too many' }, null, ctxf);
+  assert.equal(error.code, 'game-full');
+});
+
+test('a player with no phone cannot be dealt a hand', () => {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: 'Ed', code: '1234', startHandSize: 3, mode: 'online' }, ctxf.next(null));
+  const master = state.players[0];
+  const error = refused(state, { type: 'player/addOffline', name: 'Nan' }, master.id, ctxf);
+  assert.equal(error.code, 'needs-phone');
+  assert.match(error.message, /round a table/i);
+});
+
+test('cards cannot be played in a game being played with real ones', () => {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: 'Ed', code: '1234', startHandSize: 3 }, ctxf.next(null));
+  const master = state.players[0];
+  state = ok(state, { type: 'player/join', name: 'Hannah' }, null, ctxf).state;
+  state = ok(state, { type: 'game/start' }, master.id, ctxf).state;
+  assert.equal(refused(state, { type: 'trick/play', cardId: 'AS' }, master.id, ctxf).code, 'not-online');
+});
+
+// ── The privacy boundary ─────────────────────────────────────────────────────
+
+test("another player's hand never appears in your payload", () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 5);
+  const round = game.currentRound(state);
+
+  for (const viewer of state.players) {
+    const payload = JSON.stringify(viewFor(state, viewer.id));
+    for (const other of state.players) {
+      if (other.id === viewer.id) continue;
+      for (const card of round.hands[other.id]) {
+        assert.ok(!payload.includes(`"${card}"`), `${viewer.name} could see ${other.name}'s ${card}`);
+      }
+    }
+    for (const card of round.hands[viewer.id]) {
+      assert.ok(payload.includes(`"${card}"`), 'you can see your own hand');
+    }
+  }
+});
+
+test('a spectator with no seat is dealt nothing and shown nothing', () => {
+  const { state } = onlineGame(['Ed', 'Hannah', 'Sol'], 5);
+  const round = game.currentRound(state);
+  const payload = JSON.stringify(viewFor(state, null));
+  for (const player of state.players) {
+    for (const card of round.hands[player.id]) {
+      assert.ok(!payload.includes(`"${card}"`), 'a hand leaked to someone with no seat');
+    }
+  }
+});
+
+test('what you can see of someone else is the count, and the cards they play', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 4);
+  state = bidOneEach(state, ctxf);
+  let round = game.currentRound(state);
+  const leaderId = round.trick.turnId;
+  const played = round.hands[leaderId][0];
+  state = ok(state, { type: 'trick/play', cardId: played }, leaderId, ctxf).state;
+
+  const watcher = state.players.find((p) => p.id !== leaderId);
+  const view = viewFor(state, watcher.id);
+  const leaderSeat = view.players.find((p) => p.id === leaderId);
+
+  assert.equal(leaderSeat.cardsHeld, 3);
+  assert.equal(leaderSeat.card, null);
+  assert.equal(view.round.trick.plays[0].cardId, played, 'a card on the table is public');
+  assert.equal(view.round.trick.ledSuit, suitOf(played));
+  assert.equal(view.round.trick.winningPlayerId, leaderId, 'one card in, and it is winning');
+  assert.equal(view.round.trumpCard, round.trumpCard, 'the turned card is face up for everyone');
+});
+
+test('your own view offers the cards you may legally play, and only on your turn', () => {
+  let { state, ctxf } = onlineGame(['Ed', 'Hannah', 'Sol'], 4);
+  state = bidOneEach(state, ctxf);
+  const round = game.currentRound(state);
+  const leaderId = round.trick.turnId;
+
+  const leadView = viewFor(state, leaderId);
+  assert.equal(leadView.you.yourTurn, true);
+  assert.deepEqual(leadView.you.playable, round.hands[leaderId], 'leading, everything is playable');
+  assert.deepEqual(leadView.you.hand, round.hands[leaderId]);
+
+  const waiting = state.players.find((p) => p.id !== leaderId);
+  const waitView = viewFor(state, waiting.id);
+  assert.equal(waitView.you.yourTurn, false);
+  assert.deepEqual(waitView.you.playable, []);
+});
+
+test('the forehead round: everyone can see your card except you', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  // 3 -> 2 -> 1: two rounds to get through before the one-card round.
+  for (let r = 0; r < 2; r++) {
+    state = bidOneEach(state, ctxf);
+    state = playRound(state, ctxf);
+    state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  }
+  const round = game.currentRound(state);
+  assert.equal(round.handSize, 1);
+
+  for (const viewer of state.players) {
+    const view = viewFor(state, viewer.id);
+    const payload = JSON.stringify(view);
+    const own = round.hands[viewer.id][0];
+
+    assert.equal(view.round.forehead, true);
+    assert.equal(view.you.hand, undefined, 'your own card does not travel to you');
+    assert.equal(view.you.cardsHeld, 1);
+    assert.ok(!payload.includes(`"${own}"`), `${viewer.name} could see their own card`);
+
+    for (const other of state.players) {
+      if (other.id === viewer.id) continue;
+      const seat = view.players.find((p) => p.id === other.id);
+      assert.equal(seat.card, round.hands[other.id][0], 'everyone else is face up');
+    }
+  }
+});
+
+test('a one-card round still has trumps', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  for (let r = 0; r < 2; r++) {
+    state = bidOneEach(state, ctxf);
+    state = playRound(state, ctxf);
+    state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  }
+  const view = viewFor(state, state.players[0].id);
+  assert.ok(view.round.trumpSuit, 'the deck is barely touched, so there is a card to turn');
+  assert.equal(view.round.noTrumps, false);
+});
+
+test('the forehead round plays out and scores like any other', () => {
+  let { state, ctxf, masterId } = onlineGame(['Ed', 'Hannah', 'Sol'], 3);
+  for (let r = 0; r < 2; r++) {
+    state = bidOneEach(state, ctxf);
+    state = playRound(state, ctxf);
+    state = ok(state, { type: 'round/next' }, masterId, ctxf).state;
+  }
+  const bids = Object.fromEntries(state.players.map((p, i) => [p.id, i === 0 ? 1 : 0]));
+  state = allBid(state, ctxf, bids);
+  state = playRound(state, ctxf);
+
+  const round = game.currentRound(state);
+  assert.equal(state.phase, 'summary');
+  assert.equal(Object.values(round.tricksWon).reduce((a, b) => a + b, 0), 1);
+});
+
+test('a table game says nothing about cards at all', () => {
+  const ctxf = ctxFactory();
+  let { state } = game.createGame({ hostName: 'Ed', code: '1234', startHandSize: 3 }, ctxf.next(null));
+  const master = state.players[0];
+  state = ok(state, { type: 'player/join', name: 'Hannah' }, null, ctxf).state;
+  state = ok(state, { type: 'game/start' }, master.id, ctxf).state;
+
+  const view = viewFor(state, master.id);
+  assert.equal(view.mode, 'table');
+  assert.equal(view.maxHandSize, null);
+  assert.equal(view.round.trumpCard, null);
+  assert.equal(view.round.trick, null);
+  assert.equal(view.you.hand, undefined);
+  assert.equal(view.players[0].cardsHeld, null);
+});

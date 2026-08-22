@@ -126,6 +126,9 @@ class Store {
           playedAt: record.playedAt,
           completedAt: record.completedAt,
           startHandSize: record.startHandSize,
+          // Games played before online mode existed have no mode recorded, and
+          // every one of them was round a table.
+          mode: record.mode || 'table',
           rounds: record.rounds.length,
           players: record.players.map((p) => ({ id: p.id, name: p.name, total: p.total })),
           winners: record.winners,

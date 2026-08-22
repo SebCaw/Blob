@@ -865,3 +865,85 @@ test('rematch endpoints refuse a bad session', async (t) => {
   const forgedSession = await rematchSession(app, host.gameId, { ...host, token: 'nope' });
   assert.equal(forgedSession.status, 401);
 });
+
+// ── Online mode over the wire ────────────────────────────────────────────────
+
+/** An online game with `names.length` players, all streaming, started and dealt. */
+async function onlineTable(app, names, handSize = 3) {
+  const created = await request(app.base, 'POST', '/api/games', { name: names[0], handSize, mode: 'online' });
+  assert.equal(created.status, 201, created.text);
+  const host = created.body;
+  const sessions = [host];
+  for (const name of names.slice(1)) sessions.push(await joinGame(app, host.code, name));
+  const streams = [];
+  for (const s of sessions) streams.push(await new Stream(app.base, s).ready);
+  await send(app, host, { type: 'game/start' });
+  for (const stream of streams) await stream.waitFor((s) => s.phase === 'bidding', 'bidding');
+  return { host, sessions, streams };
+}
+
+test('a hand never reaches anybody else, and a card played does', async (t) => {
+  const app = await startServer();
+  t.after(() => app.stop());
+  const { host, sessions, streams } = await onlineTable(app, ['Seb', 'James', 'Alex']);
+  t.after(() => streams.forEach((s) => s.close()));
+
+  for (const session of sessions) await send(app, session, { type: 'bid/submit', playerId: session.playerId, value: 0 });
+
+  const views = [];
+  for (const stream of streams) views.push(await stream.waitFor((s) => s.phase === 'playing', 'playing'));
+
+  const hands = views.map((v) => v.you.hand);
+  views.forEach((view, i) => {
+    assert.equal(view.mode, 'online');
+    assert.equal(hands[i].length, 3, 'you can see your own three cards');
+    const payload = JSON.stringify(view);
+    hands.forEach((hand, j) => {
+      if (i === j) return;
+      for (const card of hand) {
+        assert.ok(!payload.includes(`"${card}"`), `${sessions[j].playerId}'s ${card} reached ${sessions[i].playerId}`);
+      }
+    });
+    for (const seat of view.players) {
+      if (seat.id === sessions[i].playerId) continue;
+      assert.equal(seat.cardsHeld, 3, 'how many cards someone holds is public');
+      assert.equal(seat.card, null, 'which cards they are is not');
+    }
+  });
+
+  // Whoever is on lead plays; the card is face up for everybody after that.
+  const turn = views.findIndex((v) => v.you.yourTurn);
+  assert.ok(turn > -1, 'somebody has to be on lead');
+  const cardId = views[turn].you.playable[0];
+  const played = await send(app, sessions[turn], { type: 'trick/play', cardId });
+  assert.equal(played.status, 200, played.text);
+
+  for (const stream of streams) {
+    const after = await stream.waitFor((s) => s.round && s.round.trick && s.round.trick.plays.length === 1, 'a card on the table');
+    assert.equal(after.round.trick.plays[0].cardId, cardId);
+    assert.equal(after.round.trick.plays[0].playerId, sessions[turn].playerId);
+    assert.equal(after.round.trick.winningPlayerId, sessions[turn].playerId);
+  }
+
+  const leader = await streams[turn].waitFor((s) => s.you.cardsHeld === 2, 'the card left your hand');
+  assert.ok(!leader.you.hand.includes(cardId));
+  assert.equal(host.gameId, sessions[0].gameId);
+});
+
+test('an online game cannot be asked for typed-in results', async (t) => {
+  const app = await startServer();
+  t.after(() => app.stop());
+  const { host, sessions, streams } = await onlineTable(app, ['Seb', 'James']);
+  t.after(() => streams.forEach((s) => s.close()));
+
+  for (const session of sessions) await send(app, session, { type: 'bid/submit', playerId: session.playerId, value: 0 });
+  await streams[0].waitFor((s) => s.phase === 'playing', 'playing');
+
+  const tricks = {};
+  sessions.forEach((s) => {
+    tricks[s.playerId] = 0;
+  });
+  const res = await send(app, host, { type: 'results/submit', tricks, force: true });
+  assert.equal(res.status, 409, res.text);
+  assert.match(res.text, /already knows who won what/);
+});

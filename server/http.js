@@ -124,7 +124,11 @@ async function createGameHandler(req, res, { rooms, limiter }) {
     return sendJson(res, 400, badRequest(`The starting hand needs to be at least ${MIN_HAND_SIZE} cards.`));
   }
 
-  const { room, player, token } = rooms.create({ hostName, startHandSize: handSize });
+  // Anything other than an explicit 'online' is a game round a table, which is
+  // both the original mode and the one we would rather people played.
+  const mode = body.mode === 'online' ? 'online' : 'table';
+
+  const { room, player, token } = rooms.create({ hostName, startHandSize: handSize, mode });
   return sendJson(res, 201, {
     gameId: room.state.id,
     code: room.state.code,

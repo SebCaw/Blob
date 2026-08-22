@@ -63,13 +63,13 @@ class Rooms {
 
   /**
    * Create a game with its host as Master.
-   * @param {{hostName:string, startHandSize?:number}} args
+   * @param {{hostName:string, startHandSize?:number, mode?:'table'|'online'}} args
    * @returns {{room:Room, player:object, token:string}}
    */
-  create({ hostName, startHandSize }) {
+  create({ hostName, startHandSize, mode }) {
     const code = this._freeCode();
     const { state, player } = game.createGame(
-      { hostName, code, startHandSize },
+      { hostName, code, startHandSize, mode },
       { now: Date.now(), newId: makeId }
     );
     const room = new Room(state, {
@@ -135,7 +135,13 @@ class Rooms {
       return { error: { code: 'not-connected', message: 'You need to be connected to start a rematch.' } };
     }
 
-    const created = this.create({ hostName: master.name, startHandSize: oldRoom.state.startHandSize });
+    // A rematch is the same group playing the same way — carry the mode over, or
+    // an online group would find themselves waiting for cards nobody has.
+    const created = this.create({
+      hostName: master.name,
+      startHandSize: oldRoom.state.startHandSize,
+      mode: oldRoom.state.mode,
+    });
     /** @type {Map<string, {gameId:string, code:string, playerId:string, token:string}>} */
     const sessions = new Map();
     sessions.set(actorId, {
