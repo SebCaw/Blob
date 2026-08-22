@@ -6,10 +6,10 @@ import { cardFace, cardBack, trickPile, sortHand, trumpBadge, suitName } from '.
  * Playing a hand — the one screen this mode adds.
  *
  * The table is an oval in the middle holding the deck with the turned trump on
- * top of it, and people sit round the outside. Each played card sits with the
- * player who played it, so nothing needs a name label: position already says
- * who. Seats are placed on an ellipse by index, so two players and eight come
- * out of one rule rather than seven hand-tuned cases.
+ * top of it, and everybody sits round the outside at equal spacing — you at the
+ * bottom, the rest going round from there in turn order. Each played card sits
+ * with the player who played it, so nothing needs a name label: position already
+ * says who.
  *
  * Nothing here decides anything. Which cards may be played arrives in
  * `you.playable`, whose turn it is arrives in `round.trick.turnId`, and a card
@@ -17,37 +17,53 @@ import { cardFace, cardBack, trickPile, sortHand, trumpBadge, suitName } from '.
  */
 
 /**
- * How wide a seat may be, as a percentage of the table.
+ * Everyone sits at the same spacing round the whole table, you at the bottom.
  *
- * Seats sit on an ellipse 40% of the width from the middle, so the gap between
- * the two closest of them — the pair either side of the top — is
- * `2 × 40 × sin(step / 2)`. A seat takes a shade under that, which means one
- * rule spaces two players and eight without a single hand-tuned case: the more
- * people sit down, the smaller the seats get, exactly as far as they need to.
+ * Four players land on north, east, south and west without that being a case in
+ * the code — it is what equal spacing means when there are four of you. The rest
+ * follow in turn order going round, so the card about to be played always comes
+ * from the next seat along.
  */
-function seatWidthPct(count) {
-  const step = ARC_SWEEP / (count + 1);
-  const gap = 86 * Math.sin((step / 2) * (Math.PI / 180));
-  return Math.min(23.5, gap * 0.94);
+function seatAngle(index, total) {
+  return -90 - (index * 360) / total;
 }
 
-/** Where the arc of seats begins and how far round it sweeps, in degrees. */
-const ARC_START = 195;
-const ARC_SWEEP = 210;
+/** How far out the ring sits, and where its middle is, in percent of the table. */
+const RING_X = 40;
+const RING_Y = 33;
+const RING_MID_Y = 45;
+
+/**
+ * How wide a seat may be, as a percentage of the table.
+ *
+ * The closest two seats are one step apart on the ring, so a seat takes a shade
+ * under that gap. One rule spaces two players and eight: the more people sit
+ * down, the smaller the seats get, exactly as far as they need to.
+ */
+function seatWidthPct(total) {
+  const step = 360 / total;
+  const gap = 2 * RING_X * Math.sin((step / 2) * (Math.PI / 180));
+  return Math.min(23.5, gap * 0.94);
+}
 
 /** Below this width there is no room for a name under the badge. */
 const NAME_MIN_PCT = 17;
 
 /**
- * How long a card takes to fly out of the deck, and the gap between one card
- * and the next.
+ * How long a card takes to fly out of the deck, and the gap between one card and
+ * the next.
  *
- * Slow enough to watch a card arrive rather than notice that one has: a hand of
- * seven takes a little over a second and a half, which is about how long it
- * takes to deal one for real.
+ * Slow enough to watch a card arrive rather than notice that one has. The gap
+ * tightens when there are a lot of cards to get out, so dealing seven each to
+ * eight people does not turn into a wait — the whole deal is held to about two
+ * seconds however many people are sat down.
  */
 const DEAL_MS = 520;
 const DEAL_STAGGER_MS = 150;
+const DEAL_TOTAL_MAX_MS = 1900;
+
+/** How long a finished trick stays on the table before it is cleared away. */
+const TRICK_HOLD_MS = 1700;
 
 /** The round whose deal has already been animated, so it happens once. */
 let dealtFor = null;
@@ -63,6 +79,11 @@ let dealtFor = null;
  */
 let seatScale = { round: null, value: 1 };
 
+/** The finished trick that has already been swept off the table, and its timer. */
+let clearedTrick = null;
+let holdingTrick = null;
+let holdTimer = null;
+
 export function playingScreen(ctx) {
   const state = ctx.state;
   const round = state.round;
@@ -70,14 +91,31 @@ export function playingScreen(ctx) {
   const you = state.you;
   const forehead = Boolean(round.forehead);
 
-  const seats = state.players.filter((p) => p.inRound !== false && !p.left);
-  const opponents = seats.filter((p) => p.id !== you.id);
+  // Everyone has played and the server has already opened the next trick. Hold
+  // the finished one on the table for a beat, then sweep it off.
+  const settled = Boolean(trick && !trick.plays.length && round.lastTrick);
+  const trickKey = settled ? `${state.id}:${round.index}:${round.lastTrick.number}` : null;
+  const holding = settled && clearedTrick !== trickKey;
+  if (holding && holdingTrick !== trickKey) {
+    holdingTrick = trickKey;
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      clearedTrick = trickKey;
+      ctx.render();
+    }, TRICK_HOLD_MS);
+  }
+
+  // Everyone in this hand, in turn order starting from you — so the ring reads
+  // the way play travels round it.
+  const inHand = state.players.filter((p) => p.inRound !== false && !p.left);
+  const yourSeat = inHand.findIndex((p) => p.id === you.id);
+  const ordered = yourSeat < 0 ? inHand : [...inHand.slice(yourSeat), ...inHand.slice(0, yourSeat)];
 
   const screen = h(
     'div.screen.screen--fixed.playing',
     topbar(state, { right: trumpBadge(round) }),
     forehead ? h('p.forehead-note', { text: 'Everyone can see your card. You cannot.' }) : null,
-    table(ctx, opponents, trick, round, forehead, you),
+    table(ctx, ordered, trick, round, forehead, you, holding),
     statusBar(ctx, you, trick, round),
     skipOffer(ctx),
     hand(ctx, you, trick, round, forehead)
@@ -88,32 +126,30 @@ export function playingScreen(ctx) {
   if (firstPaintOfRound) {
     dealtFor = roundKey;
     seatScale = { round: roundKey, value: 1 }; // a new deal, a new table
+    clearedTrick = null;
+    holdingTrick = null;
+    clearTimeout(holdTimer);
   }
   requestAnimationFrame(() => {
     fitSeats(screen);
     // The deal runs once per round, on the first paint of that round.
-    if (firstPaintOfRound) dealAnimation(screen);
+    if (firstPaintOfRound) dealAnimation(screen, ordered, you);
   });
   return screen;
 }
 
 /** The oval, the seats round it, and whatever is on it. */
-function table(ctx, opponents, trick, round, forehead, you) {
-  const count = opponents.length;
-  const widthPct = seatWidthPct(count);
+function table(ctx, ordered, trick, round, forehead, you, holding) {
+  const total = ordered.length;
+  const widthPct = seatWidthPct(total);
   const crowded = widthPct < NAME_MIN_PCT;
-  const played = playsToShow(trick, round);
+  const played = playsToShow(trick, round, holding);
 
-  const seatNodes = opponents.map((player, index) => {
-    // Spread across the top arc: one opponent sits at the top, two at ten and
-    // two o'clock, eight fan right round the sides.
-    // The arc runs from just below the left edge of the table round to just
-    // below the right, rather than stopping at the horizontal — the extra 30°
-    // is what gives a table of eight somewhere to sit.
-    const angle = ARC_START - ((index + 1) * ARC_SWEEP) / (count + 1);
+  const seatNodes = ordered.map((player, index) => {
+    const angle = seatAngle(index, total);
     const radians = (angle * Math.PI) / 180;
-    const x = 50 + Math.cos(radians) * 43;
-    const y = 42 - Math.sin(radians) * 36;
+    const x = 50 + Math.cos(radians) * RING_X;
+    const y = RING_MID_Y - Math.sin(radians) * RING_Y;
     // The card they played sits between them and the middle, which is where it
     // would be on a real table — so `--in-x` / `--in-y` point inwards from here.
     return seat(ctx, player, {
@@ -124,11 +160,12 @@ function table(ctx, opponents, trick, round, forehead, you) {
         '--in-y': String(Math.sin(radians).toFixed(3)),
       },
       crowded,
+      you: player.id === you.id,
       card: played.get(player.id) || null,
       winning: played.size > 0 && played.winnerId === player.id,
       turn: trick && trick.turnId === player.id,
       forehead,
-      foreheadCard: forehead ? player.card : null,
+      foreheadCard: forehead && player.id !== you.id ? player.card : null,
     });
   });
 
@@ -148,53 +185,49 @@ function table(ctx, opponents, trick, round, forehead, you) {
       round.noTrumps ? h('span.deck__no-trumps', { text: 'no trumps' }) : null
     ),
     seatNodes,
-    yourPlay(played, you),
-    lastTrickNote(trick, round, ctx)
-  );
-}
-
-/**
- * The card you have played, sitting between you and the middle — the same
- * place it would be on a real table, and the reason no card needs a name on it.
- */
-function yourPlay(played, you) {
-  const cardId = played.get(you.id);
-  if (!cardId) return null;
-  const winning = played.winnerId === you.id;
-  return h(
-    'div.your-play',
-    cardFace(cardId, { size: 'sm', ring: winning ? 'win' : null, crown: winning }),
-    h('span.your-play__label', { text: 'you' })
+    wonBanner(ctx, trick, round, played)
   );
 }
 
 /**
  * The cards to draw on the table.
  *
- * A finished trick is cleared by the server the instant it is settled, which
- * would make the winning card vanish before anyone saw it. So while the new
- * trick is still empty, the one just played stays on the table — no timer, no
- * animation to get out of step with, and it clears itself the moment somebody
- * leads the next card.
+ * The server clears a finished trick the instant it settles, which would make
+ * the winning card vanish before anyone saw it. So the last trick stays up for
+ * a beat with its winner named, and is then swept off — the same as somebody
+ * gathering the cards up before the next lead.
+ *
+ * @param {boolean} holding are we still showing the trick that has just finished?
  */
-function playsToShow(trick, round) {
-  const source = trick && trick.plays.length ? trick : round.lastTrick;
+function playsToShow(trick, round, holding) {
   const map = new Map();
+  const live = trick && trick.plays.length;
+  const source = live ? trick : holding ? round.lastTrick : null;
   if (!source) return map;
   for (const play of source.plays) map.set(play.playerId, play.cardId);
-  map.winnerId = trick && trick.plays.length ? trick.winningPlayerId : round.lastTrick && round.lastTrick.winnerId;
-  map.settled = !(trick && trick.plays.length);
+  map.winnerId = live ? trick.winningPlayerId : source.winnerId;
+  map.settled = !live;
   return map;
 }
 
-/** "Hannah took it" — only while the finished trick is still on the table. */
-function lastTrickNote(trick, round, ctx) {
-  if (trick && trick.plays.length) return null;
-  if (!round.lastTrick) return null;
+/**
+ * Who took the trick, said plainly in the middle of the table.
+ *
+ * The gold ring on the winning card is easy to miss on a phone, so the moment a
+ * trick settles it is spelled out — with who leads the next one, since that is
+ * the question everybody asks next.
+ */
+function wonBanner(ctx, trick, round, played) {
+  if (!played.settled || !round.lastTrick) return null;
   const winner = ctx.state.players.find((p) => p.id === round.lastTrick.winnerId);
   if (!winner) return null;
-  const you = ctx.state.you && ctx.state.you.id === winner.id;
-  return h('div.table__took', { role: 'status', text: you ? 'You took it' : `${winner.name} took it` });
+  const isYou = ctx.state.you && ctx.state.you.id === winner.id;
+  return h(
+    'div.won-banner',
+    { role: 'status' },
+    h('span.won-banner__who', { text: isYou ? 'You took it' : `${winner.name} took it` }),
+    h('span.won-banner__next', { text: isYou ? 'You lead next' : `${winner.name} leads next` })
+  );
 }
 
 /** One person round the table: who they are, how they are doing, their card. */
@@ -203,6 +236,8 @@ function seat(ctx, player, options) {
     'seat',
     options.crowded ? 'seat--tight' : '',
     options.turn ? 'seat--turn' : '',
+    options.you ? 'seat--you' : '',
+    options.winning ? 'seat--won' : '',
     player.connected ? '' : 'seat--gone',
     player.skipped ? 'seat--skipped' : '',
   ]
@@ -225,8 +260,8 @@ function seat(ctx, player, options) {
     { className: classes, style: options.style },
     h(
       'div.seat__who',
-      h('div.seat__badge', { text: initials(player.name) }, player.isMaster ? h('span.seat__crown', { text: '♔' }) : null),
-      options.crowded ? null : h('div.seat__name', { text: player.name }),
+      h('div.seat__badge', { text: options.you ? 'YOU' : initials(player.name) }, player.isMaster ? h('span.seat__crown', { text: '♔' }) : null),
+      options.crowded ? null : h('div.seat__name', { text: options.you ? 'You' : player.name }),
       h('div.seat__meta', {
         text: meta(player, options.forehead, options.crowded),
         title: meta(player, options.forehead, false),
@@ -258,7 +293,10 @@ function meta(player, forehead, tight) {
 function statusBar(ctx, you, trick, round) {
   const yourTurn = Boolean(you.yourTurn);
   const turnPlayer = trick ? ctx.state.players.find((p) => p.id === trick.turnId) : null;
-  const follow = trick && trick.ledSuit && !yourTurn ? null : trick && trick.ledSuit ? trick.ledSuit : null;
+  const follow = trick && trick.ledSuit && yourTurn ? trick.ledSuit : null;
+  // Nobody has played yet, so the person to act is opening the hand rather than
+  // just taking their turn — worth saying, since it is the first thing asked.
+  const opening = Boolean(trick && trick.number === 1 && !trick.plays.length);
 
   return h(
     'div.playbar',
@@ -269,7 +307,11 @@ function statusBar(ctx, you, trick, round) {
       h('span.playbar__turn-name', {
         text: yourTurn ? 'Your turn' : turnPlayer ? `${turnPlayer.name}'s turn` : 'Settling…',
       }),
-      follow ? h('span.playbar__follow', { text: `follow ${suitName(follow)}` }) : null
+      follow
+        ? h('span.playbar__follow', { text: `follow ${suitName(follow)}` })
+        : opening
+        ? h('span.playbar__follow', { text: yourTurn ? 'you lead this hand' : 'leads this hand' })
+        : null
     ),
     h(
       'div.playbar__bid',
@@ -415,24 +457,96 @@ function fitSeats(screen) {
  * cannot end up fighting the stylesheet rule that holds a card at rest, or the
  * lift that follows it.
  */
-function dealAnimation(screen) {
+function dealAnimation(screen, ordered, you) {
   if (reducedMotion() || !screen.isConnected) return;
+  const table = screen.querySelector('.table');
   const middle = screen.querySelector('.table__middle');
-  const cards = [...screen.querySelectorAll('.hand__card'), ...screen.querySelectorAll('.seat__card')];
-  if (!middle || !cards.length || typeof cards[0].animate !== 'function') return;
+  const yourCards = [...screen.querySelectorAll('.hand__card')];
+  if (!table || !middle || typeof middle.animate !== 'function') return;
 
   const from = middle.getBoundingClientRect();
-  cards.forEach((card, index) => {
-    const to = card.getBoundingClientRect();
-    if (!to.width) return;
-    const dx = from.left + from.width / 2 - (to.left + to.width / 2);
-    const dy = from.top + from.height / 2 - (to.top + to.height / 2);
-    card.animate(
-      [
-        { transform: `translate(${dx}px, ${dy}px) scale(0.7) rotate(-8deg)`, opacity: 0 },
-        { transform: 'translate(0, 0) scale(1) rotate(0deg)', opacity: 1 },
-      ],
-      { duration: DEAL_MS, delay: index * DEAL_STAGGER_MS, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' }
-    );
-  });
+  const tableBox = table.getBoundingClientRect();
+  const seatEls = [...table.querySelectorAll('.seat')];
+  if (!seatEls.length) return;
+
+  // One card to each seat in turn, then round again — the way a hand is dealt.
+  // Your own cards are the real ones in your hand; everyone else gets a back
+  // that flies to their seat and is gathered up on arrival, because their hand
+  // is theirs and never appears on this screen.
+  const handSize = Math.max(yourCards.length, 1);
+  const total = handSize * ordered.length;
+  const stagger = Math.min(DEAL_STAGGER_MS, Math.round(DEAL_TOTAL_MAX_MS / Math.max(total, 1)));
+  const flying = [];
+
+  for (let lap = 0; lap < handSize; lap++) {
+    ordered.forEach((player, seatIndex) => {
+      const delay = (lap * ordered.length + seatIndex) * stagger;
+      const isYou = player.id === you.id;
+
+      if (isYou) {
+        const card = yourCards[lap];
+        if (!card) return;
+        const to = card.getBoundingClientRect();
+        if (!to.width) return;
+        flyIn(card, from, to, delay);
+        return;
+      }
+
+      const seatEl = seatEls[seatIndex];
+      if (!seatEl) return;
+      const to = seatEl.getBoundingClientRect();
+      if (!to.width) return;
+
+      const back = cardBack({ size: 'sm', className: 'deal-fly' });
+      back.style.left = `${((from.left + from.width / 2 - tableBox.left) / tableBox.width) * 100}%`;
+      back.style.top = `${((from.top + from.height / 2 - tableBox.top) / tableBox.height) * 100}%`;
+      table.appendChild(back);
+      flying.push(back);
+      flyOut(back, to, delay);
+    });
+  }
+
+  // Whatever is still in the air when the deal ends is swept up, so nothing is
+  // left behind if the screen changes under it.
+  setTimeout(() => flying.forEach((el) => el.remove()), total * stagger + DEAL_MS + 200);
+}
+
+/**
+ * One of your cards arriving: it rests where it belongs, so it starts life over
+ * the deck and travels back to itself.
+ *
+ * Driven by the Web Animations API rather than a CSS transition: an animation
+ * leaves no inline styles behind, so it cannot end up fighting the stylesheet
+ * rule holding a card at rest, or the lift that follows it.
+ */
+function flyIn(el, from, to, delay) {
+  const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+  const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+  el.animate(
+    [
+      { transform: `translate(${dx}px, ${dy}px) scale(0.7) rotate(-8deg)`, opacity: 0 },
+      { transform: 'translate(0, 0) scale(1) rotate(0deg)', opacity: 1 },
+    ],
+    { duration: DEAL_MS, delay, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' }
+  );
+}
+
+/**
+ * Somebody else's card: it rests over the deck, travels out to their seat and is
+ * gathered up there. Their hand is theirs, so nothing stays behind.
+ */
+function flyOut(el, seat, delay) {
+  const box = el.getBoundingClientRect();
+  const dx = seat.left + seat.width / 2 - (box.left + box.width / 2);
+  const dy = seat.top + seat.height / 2 - (box.top + box.height / 2);
+  const animation = el.animate(
+    [
+      { transform: 'translate(0, 0) scale(0.7)', opacity: 0, offset: 0 },
+      { transform: 'translate(0, 0) scale(1)', opacity: 1, offset: 0.12 },
+      { transform: `translate(${dx}px, ${dy}px) scale(0.95) rotate(6deg)`, opacity: 1, offset: 0.82 },
+      { transform: `translate(${dx}px, ${dy}px) scale(0.8) rotate(6deg)`, opacity: 0, offset: 1 },
+    ],
+    { duration: DEAL_MS + 160, delay, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' }
+  );
+  animation.finished.then(() => el.remove()).catch(() => el.remove());
 }

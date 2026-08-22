@@ -98,11 +98,9 @@ function homeView(ctx) {
       })
     ),
     h('div.spacer'),
-    h(
-      'div.btn-row.btn-row--split',
-      h('button.btn.btn--link', { text: 'Join a game', type: 'button', onClick: () => ctx.go('join') }),
-      h('button.btn.btn--link', { text: 'Past games', type: 'button', onClick: () => ctx.go('history') })
-    )
+    // Joining is what most people arriving at this screen are here to do, so it
+    // is a button of its own rather than a line of small print.
+    action('Join a game', () => ctx.go('join'), { kind: 'ghost' })
   );
 }
 

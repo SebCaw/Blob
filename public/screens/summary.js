@@ -7,6 +7,18 @@ import { topbar, leaderboard, action } from './common.js';
  * the table. The leaderboard animates anyone who has climbed.
  */
 
+/** Who opens the next hand — the thing everybody asks between rounds. */
+function nextLeadNote(state, last) {
+  if (last || state.mode !== 'online') return null;
+  const next = state.round && state.round.nextLead;
+  if (!next) return null;
+  const isYou = state.you && state.you.id === next.id;
+  return h('p.next-lead', {
+    role: 'status',
+    text: isYou ? 'You lead the next hand' : `${next.name} leads the next hand`,
+  });
+}
+
 /**
  * Between hands, the Master can let go of a phone that has gone for good.
  *
@@ -84,6 +96,7 @@ export function summaryScreen(ctx) {
       leaderboard(state, ctx.previousOrder)
     ),
     isMaster ? letGoOffer(ctx) : null,
+    nextLeadNote(state, last),
     h('div.spacer'),
     isMaster
       ? action(last ? 'Finish the game' : 'Next round', () => ctx.send({ type: 'round/next' }), {
