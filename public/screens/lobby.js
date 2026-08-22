@@ -2,6 +2,7 @@ import { h, plural } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { qrSvg } from '../qr.js';
 import { topbar, playerRow, action } from './common.js';
+import { sizeControl } from '../size.js';
 
 /**
  * The lobby — the first thing the group sees together, so it is built to be
@@ -41,6 +42,9 @@ export function lobbyScreen(ctx) {
     isMaster ? handSizeControl(ctx) : null,
     h('div.spacer'),
     isMaster ? masterActions(ctx) : waitingNote(state),
+    // The last quiet moment before cards start moving, so it is the right place
+    // to find this if the lobby is already hard to read.
+    sizeControl(ctx),
     h('button.btn.btn--link', { text: 'Leave game', type: 'button', onClick: () => ctx.leaveGame() })
   );
 }

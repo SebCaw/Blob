@@ -8,7 +8,7 @@ have actually been made here.
 
 ```bash
 node server.js     # http://localhost:4100 — no build step, no install needed
-npm test           # node --test, 86 tests
+npm test           # node --test, 178 tests
 node --check <f>   # quick syntax check on a single file
 ```
 
@@ -87,22 +87,48 @@ low to high inside a group. A missing suit leaves no gap, an all-black hand is l
 and a tie on suit count opens on red. Two same-coloured suits touching are the ones people
 misread under pressure.
 
-**Seats are placed by arithmetic and then fitted by measurement.** `seatWidthPct()` spaces
-them round the arc, then `fitSeats()` runs after paint and shrinks `--seat-scale` until no
-two seats touch. Keep both: the formula gets two to eight players close, and the measuring
+**Seats are placed by arithmetic and then fitted by measurement.** Everybody sits at equal
+spacing round the whole ring with you at the bottom, so four players land on north, east,
+south and west without that being a case in the code. `seatWidthPct()` spaces them, then
+`fitSeats()` runs after paint and shrinks `--seat-scale` until no two seats touch. Keep both: the formula gets two to eight players close, and the measuring
 pass settles what it cannot predict — how tall a seat ends up once the name, the numbers and
 a played card have had their say. Compare the pieces (seat box, card box) rather than one
 merged box; a card sits on a tighter ring than the badges, so a merged box reports
 collisions that are not there.
 
-**A finished trick stays on the table until the next card is led.** The server clears a
-trick the instant it settles, which would make the winning card vanish before anyone saw it.
-`playsToShow()` falls back to `round.lastTrick` while the new trick is empty — no timer, and
-nothing to get out of step with.
+**A finished trick is held, then swept.** The server clears a trick the instant it settles,
+which would make the winning card vanish before anyone saw it, so `playsToShow()` keeps
+showing `round.lastTrick` for `TRICK_HOLD_MS` with its winner named in the middle of the
+table. The hold is a maximum, not a block: leading the next card ends it early, because play
+must never wait on an animation.
+
+**A played card is offset far enough to clear its own seat**, not merely toward the middle.
+At 46px it sat on the badge and name of whoever was at the bottom of the ring — always you —
+and the offset differs by axis because a seat is taller than it is wide.
+
+**The hand fan measures itself too.** `fitHand()` tightens `--fan-overlap` until seven cards
+fit across the screen. Card width depends on the stylesheet, the size setting and the round,
+so laying them out and looking is the only honest test.
 
 **The deal is Web Animations, not a CSS transition.** An animation leaves no inline styles
 behind, so it cannot end up fighting the stylesheet rule holding a card at rest, or the lift
 that follows it. It runs once per round, keyed on `game id + round index`.
+
+**One knob scales the whole app.** `--ui-zoom` in `:root` is `--ui-base` (what the screen
+suggests — a phone gets 1, an iPad and a laptop more) times `--ui-step` (what the player
+chose, stored per device by `public/size.js`), applied as `zoom` on `#app`. Never enlarge a
+few font sizes by hand instead: big text in boxes built for small text is worse than either.
+
+Two things follow from `zoom` and both have bitten:
+
+- **Viewport heights have to be divided back out.** `height: calc(100dvh / var(--ui-zoom))`,
+  or a zoomed screen is taller than the screen it is on and the hand falls off the bottom.
+- **Measuring and moving are in different units.** `getBoundingClientRect` reports what you
+  can see; a transform inside the zoomed subtree is in that subtree's own pixels. Anything
+  that measures one and moves by the other divides by `uiZoom()` — the deal animation does.
+
+The automatic scale is gated on **height as well as width**, because a laptop is wide and
+short, and a screen that must not scroll cannot be scaled by its width alone.
 
 **`requestAnimationFrame` does not fire in a hidden tab.** Both the deal and the seat fit are
 scheduled that way, so a backgrounded phone runs them when it comes back. Do not put

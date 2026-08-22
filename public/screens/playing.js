@@ -1,6 +1,7 @@
 import { h, initials, buzz, reducedMotion } from '../ui.js';
 import { topbar } from './common.js';
 import { cardFace, cardBack, trickPile, sortHand, trumpBadge, suitName } from '../cards.js';
+import { uiZoom } from '../size.js';
 
 /**
  * Playing a hand — the one screen this mode adds.
@@ -132,6 +133,7 @@ export function playingScreen(ctx) {
   }
   requestAnimationFrame(() => {
     fitSeats(screen);
+    fitHand(screen);
     // The deal runs once per round, on the first paint of that round.
     if (firstPaintOfRound) dealAnimation(screen, ordered, you);
   });
@@ -514,6 +516,33 @@ function dealAnimation(screen, ordered, you) {
 }
 
 /**
+ * Overlap the fan far enough that it fits across the screen.
+ *
+ * Card widths come from the stylesheet and the size setting, and how many you
+ * hold comes from the round, so the only honest way to know whether seven cards
+ * fit is to lay them out and look. Tightening only: a hand with room to spare
+ * keeps the comfortable spacing it was designed with.
+ */
+function fitHand(screen) {
+  const hand = screen.querySelector('.hand');
+  if (!hand) return;
+  const cards = [...hand.querySelectorAll('.hand__card')];
+  if (cards.length < 2) return;
+
+  const zoom = uiZoom();
+  const available = hand.clientWidth * zoom - 8 * zoom; // a little air either side
+  const cardWidth = cards[0].getBoundingClientRect().width;
+  const spread = cards[cards.length - 1].getBoundingClientRect().right - cards[0].getBoundingClientRect().left;
+  if (spread <= available) return;
+
+  // What the gap between cards has to become for the fan to fit, in the hand's
+  // own pixels rather than the ones we just measured.
+  const gaps = cards.length - 1;
+  const overlap = (available - cards.length * cardWidth) / gaps / zoom;
+  hand.style.setProperty('--fan-overlap', `${Math.min(overlap, -14)}px`);
+}
+
+/**
  * One of your cards arriving: it rests where it belongs, so it starts life over
  * the deck and travels back to itself.
  *
@@ -522,8 +551,9 @@ function dealAnimation(screen, ordered, you) {
  * rule holding a card at rest, or the lift that follows it.
  */
 function flyIn(el, from, to, delay) {
-  const dx = from.left + from.width / 2 - (to.left + to.width / 2);
-  const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+  const zoom = uiZoom();
+  const dx = (from.left + from.width / 2 - (to.left + to.width / 2)) / zoom;
+  const dy = (from.top + from.height / 2 - (to.top + to.height / 2)) / zoom;
   el.animate(
     [
       { transform: `translate(${dx}px, ${dy}px) scale(0.7) rotate(-8deg)`, opacity: 0 },
@@ -539,8 +569,9 @@ function flyIn(el, from, to, delay) {
  */
 function flyOut(el, seat, delay) {
   const box = el.getBoundingClientRect();
-  const dx = seat.left + seat.width / 2 - (box.left + box.width / 2);
-  const dy = seat.top + seat.height / 2 - (box.top + box.height / 2);
+  const zoom = uiZoom();
+  const dx = (seat.left + seat.width / 2 - (box.left + box.width / 2)) / zoom;
+  const dy = (seat.top + seat.height / 2 - (box.top + box.height / 2)) / zoom;
   const animation = el.animate(
     [
       { transform: 'translate(0, 0) scale(0.7)', opacity: 0, offset: 0 },

@@ -1,6 +1,7 @@
 import { h } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { action } from './common.js';
+import { sizeControl } from '../size.js';
 
 /**
  * Everything before you are in a game: the front door, making a game, and
@@ -100,7 +101,10 @@ function homeView(ctx) {
     h('div.spacer'),
     // Joining is what most people arriving at this screen are here to do, so it
     // is a button of its own rather than a line of small print.
-    action('Join a game', () => ctx.go('join'), { kind: 'ghost' })
+    action('Join a game', () => ctx.go('join'), { kind: 'ghost' }),
+    // Last thing on the front page, where somebody who needs it will find it
+    // before they start rather than halfway through a hand.
+    sizeControl(ctx)
   );
 }
 

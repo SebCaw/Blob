@@ -51,6 +51,35 @@
 
   --pad: clamp(16px, 4.5vw, 22px);
   --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* How big everything is drawn.
+   *
+   * `--ui-base` is what the screen suggests — a phone gets 1, an iPad and a
+   * laptop get more, because a bigger sheet of glass held further away wants
+   * bigger everything, not the same phone layout marooned in the middle of it.
+   * `--ui-step` is what the player asked for, and the two multiply. One knob,
+   * so nothing can end up half-scaled. */
+  --ui-base: 1;
+  --ui-step: 1;
+  --ui-zoom: calc(var(--ui-base) * var(--ui-step));
+}
+
+/* The player's choice, remembered on this device. Deliberately gentle steps:
+   each one is noticeably bigger without the layout having to change shape. */
+html[data-size='large'] { --ui-step: 1.18; }
+html[data-size='huge'] { --ui-step: 1.4; }
+
+/* An iPad or a laptop: the same design, drawn at the size that screen deserves.
+ 
+   Gated on height as well as width, because a laptop is wide and short: scaling
+   a screen that must not scroll by its width alone pushes the hand off the
+   bottom of it. */
+@media (min-width: 700px) and (min-height: 780px) {
+  :root { --ui-base: 1.2; }
+}
+
+@media (min-width: 1100px) and (min-height: 900px) {
+  :root { --ui-base: 1.35; }
 }
 
 /* -- Reset ----------------------------------------------------------------- */
@@ -112,8 +141,9 @@ ul {
 
 /* -- App shell ------------------------------------------------------------- */
 #app {
+  zoom: var(--ui-zoom);
   position: relative;
-  min-height: 100dvh;
+  min-height: calc(100dvh / var(--ui-zoom));
   display: flex;
   flex-direction: column;
   background:
@@ -144,7 +174,7 @@ ul {
 
 /* A screen that must never scroll on a phone (bidding) */
 .screen--fixed {
-  height: 100dvh;
+  height: calc(100dvh / var(--ui-zoom));
   overflow: hidden;
 }
 
@@ -1426,12 +1456,19 @@ ul {
 
 /* -- Bigger screens -------------------------------------------------------- */
 @media (min-width: 640px) {
-  body { font-size: 18px; }
   .screen { padding-left: 28px; padding-right: 28px; }
-  .card-face--sm { --w: 54px; }
-  .card-face--md { --w: 72px; }
-  .card-face--lg { --w: 88px; }
   .peek__row { gap: 20px; }
+}
+
+/* The column widens with the glass. It is still a column — a card table spread
+   across a whole laptop screen would be a worse game, not a better one — but a
+   table of eight has room to breathe. */
+@media (min-width: 700px) {
+  .screen { max-width: 620px; }
+}
+
+@media (min-width: 1100px) {
+  .screen { max-width: 700px; }
 }
 
 /* Short phones: give the pad every pixel going. */
@@ -1614,7 +1651,7 @@ ul {
 .table {
   position: relative;
   flex: 1;
-  min-height: 240px;
+  min-height: 190px;
   margin: 4px 0 8px;
 }
 
@@ -1801,7 +1838,7 @@ ul {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  min-height: 104px;
+  min-height: 92px;
   padding: 14px 4px 4px;
 }
 
@@ -1812,8 +1849,12 @@ ul {
   transform: translateY(0);
 }
 
-.hand__card + .hand__card { margin-left: -14px; }
-.hand--squeeze .hand__card + .hand__card { margin-left: -22px; }
+/* How far the cards overlap. One value for the whole fan, tightened after paint
+   by the fit pass when a hand is too wide for the screen — a lifted card used to
+   push its neighbour along, which is how seven cards ran off the edge. */
+.hand { --fan-overlap: -14px; }
+.hand--squeeze { --fan-overlap: -22px; }
+.hand__card + .hand__card { margin-left: var(--fan-overlap); }
 
 /* The lift: legal cards rise out of the fan and stay up while it is your turn.
    The lifted card also widens the gap either side of it, so an overlapping fan
@@ -1823,9 +1864,6 @@ ul {
   border-color: var(--lime);
   z-index: 2;
 }
-
-.hand .card-face--playable + .hand__card { margin-left: -8px; }
-.hand--squeeze .card-face--playable + .hand__card { margin-left: -14px; }
 
 .hand .card-face--blocked {
   filter: brightness(0.62) saturate(0.7);
@@ -2009,4 +2047,54 @@ ul {
   font-size: 15px;
   font-weight: 800;
   color: var(--lime);
+}
+
+/* -- How big everything is drawn ------------------------------------------- */
+.size {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.size__label {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.size__options {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* The buttons are the thing they describe: three A's, growing. Every one is a
+   full-size tap target even though the letter inside it is not. */
+.size__btn {
+  min-width: 44px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-faint);
+  font-family: inherit;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.size__btn--normal { font-size: 14px; }
+.size__btn--large { font-size: 19px; }
+.size__btn--huge { font-size: 25px; }
+
+.size__btn--on {
+  background: var(--lime);
+  color: var(--ink-dark);
 }

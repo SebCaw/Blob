@@ -2,6 +2,7 @@ import { h, fill, reducedMotion, buzz } from './ui.js';
 import { mascot } from './mascot.js';
 import { Net, LIVE, RETRYING, LOST, lastName } from './net.js';
 import { keepAwake, releaseWake } from './wake.js';
+import { applySize, currentSize } from './size.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -525,6 +526,9 @@ window.addEventListener('unhandledrejection', (event) => {
 // -- Boot --------------------------------------------------------------------
 
 function boot() {
+  // Before the first paint, so nobody sees the default size flash past.
+  applySize(currentSize());
+
   // A scanned QR or a shared link lands on /?c=4827 with the code filled in.
   const params = new URLSearchParams(location.search);
   const code = (params.get('c') || '').replace(/\D/g, '');
