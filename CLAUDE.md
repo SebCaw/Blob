@@ -22,6 +22,10 @@ Run a local server on a spare port with its own data directory, never the defaul
 BLOB_PORT=4200 BLOB_DATA_DIR=/tmp/blob-scratch node server.js
 ```
 
+Two phones are two browser **origins**, not two tabs: the session lives in
+`localStorage`, so `localhost:4100` and `127.0.0.1:4100` give you two players on one
+machine. A third can be driven straight through `/api/games` and `/api/command`.
+
 ## The three invariants
 
 **1. `lib/` is pure.** `applyCommand(state, command, ctx)` returns a new state or a
@@ -71,6 +75,38 @@ layer inside a scrolling screen gets stranded mid-content on iOS.
 the phase gets its repaint free, because the screen changes with it. One that does not — a
 score correction, say — needs an explicit `ctx.render()`, or the pushed state lands before
 your flag change and nothing repaints.
+
+## Drawing cards (online mode)
+
+**`public/cards.js` is the only place a card is drawn.** Faces, backs, the trick pile, the
+trump badge and the hand order all live there, so `screens/playing.js` can stay about the
+game. It holds no rules: what is legal arrives in `you.playable`.
+
+**The hand sorter groups suits and alternates their colour** — red, black, red, black, ranks
+low to high inside a group. A missing suit leaves no gap, an all-black hand is left alone,
+and a tie on suit count opens on red. Two same-coloured suits touching are the ones people
+misread under pressure.
+
+**Seats are placed by arithmetic and then fitted by measurement.** `seatWidthPct()` spaces
+them round the arc, then `fitSeats()` runs after paint and shrinks `--seat-scale` until no
+two seats touch. Keep both: the formula gets two to eight players close, and the measuring
+pass settles what it cannot predict — how tall a seat ends up once the name, the numbers and
+a played card have had their say. Compare the pieces (seat box, card box) rather than one
+merged box; a card sits on a tighter ring than the badges, so a merged box reports
+collisions that are not there.
+
+**A finished trick stays on the table until the next card is led.** The server clears a
+trick the instant it settles, which would make the winning card vanish before anyone saw it.
+`playsToShow()` falls back to `round.lastTrick` while the new trick is empty — no timer, and
+nothing to get out of step with.
+
+**The deal is Web Animations, not a CSS transition.** An animation leaves no inline styles
+behind, so it cannot end up fighting the stylesheet rule holding a card at rest, or the lift
+that follows it. It runs once per round, keyed on `game id + round index`.
+
+**`requestAnimationFrame` does not fire in a hidden tab.** Both the deal and the seat fit are
+scheduled that way, so a backgrounded phone runs them when it comes back. Do not put
+anything load-bearing behind one without that being fine.
 
 **`h()` in `public/ui.js` takes text, never markup.** `text:` sets `textContent`; there is
 no way to inject HTML, which is what keeps a player called `<script>` uninteresting.
