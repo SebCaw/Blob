@@ -403,11 +403,14 @@ export function helpButton(ctx, options = {}) {
     className: options.kind === 'link' ? 'btn btn--link' : 'btn btn--ghost',
     text: 'How to play',
     type: 'button',
-    onClick: () => {
-      ctx.ui.helpOpen = true;
-      ctx.ui.helpStep = 0;
-      ctx.ui.helpTab = 'steps';
-      ctx.render();
-    },
+    onClick: () => openHelp(ctx),
   });
+}
+
+/** Open the rules at the first step. Anything that teaches goes through here. */
+export function openHelp(ctx) {
+  ctx.ui.helpOpen = true;
+  ctx.ui.helpStep = 0;
+  ctx.ui.helpTab = 'steps';
+  ctx.render();
 }

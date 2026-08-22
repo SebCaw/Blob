@@ -185,6 +185,15 @@ overrides, so an oversized screen grows the page rather than scrolling inside it
 non-default size the page is allowed to scroll, because a Submit button that cannot be
 reached is worse than a screen that is not perfectly still.
 
+**Nothing small survives in the middle of the table.** Measured on a phone: the top and
+bottom seats' cards land within 28px of the centre and are 60px tall, so anything sitting
+there is covered every hand. The turned card used to. No shape of table fixes it — the
+ring is already as wide as the screen, so vertical room can only come from somewhere that
+has none spare — so the middle stopped carrying it. The suit is painted across the felt
+instead (`.table__trump`), far too big for a card to hide: with all four cards down it is
+still ~79% visible. What is left in the middle is the deck, which is what it says it is
+and the anchor the deal flies out of.
+
 **Trumps live in the top-left corner, as the actual card.** It used to be a `♠ TRUMPS`
 pill on the right and it was missed constantly: it was competing with the game code and
 the settings button, and at that size the four pips are near enough the same shape. The
@@ -200,6 +209,21 @@ is the length it always was. Like the deal it measures on screen and moves insid
 zoomed subtree, so it divides by `uiZoom()`; and it calls `done` on every path — a
 browser with no Web Animations, reduced motion, or a screen that changed underneath must
 still end up with a cleared table.
+
+**The server must pace bots against the client's animations.** A trick settles instantly
+on the server while every phone is still holding it up and sweeping it away, so a bot
+leading straight after would have its card simply THERE when the table cleared — which is
+the "no gap between bots" people actually notice. `SETTLE_ALLOWANCE_MS` in `lib/bot.js` is
+paired with `TRICK_HOLD_MS + SWEEP_MS` in `screens/playing.js`; change one and move the
+other. `MIN_BOT_GAP_MS` in `server/room.js` is the backstop under all of it, because every
+other route to two bots landing together ends there too.
+
+**Sound is synthesised, never loaded.** `public/sound.js` builds every noise from
+oscillators and one noise buffer. No files to cache, nothing to download on pub wifi, and
+— the reason that decides it — no third-party anything, so the CSP stays as tight as it
+is. Short and quiet: this is cards being put down, not a soundtrack. One switch in
+Settings, and turning it ON makes a noise, which is the only honest way to show a sound
+switch worked.
 
 **Buzz for the three moments the game is waiting on you** — a new hand, your bid, your card
 — and nothing else. `[14, 70, 14]` for a hand starting, a single `12` for your turn to play.

@@ -3,6 +3,7 @@ import { mascot } from './mascot.js';
 import { Net, LIVE, RETRYING, LOST, lastName } from './net.js';
 import { keepAwake, releaseWake } from './wake.js';
 import { applySize, currentSize } from './size.js';
+import { play as sound } from './sound.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -361,9 +362,16 @@ net.on('state', (next) => {
    * stop noticing it, which defeats the point.
    */
   const wasYourTurn = Boolean(state && state.you && state.you.yourTurn);
-  if (startingRound) buzz([14, 70, 14]); // a new hand, for everybody
-  else if (next.phase === 'bidding' && next.you && !next.you.hasSubmitted && phaseChanged) buzz([14, 70, 14]);
-  if (next.phase === 'playing' && next.you && next.you.yourTurn && !wasYourTurn) buzz(12);
+  if (startingRound) {
+    buzz([14, 70, 14]); // a new hand, for everybody
+    if (next.mode === 'online') sound('deal');
+  } else if (next.phase === 'bidding' && next.you && !next.you.hasSubmitted && phaseChanged) {
+    buzz([14, 70, 14]);
+  }
+  if (next.phase === 'playing' && next.you && next.you.yourTurn && !wasYourTurn) {
+    buzz(12);
+    sound('turn');
+  }
 
   // The Master has started a rematch, and it isn't the one we (as Master)
   // already switched into ourselves — everyone else carried in automatically
@@ -384,7 +392,11 @@ net.on('state', (next) => {
   else keepAwake();
 
   if (startingRound && next.round) showRoundIntro(next.round);
-  if (phaseChanged && next.phase === 'summary') buzz(next.you && next.you.madeBid ? [14, 50, 14] : 30);
+  if (phaseChanged && next.phase === 'summary') {
+    const made = Boolean(next.you && next.you.madeBid);
+    buzz(made ? [14, 50, 14] : 30);
+    sound(made ? 'win' : 'lose');
+  }
   render();
 
   if (carriedIntoRematch) claimRematchSeat(next.rematchGameId, next.masterName);

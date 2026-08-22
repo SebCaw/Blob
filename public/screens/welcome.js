@@ -2,7 +2,8 @@ import { h } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { action } from './common.js';
 import { sizeControl } from '../size.js';
-import { helpButton } from './help.js';
+import { helpButton, openHelp } from './help.js';
+import { lastName } from '../net.js';
 
 /**
  * Everything before you are in a game: the front door, making a game, and
@@ -80,6 +81,11 @@ function homeView(ctx) {
       wordmark(),
       h('p.lede.center', { text: 'The bidding, the scoring and the arguments — sorted.' })
     ),
+    // Somebody who has never played needs the rules BEFORE they pick a mode —
+    // nobody starts a game and then goes looking for the instructions. Shown
+    // only until they have actually been in a game, so it is a welcome rather
+    // than a permanent piece of furniture.
+    firstTimeHelp(ctx),
     h('div.spacer'),
     h('span.eyebrow.center', { text: 'How are you playing?' }),
     h(
@@ -124,6 +130,26 @@ function homeView(ctx) {
     // Last thing on the front page, where somebody who needs it will find it
     // before they start rather than halfway through a hand.
     sizeControl(ctx)
+  );
+}
+
+/**
+ * The way in to the rules, for somebody who has never been in a game.
+ *
+ * `lastName()` is only written when a game is actually created or joined, so an
+ * empty one means this device has never played. It goes ABOVE the choice of
+ * mode because that is the order the questions arrive in — what is this game,
+ * then how am I playing it — and because the small link at the bottom of the
+ * page was below the fold at every size, which is no use to the one person who
+ * needs it most.
+ */
+function firstTimeHelp(ctx) {
+  if (lastName()) return null;
+  return h(
+    'button.first-time',
+    { type: 'button', onClick: () => openHelp(ctx) },
+    h('span.first-time__title', { text: 'Never played Blob?' }),
+    h('span.first-time__blurb', { text: 'Two minutes and you will have it. Tap here.' })
   );
 }
 

@@ -2,6 +2,7 @@ import { h, initials, buzz, reducedMotion } from '../ui.js';
 import { topbar } from './common.js';
 import { cardFace, cardBack, trickPile, sortHand, suitName, suitGlyph, parseCard } from '../cards.js';
 import { uiZoom } from '../size.js';
+import { play as sound } from '../sound.js';
 
 /**
  * Playing a hand — the one screen this mode adds.
@@ -94,6 +95,16 @@ let clearedTrick = null;
 let holdingTrick = null;
 let holdTimer = null;
 
+/**
+ * How many cards were on the table last paint, and which trick they belonged to.
+ *
+ * A card going down makes a noise whoever played it — that is most of what a
+ * table sounds like, and without it the bots play in silence while you are the
+ * only one anybody can hear.
+ */
+let heardTrick = null;
+let heardPlays = 0;
+
 export function playingScreen(ctx) {
   const state = ctx.state;
   const round = state.round;
@@ -103,11 +114,22 @@ export function playingScreen(ctx) {
 
   // Everyone has played and the server has already opened the next trick. Hold
   // the finished one on the table for a beat, then sweep it off.
+  // A card has landed since the last paint: play it, once, whoever put it there.
+  const heardKey = trick ? `${state.id}:${round.index}:${trick.number}` : null;
+  if (heardKey !== heardTrick) {
+    heardTrick = heardKey;
+    heardPlays = trick ? trick.plays.length : 0;
+  } else if (trick && trick.plays.length > heardPlays) {
+    heardPlays = trick.plays.length;
+    sound('card');
+  }
+
   const settled = Boolean(trick && !trick.plays.length && round.lastTrick);
   const trickKey = settled ? `${state.id}:${round.index}:${round.lastTrick.number}` : null;
   const holding = settled && clearedTrick !== trickKey;
   if (holding && holdingTrick !== trickKey) {
     holdingTrick = trickKey;
+    sound('trick');
     clearTimeout(holdTimer);
     holdTimer = setTimeout(() => {
       sweepTrick(round.lastTrick.winnerId, () => {
@@ -239,16 +261,57 @@ function table(ctx, ordered, trick, round, forehead, you, holding) {
     // happened to be left over.
     h(
       'div.table__ring',
-      h('div.table__felt', { 'aria-hidden': 'true' }),
+      h(
+        'div.table__felt',
+        { 'aria-hidden': 'true' },
+        // Trumps, painted on the baize. Big enough that a card laid on top of
+        // it cannot hide it, behind everything so it never competes with the
+        // cards, and faint enough not to shout.
+        round.trumpSuit
+          ? h('span', {
+              className: `table__trump${round.trumpSuit === 'H' || round.trumpSuit === 'D' ? ' table__trump--red' : ''}`,
+              text: suitGlyph(round.trumpSuit),
+            })
+          : null
+      ),
       h(
         'div.table__middle',
-        h('div.deck', { 'aria-hidden': 'true' }, h('span.deck__back'), h('span.deck__back')),
-        round.trumpCard ? cardFace(round.trumpCard, { size: 'sm', className: 'deck__trump' }) : null,
-        round.noTrumps ? h('span.deck__no-trumps', { text: 'no trumps' }) : null
+        deckAndTrump(round)
       ),
       seatNodes,
       wonBanner(ctx, trick, round, played)
     )
+  );
+}
+
+/**
+ * The stock in the middle, wearing the trump suit.
+ *
+ * The turned card used to sit here face up beside the deck, and on a phone it
+ * was underneath the cards played to every trick — measured, not guessed: the
+ * top and bottom seats' cards land within 28px of the middle and are 60px tall,
+ * so they cover it every single hand.
+ *
+ * There is no shape of table that fixes that. The ring is already as wide as
+ * the phone, so the only way to buy vertical room is to take it from somewhere
+ * else on a screen that has none spare — and anything small enough to sit in
+ * the middle is small enough to be covered.
+ *
+ * So the middle stops carrying it. The turned card is in the top-left corner at
+ * full size, your own trumps are gold-edged in your hand, and the suit is
+ * painted across the baize behind everything, where it is far too big for a
+ * card to hide. What is left here is what it says it is: the deck.
+ */
+function deckAndTrump(round) {
+  return h(
+    'div.deck',
+    {
+      'aria-label': round.noTrumps ? 'the deck, no trumps this hand' : 'the deck',
+      role: 'img',
+    },
+    h('span.deck__back', { 'aria-hidden': 'true' }),
+    h('span.deck__back', { 'aria-hidden': 'true' }),
+    round.noTrumps ? h('span.deck__no-trumps', { text: 'NO', 'aria-hidden': 'true' }) : null
   );
 }
 

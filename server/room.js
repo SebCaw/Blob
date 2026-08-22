@@ -33,6 +33,15 @@ const ELECTION_TIMEOUT_MS = 60_000;
  * window, because everyone else is sat watching a trick that cannot move.
  */
 const STALL_MS = 10_000;
+/**
+ * The least time that may pass between one bot moving and the next.
+ *
+ * A backstop rather than the main pacing, which lives in `bot.thinkMs`. Two
+ * bots landing together reads as one player with two hands, and every route to
+ * that — a short random pause, a re-arm after a reconnect, a move that arrives
+ * while the previous state is still going out — ends up here.
+ */
+const MIN_BOT_GAP_MS = 550;
 /** How many command ids to remember for duplicate suppression. */
 const SEEN_LIMIT = 300;
 
@@ -64,6 +73,8 @@ class Room {
     /** Timer for the bot whose turn it is, and what it is waiting to do. */
     this.botTimer = null;
     this.botFor = null;
+    /** When a bot last moved, so the next one cannot land on top of it. */
+    this.lastBotMoveAt = 0;
     /** playerId -> when we last heard from that phone */
     this.lastSeen = new Map();
 
@@ -317,6 +328,8 @@ class Room {
     } catch {
       /* a broken brain still gets a pause, and the fallback below still moves */
     }
+    // Never tread on the bot before it, however short its own pause came out.
+    delay = Math.max(delay, MIN_BOT_GAP_MS - (Date.now() - this.lastBotMoveAt));
     this.botTimer = setTimeout(() => {
       this.botTimer = null;
       this.botFor = null;
@@ -351,6 +364,7 @@ class Room {
 
     const view = this.viewFor(player.id);
     const secret = this._botSecret(player);
+    this.lastBotMoveAt = Date.now();
 
     if (owed.kind === 'bid') {
       let value = 0;
@@ -514,4 +528,4 @@ class Room {
   }
 }
 
-module.exports = { Room, GRACE_MS, ELECTION_TIMEOUT_MS, PRESENCE_TIMEOUT_MS };
+module.exports = { Room, GRACE_MS, ELECTION_TIMEOUT_MS, PRESENCE_TIMEOUT_MS, MIN_BOT_GAP_MS };

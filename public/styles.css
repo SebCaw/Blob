@@ -1727,6 +1727,8 @@ html[data-size='huge'] .bid__current {
   gap: 4px;
 }
 
+/* The stock. Small on purpose: it is the anchor the deal flies out of and a
+   reminder that there is a deck, not something that has to be read. */
 .deck { position: relative; width: 30px; height: 44px; }
 
 .deck__back {
@@ -1740,11 +1742,15 @@ html[data-size='huge'] .bid__current {
 .deck__back:last-child { transform: translate(3px, -3px); }
 
 .deck__no-trumps {
-  font-size: 11px;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
   font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--ink-faint);
+  transform: translate(3px, -3px);
 }
 
 /* -- A seat ---------------------------------------------------------------- */
@@ -2712,3 +2718,115 @@ html[data-size='large'] .home-hero .mascot-wrap--lg { width: 64px; }
 html[data-size='huge'] .home-hero .mascot-wrap--lg { display: none; }
 html[data-size='large'] .home-hero .lede,
 html[data-size='huge'] .home-hero .lede { display: none; }
+
+/* Who leads, on the bidding screen. It changes what a bid is worth — leading
+   means committing first every trick and never seeing what anyone else does —
+   so it belongs next to the decision, not only on the summary afterwards. */
+.bid__lead {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+
+.bid__lead--you { color: var(--lime); }
+
+html[data-size='huge'] .bid__lead { display: none; }
+
+/* The rules, for somebody who has never played. Above the choice of mode,
+   because that is the order the questions arrive in — what is this game, then
+   how am I playing it. Shown only until this device has been in a game. */
+.first-time {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  padding: 13px 16px;
+  margin-top: 14px;
+  border-radius: var(--radius-sm);
+  border: 2px solid rgba(200, 255, 61, 0.45);
+  background: rgba(200, 255, 61, 0.12);
+  color: var(--ink);
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+.first-time:active { transform: translateY(1px); }
+.first-time__title { font-weight: 900; font-size: 16px; color: var(--lime); }
+.first-time__blurb { font-size: 13px; color: var(--ink-soft); }
+
+/* Trumps, painted on the baize.
+ 
+   Anything small enough to sit in the middle of the table gets covered by the
+   cards played to the trick — measured: the top and bottom seats land within
+   28px of the centre and a card is 60px tall. So this is not small. It fills
+   the felt, sits behind everything, and a card laid across it hides a corner of
+   a symbol rather than the whole thing. */
+.table__trump {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  /* Big enough that the cards cannot hide it. Four cards played to a trick
+     make a cross about 42px wide and 120px tall over the middle; the suit is
+     drawn far larger than that, so what a card covers is the middle of a shape
+     whose edges are still plainly readable. */
+  font-size: min(96cqmin, 230px);
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+}
+
+/* Coloured, because the suit is half the answer and the shape is the other
+   half — and a diamond and a heart read alike at a glance in plain white. */
+.table__trump--red { color: rgba(255, 62, 138, 0.2); }
+
+.table__felt { container-type: size; }
+
+.table--crowded .deck { width: 26px; height: 38px; }
+
+/* A switch. One volume, chosen to sit under a conversation, so there is nothing
+   to slide — somebody who wants it quieter wants it off. */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.toggle {
+  position: relative;
+  width: 54px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  padding: 0;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.toggle--on {
+  background: rgba(200, 255, 61, 0.28);
+  border-color: var(--lime);
+}
+
+.toggle__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  transition: transform 140ms var(--ease-pop, ease), background 140ms ease;
+}
+
+.toggle--on .toggle__knob {
+  transform: translateX(22px);
+  background: var(--lime);
+}

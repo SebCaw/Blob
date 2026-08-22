@@ -3,6 +3,7 @@ import { mascot } from '../mascot.js';
 import { topbar, roundPips, progress, action, ownName } from './common.js';
 import { cardFace, cardBack, sortHand, trumpBadge } from '../cards.js';
 import { uiZoom } from '../size.js';
+import { play as sound } from '../sound.js';
 
 /**
  * Bidding — the screen this app lives or dies by.
@@ -104,8 +105,27 @@ function head(state) {
       h('div.bid__cards', h('b', { text: String(round.handSize) }), h('span', { text: round.handSize === 1 ? 'card' : 'cards' })),
       state.mode === 'online' ? trumpBadge(round) : null,
       h('span.chip', { text: `${round.bidsIn} of ${round.bidsNeeded} in` })
-    )
+    ),
+    leadNote(state)
   );
+}
+
+/**
+ * Who leads the hand, said before you bid rather than after.
+ *
+ * It changes what a bid is worth — leading means committing first every trick
+ * and never seeing what anyone else does, and being last to the lead is the
+ * easiest seat there is. The summary already says who leads NEXT; this is the
+ * same fact at the moment it is actually being used.
+ */
+function leadNote(state) {
+  const round = state.round;
+  if (state.mode !== 'online' || !round.leadName) return null;
+  const you = state.you && round.leadId === state.you.id;
+  return h('p.bid__lead', {
+    text: you ? 'You lead this hand' : `${round.leadName} leads this hand`,
+    className: you ? 'bid__lead bid__lead--you' : 'bid__lead',
+  });
 }
 
 /**
@@ -243,6 +263,7 @@ function submitBar(ctx) {
       if (!sent) return; // keep their choice on screen so they can try again
       ctx.ui.bid = null;
       buzz([12, 40, 12]);
+      sound('bid');
     },
     { disabled: !ready }
   );
@@ -457,6 +478,7 @@ function takeoverView(ctx) {
           if (!sent) return;
           ctx.ui.takeover = { ...takeover, stage: 'done' };
           buzz([12, 40, 12]);
+      sound('bid');
           ctx.render();
         },
         { disabled: chosen === null }
