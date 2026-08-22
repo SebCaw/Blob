@@ -2,6 +2,7 @@ import { h, buzz, initials } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { topbar, roundPips, progress, action } from './common.js';
 import { cardFace, cardBack, sortHand, trumpBadge } from '../cards.js';
+import { uiZoom } from '../size.js';
 
 /**
  * Bidding — the screen this app lives or dies by.
@@ -26,7 +27,7 @@ export function biddingScreen(ctx) {
   // Somebody who joined mid-game has no hand this round and nothing to bid.
   if (you.waitingToJoin) return waitingToJoinView(ctx);
 
-  return h(
+  const screen = h(
     'div.screen.screen--fixed',
     topbar(state, { ctx }),
     h(
@@ -37,6 +38,60 @@ export function biddingScreen(ctx) {
       you.hasSubmitted ? null : h('div.bid__foot', submitBar(ctx), handoverBar(ctx))
     )
   );
+  requestAnimationFrame(() => fitPeek(screen));
+  return screen;
+}
+
+/**
+ * Make the hand as big as the room it has been given.
+ *
+ * The pad is capped so your cards get most of the screen — but space is no use
+ * if the cards do not grow into it. Seven cards used to shrink to 46px to fit
+ * across a phone, which left them SMALLER on the screen where you are studying
+ * them than on the one where you are playing them. That is backwards.
+ *
+ * So they stay full size and overlap harder instead, the way a real fan does,
+ * and only shrink once the overlap would hide more than half of each card —
+ * at which point you cannot read the corner any more and a smaller card is
+ * genuinely better. Same measure-then-fit approach as the playing screen's
+ * `fitHand`, and for the same reason: card width comes from the stylesheet and
+ * the size setting, so laying them out and looking is the only honest test.
+ */
+function fitPeek(screen) {
+  const peek = screen.querySelector('.peek');
+  if (!peek || peek.classList.contains('peek--forehead')) return;
+  const cards = [...peek.querySelectorAll('.peek__card')];
+  if (cards.length < 2) return;
+
+  // Clear last pass's answer BEFORE measuring, or the fit reads its own output
+  // and creeps tighter every render. Reading a rect flushes layout, so the
+  // width below is the natural one the stylesheet asks for.
+  peek.style.removeProperty('--peek-width');
+  peek.style.removeProperty('--peek-overlap');
+
+  // Units, which is the trap here. `clientWidth` is the element's own layout
+  // pixels; `getBoundingClientRect` is what you can see, which the zoom has
+  // already multiplied. Everything works in layout pixels, because that is what
+  // the margin we are about to set is measured in.
+  let width = cards[0].getBoundingClientRect().width / uiZoom();
+  const count = cards.length;
+  const gaps = count - 1;
+  const available = peek.clientWidth - 10; // a little air either side
+
+  let overlap = (available - count * width) / gaps;
+  if (overlap > -8) overlap = -8; // a resting fan; never spread wider than this
+
+  // Overlap this hard and the corner you read the card by is covered, so past
+  // here it is honestly better to have a smaller card than a hidden one.
+  const TIGHTEST = 0.55;
+  if (overlap < -width * TIGHTEST) {
+    width = available / (count - gaps * TIGHTEST);
+    overlap = -width * TIGHTEST;
+    peek.style.setProperty('--peek-width', `${Math.floor(width)}px`);
+  }
+  // Floor rather than round: a fan a pixel too tight is invisible, a fan a
+  // pixel too wide runs off the edge of the phone.
+  peek.style.setProperty('--peek-overlap', `${Math.floor(overlap)}px`);
 }
 
 function head(state) {
@@ -84,11 +139,11 @@ function yourCards(ctx) {
 
   const cards = sortHand(state.you.hand || []);
   if (!cards.length) return null;
-  // You are looking at these while you decide a bid, so they are as big as the
-  // screen allows — only squeezed once a hand gets long enough to need it.
+  // You are looking at these while you decide a bid, so they are the biggest
+  // thing on the screen. How far they overlap is settled after paint by
+  // `fitPeek` — a long hand fans tighter rather than shrinking.
   return h(
-    'div',
-    { className: `peek${cards.length > 6 ? ' peek--squeeze' : ''}` },
+    'div.peek',
     cards.map((cardId, index) => cardFace(cardId, { size: 'lg', index, className: 'peek__card' }))
   );
 }

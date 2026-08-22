@@ -1966,16 +1966,19 @@ html[data-size='huge'] .bid__current {
      reading while you decide, so they are the last thing to give up space. */
   flex: 3 1 auto;
   min-height: 96px;
-  gap: 2px;
+  /* No gap: `fitPeek` controls the spacing through one negative margin, so a
+     second source of width would have to be in every one of its sums. */
+  gap: 0;
   padding: 6px 0;
 }
 
-.peek__card + .peek__card { margin-left: -8px; }
-
-/* Long hands overlap harder and shrink, so seven cards still fit across a
-   phone without the fan running off the edge. */
-.peek--squeeze .peek__card { --w: 46px; }
-.peek--squeeze .peek__card + .peek__card { margin-left: -14px; }
+/* How far the fan overlaps is measured after paint by `fitPeek`, because card
+   width comes from the stylesheet and the size setting and how many you hold
+   comes from the round. A long hand fans TIGHTER rather than shrinking: these
+   used to drop to 46px for a seven-card hand, which left them smaller on the
+   screen where you study them than on the one where you play them. */
+.peek__card { --w: var(--peek-width, 62px); }
+.peek__card + .peek__card { margin-left: var(--peek-overlap, -8px); }
 
 /* `align-items: flex-end` sits the fanned hand on a line; in a column it means
    the cross axis, which pinned this whole block to the right-hand edge. */

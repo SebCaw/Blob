@@ -168,7 +168,17 @@ larger size settings the pad sheds its captions — the question and the box sho
 choice both repeat what the pad and the Submit button already say. Controls stay, captions
 go.
 
-Two traps to know: a percentage `max-height` needs a definite parent, and a flex item has
+**And the hand grows into the room it is given.** Space is no use if the cards do not use
+it: a seven-card hand used to drop to 46px to fit across a phone, which left the cards
+SMALLER on the screen where you study them than on the one where you play them. So
+`fitPeek()` fans them tighter instead of shrinking them, and only gives width back once
+the overlap would cover the corner you read the card by (55%). Three traps it walks into
+and back out of: `.peek` must have no `gap`, or the spacing has two sources and every sum
+is wrong; the fit must clear its own last answer before measuring, or it creeps tighter
+every render; and the overlap is floored rather than rounded, because a fan a pixel too
+tight is invisible and a pixel too wide runs off the phone.
+
+Two more traps: a percentage `max-height` needs a definite parent, and a flex item has
 none — `max-height: 46%` on `.pad` silently did nothing, so it is `calc(Ndvh /
 var(--ui-zoom))` instead. And `.screen--fixed` sets a height that `flex: 1` on `.screen`
 overrides, so an oversized screen grows the page rather than scrolling inside itself; at a
