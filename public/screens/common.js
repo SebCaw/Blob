@@ -90,6 +90,7 @@ export function topbar(state, options = {}) {
     (state.round ? `Round ${state.round.number} of ${state.round.totalRounds}` : 'Lobby');
   return h(
     'div.topbar',
+    options.ctx ? backButton(options.ctx) : null,
     options.left || h('div.topbar__title', { text: title }),
     h(
       'div.topbar__right',
@@ -99,6 +100,36 @@ export function topbar(state, options = {}) {
       // the cards are too small to read is the middle of a hand, not the lobby.
       options.ctx ? settingsButton(options.ctx) : null
     )
+  );
+}
+
+/**
+ * Out of this game, top left, where a back button belongs.
+ *
+ * It used to be reachable only through Settings, which is a strange place to
+ * look for "I am in the wrong game". In a lobby it just goes — nothing has been
+ * dealt, so there is nothing to lose. Once a game is running it opens Settings
+ * with the question already asked, because leaving is one-way and a back arrow
+ * that quietly ends somebody's game would be the worst button in the app.
+ */
+function backButton(ctx) {
+  const running = Boolean(ctx.state) && ctx.state.phase !== 'lobby' && ctx.state.phase !== 'complete';
+  return h(
+    'button.btn.btn--link.topbar__back',
+    {
+      type: 'button',
+      'aria-label': running ? 'Leave this game' : 'Back to all games',
+      onClick: () => {
+        if (!running) {
+          ctx.backToShelf();
+          return;
+        }
+        ctx.ui.settingsOpen = true;
+        ctx.ui.confirmShelf = true;
+        ctx.render();
+      },
+    },
+    h('span', { text: '‹', 'aria-hidden': 'true' })
   );
 }
 

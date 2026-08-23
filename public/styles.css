@@ -3207,3 +3207,26 @@ html[data-size='huge'] .bid__lead { display: none; }
   text-transform: uppercase;
   color: var(--bad);
 }
+
+/* The back arrow, top left of every in-game screen. Deliberately quiet: it is
+   the way out, not the thing you came here to press. Sized to the tap target
+   rather than to the glyph, because a 44px target under a small character is
+   what makes it usable on a phone. */
+.topbar__back {
+  display: grid;
+  place-items: center;
+  /* `.btn` is full-width by design — every other button in this app is a bar
+     across the screen. This one is a 44px square in a row with other things,
+     so it has to opt out of that as well as set its own size. */
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  margin-left: -10px;
+  padding: 0;
+  font-size: 26px;
+  line-height: 1;
+  text-decoration: none;
+  color: var(--ink-soft);
+  flex: 0 0 auto;
+}
+.topbar__back:hover { color: var(--ink); }
