@@ -167,6 +167,21 @@ export function sortHand(cards) {
   return out;
 }
 
+/**
+ * Plain numerical order, low to high.
+ *
+ * Blob's sorter groups by suit and alternates the colours, because in Blob
+ * following suit is the whole game. In Silly Head the suit means nothing at all
+ * — only the number counts — so grouping by it actively hides the thing you are
+ * reading your hand for. Two 7s should sit next to each other.
+ *
+ * @param {string[]} cards
+ * @returns {string[]} a new array
+ */
+export function sortByRank(cards) {
+  return (cards || []).slice().sort(byRank);
+}
+
 const RANK_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const rankValue = (cardId) => RANK_ORDER.indexOf(parseCard(cardId).rank);
 const byRank = (x, y) => rankValue(x) - rankValue(y);

@@ -87,8 +87,10 @@ const ui = {
   shQuick: false,
   /** Silly Head: the card picked up during the sort, waiting for a pile. */
   shPick: null,
-  /** Silly Head: "how many 5s?", when you hold more than one of a number. */
-  shCount: null,
+  /** Silly Head: cards lifted out of your hand, waiting to go down together. */
+  shChosen: null,
+  /** Silly Head: the last check before you are dealt in. */
+  shConfirmReady: false,
   /** Silly Head: stuck on your face-up cards, choosing which one you lose. */
   shGiveUp: false,
   /** Silly Head: cards tapped and still in flight, so the tap looks answered. */
@@ -397,7 +399,8 @@ function resetGameView() {
   ui.correction = null;
   ui.lobbyHandSize = null;
   ui.shPick = null;
-  ui.shCount = null;
+  ui.shChosen = null;
+  ui.shConfirmReady = false;
   ui.shGiveUp = false;
   ui.shSending = null;
   ui.settingsOpen = false;
@@ -507,7 +510,8 @@ function onSillyHeadState(next) {
 
   if (phaseChanged) {
     ui.shPick = null;
-    ui.shCount = null;
+    ui.shChosen = null;
+    ui.shConfirmReady = false;
     ui.shGiveUp = false;
     ui.shSending = null;
     ui.confirmLeave = false;
@@ -595,7 +599,7 @@ function screenKey() {
   if (ui.route === 'history') return `history:${ui.historyRecord ? 'one' : 'list'}`;
   if (!state && ui.route === 'shelf') return 'shelf';
   if (!state || ui.route !== 'game') return `welcome:${ui.game}:${ui.route}`;
-  if (state.game === 'sillyhead') return `sillyhead:${state.phase}`;
+  if (state.game === 'sillyhead') return `sillyhead:${state.phase}:${ui.shConfirmReady ? 'ready' : ''}`;
   if (ui.takeover) return 'takeover';
   return `game:${state.phase}:${ui.correcting ? 'fix' : ''}`;
 }

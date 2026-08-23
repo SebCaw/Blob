@@ -249,9 +249,17 @@ test('both phones sort, play starts, and a card played lands on every screen', a
   const you = stream.last.state.you;
   assert.ok(you.playable.length, 'whoever leads an empty pile can play anything');
 
-  const played = await send(app, sessions[seat], { type: 'play/cards', cardIds: [you.playable[0]] });
+  // Anything but a 10. A 10 sacks the pile the moment it lands, so the card
+  // never appears on top and a test waiting for it waits for ever — which is
+  // exactly what this one did, about one run in twelve, until it was written
+  // down. If the whole hand is 10s, any of them will do and the assertion
+  // below allows for the sack.
+  const card = you.playable.find((id) => !id.startsWith('10')) || you.playable[0];
+  const sacks = card.startsWith('10');
+
+  const played = await send(app, sessions[seat], { type: 'play/cards', cardIds: [card] });
   assert.equal(played.status, 200, played.text);
-  for (const s of streams) await s.until((v) => v.pile.top === you.playable[0]);
+  for (const s of streams) await s.until((v) => (sacks ? v.sacked > 0 : v.pile.top === card));
 });
 
 test('the same room refuses a command from the wrong game', async (t) => {

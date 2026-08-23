@@ -318,16 +318,24 @@ test('you cannot start with an empty pile while you still hold cards', () => {
   assert.equal(err.code, 'piles-short');
 });
 
-test('finishing the sort takes every pair back into your hand', () => {
+test('you cannot start with cards still piled up', () => {
+  // It used to unstack them for you, which quietly chose your three best cards
+  // on your behalf — the one decision the sort exists to make.
   const g = sorting(['A', 'B']);
   const me = g.ids[0];
-  g.state.up[me] = [[C('5S'), C('5H')], [C('KD'), D('KD')], [C('7C')]];
-  g.state.hands[me] = [C('8C')];
+  g.state.up[me] = [[C('5S'), C('5H')], [C('KD')], [C('7C')]];
+  g.state.hands[me] = [C('8C'), C('9C'), C('10C')];
   g.state.stock = [];
-  const state = ok(g.state, { type: 'sort/done' }, me, g.ctxf).state;
+  const err = refused(g.state, { type: 'sort/done' }, me, g.ctxf);
+  assert.equal(err.code, 'piles-stacked');
+  assert.match(err.message, /piled up/);
+
+  // Take the spare one back yourself and it is fine.
+  let state = ok(g.state, { type: 'sort/take', pileIndex: 0 }, me, g.ctxf).state;
   assert.deepEqual(state.up[me].map((s) => s.length), [1, 1, 1]);
-  assert.equal(state.hands[me].length, 3);
-  assert.ok(state.hands[me].includes(C('5H')) && state.hands[me].includes(D('KD')));
+  assert.ok(state.hands[me].includes(C('5H')));
+  state = ok(state, { type: 'sort/done' }, me, g.ctxf).state;
+  assert.equal(state.sortDone[me], true);
 });
 
 test('play starts when the last person finishes, and the binned 3s are the pile', () => {
@@ -717,7 +725,16 @@ test('a dealt game always plays out to one Silly Head', () => {
         continue;
       }
       const playable = game.playableCards(state, id);
-      if (!playable.length) {
+      // Once in a while, take a pile you could have beaten.
+      //
+      // Not padding: two players holding the last low cards with every 2 and 10
+      // sacked can hand the same handful back and forth for ever, because a 9
+      // on the pile blocks everything above it. It is a real property of the
+      // game — the bots have a deliberate way out of it for exactly this reason
+      // (see `breakoutChance` in lib/sillyhead/bot.js) and a driver this naive
+      // needs one too, or this test hangs about one run in twenty.
+      const standoff = !state.stock.length && state.pile.length && moves % 37 === 0;
+      if (!playable.length || standoff) {
         state = ok(state, { type: 'play/takePile' }, id, g.ctxf).state;
         continue;
       }

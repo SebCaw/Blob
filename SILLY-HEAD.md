@@ -86,7 +86,9 @@ rule and it is the most unusual part of the game.
   - It ends when nothing can be doubled any more. (Rare.)
 - Then **every pair comes off** and goes to your hand, leaving exactly **three
   single face-up cards**. They do not have to be different ranks — two 10s and a
-  king is a fine finish.
+  king is a fine finish. You take them off yourself: the app refuses to start
+  while anything is still stacked, rather than unstacking for you, because which
+  card you leave showing is the decision the whole sort exists to make.
 - You start the game holding **more than three cards**, and that is normal.
 
 The stock is shared, so the sort is a scramble: **whoever grabs the top card

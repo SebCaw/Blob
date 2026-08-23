@@ -1,4 +1,5 @@
 import { h, initials, fragment } from '../ui.js';
+import { uiZoom } from '../size.js';
 
 /**
  * A drawn crown rather than the U+265B glyph. A font that lacks it renders
@@ -69,6 +70,47 @@ export function woodenSpoon() {
 export function ownName(name, isYou) {
   if (!isYou) return name;
   return String(name).trim().toLowerCase() === 'you' ? name : `${name} (you)`;
+}
+
+/**
+ * Tighten a fan of cards until it fits the screen it is on.
+ *
+ * Silly Head draws its cards large on purpose — you read them from across a
+ * table — which means a hand of fourteen will not fit a phone at its resting
+ * spacing. It fans tighter rather than shrinking, for the same reason Blob's
+ * bidding hand does: a smaller card is harder to read, and a tighter fan is
+ * not, right up until the overlap starts covering the corner you read.
+ *
+ * Measured rather than calculated, because how wide a card ends up depends on
+ * the stylesheet and the size setting, and laying them out and looking is the
+ * only honest way to know.
+ *
+ * Two traps, both of which have bitten in this codebase: the fit must clear its
+ * own last answer before measuring or it creeps tighter on every render, and
+ * measuring happens in screen pixels while the value is set in the zoomed
+ * subtree's own, so it divides back out.
+ *
+ * @param {HTMLElement} screen
+ * @param {string} [selector]
+ */
+export function fitFan(screen, selector = '.hand') {
+  const hand = screen.querySelector(selector);
+  if (!hand) return;
+  const cards = [...hand.querySelectorAll('.hand__card')];
+  if (cards.length < 2) return;
+
+  hand.style.removeProperty('--fan-overlap');
+  const zoom = uiZoom();
+  const available = hand.clientWidth * zoom - 8 * zoom;
+  const cardWidth = cards[0].getBoundingClientRect().width;
+  const spread = cards[cards.length - 1].getBoundingClientRect().right - cards[0].getBoundingClientRect().left;
+  if (spread <= available) return;
+
+  const gaps = cards.length - 1;
+  const overlap = (available - cards.length * cardWidth) / gaps / zoom;
+  // Floored rather than rounded: a fan a pixel too tight is invisible, and a
+  // pixel too wide runs off the phone.
+  hand.style.setProperty('--fan-overlap', `${Math.floor(Math.min(overlap, -14))}px`);
 }
 
 /** Pieces that turn up on more than one screen. */

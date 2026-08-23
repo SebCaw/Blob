@@ -2,6 +2,7 @@ import { h } from '../ui.js';
 import { sizeControl } from '../size.js';
 import { helpButton } from './help.js';
 import { soundOn, setSound } from '../sound.js';
+import { askBeforeStart, setAskBeforeStart } from '../prefs.js';
 
 /**
  * Settings, as a sheet over whatever you were doing.
@@ -43,6 +44,58 @@ function soundRow(ctx) {
     ),
     h('p.sheet__hint', { text: 'Cards, tricks and your turn. Never during a bid.' })
   );
+}
+
+/**
+ * A switch, with a line underneath saying what it is for.
+ *
+ * Pulled out of the sound row because it is now used twice, and a settings
+ * sheet where two switches are built two different ways is a settings sheet
+ * that will grow a third.
+ */
+function toggleRow(ctx, { label, hint, on, onChange }) {
+  return h(
+    'div.sheet__row',
+    h(
+      'div.toggle-row',
+      h('span.sheet__label', { text: label }),
+      h(
+        'button',
+        {
+          className: `toggle${on ? ' toggle--on' : ''}`,
+          type: 'button',
+          role: 'switch',
+          'aria-checked': on ? 'true' : 'false',
+          'aria-label': label,
+          onClick: () => {
+            onChange(!on);
+            ctx.render();
+          },
+        },
+        h('span.toggle__knob')
+      )
+    ),
+    h('p.sheet__hint', { text: hint })
+  );
+}
+
+/**
+ * The settings that only make sense in the game you are actually in.
+ *
+ * Blob has none of its own yet. Silly Head has one, and it is the sort of thing
+ * that belongs here rather than in the game: whether to be asked about your
+ * three face-up cards. It matters enormously the first few times and not at all
+ * after that, which is exactly what a setting is for.
+ */
+function gameRows(ctx) {
+  const game = (ctx.state && ctx.state.game) || (ctx.ui && ctx.ui.game);
+  if (game !== 'sillyhead') return null;
+  return toggleRow(ctx, {
+    label: 'Check my three cards',
+    hint: 'Before you are dealt in, Silly Head asks whether your best cards are face up. They are played last.',
+    on: askBeforeStart(),
+    onChange: setAskBeforeStart,
+  });
 }
 
 /**
@@ -143,6 +196,7 @@ export function settingsSheet(ctx) {
         })
       ),
       soundRow(ctx),
+      gameRows(ctx),
       // The rules, reachable mid-hand — which is when somebody usually needs
       // them. Opening it closes this, so they are not stacked two deep.
       helpButton(

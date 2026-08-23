@@ -3261,3 +3261,130 @@ button.card-face:active:not(:disabled) {
 .sh-discard--live:active {
   transform: translateY(2px);
 }
+
+/* -- Silly Head, second pass ------------------------------------------------ */
+/* Everything here is the same complaint answered in different places: the cards
+   were drawn small on a screen with room to spare, and a card you have to lean
+   in to read is the one thing this app cannot afford. */
+
+/* A pile is a face-down card with a face-up one sitting proud on top of it.
+   The offset is the whole point — perfectly overlapped, it reads as one card,
+   and you forget there is something underneath you will have to turn over. */
+.sh-pile {
+  position: relative;
+  width: 82px;
+  height: 128px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.sh-pile--still { cursor: default; }
+.sh-pile__down { position: absolute; left: 10px; top: 16px; opacity: 0.85; }
+.sh-pile__up { position: absolute; left: 0; top: 0; }
+.sh-pile__slot {
+  position: absolute;
+  inset: 10px 8px;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--night-500);
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+  font-size: 30px;
+  font-weight: 900;
+}
+/* The pile that is waiting for a card. It is the only thing worth looking at
+   until it has one, so it says so rather than sitting there politely. */
+.sh-pile--wanted .sh-pile__slot {
+  border-color: var(--gold);
+  color: var(--gold);
+  animation: sh-wanted 1.4s ease-in-out infinite;
+}
+@keyframes sh-wanted {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.75; }
+}
+.sh-pile--sending { opacity: 0.55; }
+
+.sh-piles { gap: clamp(14px, 6vw, 30px); }
+
+/* The sort screen holds its shape rather than scrolling: three piles, a hand,
+   and a button, with the space shared out between them instead of pooling in
+   the middle. */
+.sh-sort { gap: 0; }
+.sh-sort__hint {
+  margin: 0 0 12px;
+  min-height: 2.6em;
+  font-size: 16px;
+}
+.sh-sort__hint--urgent { color: var(--gold); }
+.sh-sort__why {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-faint);
+  max-width: 30ch;
+  margin-inline: auto;
+}
+.sh-sort .sh-hand { margin-top: auto; }
+.hand--sort { justify-content: center; }
+.sh-dontask {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  font-size: 15px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.sh-dontask input { width: 20px; height: 20px; accent-color: var(--lime); }
+
+/* -- The middle ------------------------------------------------------------- */
+
+.sh-stock__pile { position: relative; width: 54px; height: 76px; }
+.sh-stock__card {
+  position: absolute;
+  inset: 0;
+  transform: translate(calc(var(--n) * 3px), calc(var(--n) * -3px));
+}
+.sh-stock__empty { width: 54px; height: 76px; }
+
+/* A card landing on the pile. Short, and it never repeats: it is gated in
+   `table.js` on the top card actually changing, because every pushed state
+   rebuilds this screen and an ungated animation would twitch on all of them. */
+.sh-discard__top--land { animation: sh-land 260ms var(--ease-pop); }
+@keyframes sh-land {
+  0% { transform: translateY(-26px) rotate(-7deg) scale(1.06); opacity: 0.4; }
+  100% { transform: none; opacity: 1; }
+}
+.sh-discard__mess { width: 62px; height: 88px; }
+.sh-discard__slot { width: 62px; height: 88px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-discard__top--land { animation: none; }
+  .sh-pile--wanted .sh-pile__slot { animation: none; }
+}
+
+/* -- Your cards ------------------------------------------------------------- */
+
+.sh-table-row { gap: clamp(12px, 5vw, 26px); align-items: flex-start; }
+.sh-yours { gap: 10px; }
+/* The hand fans wider now the cards are bigger, and still has to fit a phone. */
+.hand { --fan-overlap: -18px; }
+.sh-play .hand { --fan-overlap: -22px; }
+
+/* Silly Head draws its cards bigger than Blob does, and it is allowed to.
+   Blob's sizes are fixed at what it has always been drawn at, with the size
+   setting as the way to change them — but Blob has a ring of eight seats and a
+   trick in the middle competing for the same glass. Silly Head shows you three
+   piles and a hand, on a screen that was two thirds empty at the old size. */
+.sh-sort .card-face--lg,
+.sh-play .card-face--lg { --w: 84px; }
+.sh-sort .card-face--lg .card-face__rank,
+.sh-play .card-face--lg .card-face__rank { font-size: 30px; }
+.sh-sort .card-face--lg .card-face__pip,
+.sh-play .card-face--lg .card-face__pip { font-size: 26px; }
+.sh-pile { width: 100px; height: 138px; }
+.sh-pile__down { left: 14px; top: 18px; }

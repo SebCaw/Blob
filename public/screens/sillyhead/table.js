@@ -1,6 +1,6 @@
 import { h, initials } from '../../ui.js';
-import { cardFace, cardBack, sortHand, parseCard, cardLabel } from '../../cards.js';
-import { topbar, action, ownName } from '../common.js';
+import { cardFace, cardBack, sortByRank, parseCard, cardLabel } from '../../cards.js';
+import { topbar, action, ownName, fitFan } from '../common.js';
 
 /**
  * The table.
@@ -18,6 +18,19 @@ import { topbar, action, ownName } from '../common.js';
  * you can tap, so being stuck stops being a decision — which is right, because
  * then it is not one.
  */
+
+/**
+ * The card that was on top of the pile the last time this screen was drawn, and
+ * when it got there.
+ *
+ * Module-level on purpose: it is not game state and it must not be, since it
+ * exists only to tell "a card just landed" from "the screen was repainted".
+ */
+let lastTop = null;
+let landedAt = 0;
+
+/** How long a landing stays a landing — the length of the animation. */
+const LAND_MS = 280;
 
 /** Where the ring stops being a table and becomes a list. Four families of four. */
 const ROWS_FROM = 9;
@@ -61,7 +74,10 @@ export function tableScreen(ctx) {
     actions(ctx)
   );
 
-  if (!rows) requestAnimationFrame(() => fitSeats(screen));
+  requestAnimationFrame(() => {
+    if (!rows) fitSeats(screen);
+    fitFan(screen);
+  });
   return screen;
 }
 
@@ -173,12 +189,39 @@ function middle(ctx) {
   const state = ctx.state;
   const you = state.you;
   const canTake = you.isTurn && state.pile.count > 0 && you.zone !== 'down';
+  // Has a card just landed on the pile?
+  //
+  // Two things have to be true at once and they pull against each other. Every
+  // state the server pushes rebuilds this screen, so an ungated animation would
+  // replay on every repaint and the pile would twitch whenever anybody's phone
+  // reconnected. But a single flag keyed on "the top card changed" is wiped
+  // before it is ever painted, because playing a card renders three times in a
+  // row — once to acknowledge the tap, once when the state lands, and once when
+  // the request settles — and only the middle one sees a new card.
+  //
+  // So the arrival is remembered for as long as the animation lasts, rather
+  // than for exactly one render. Same shape as `screen--enter` in `app.js`, and
+  // it is the same trap that put it there.
+  if ((state.pile.top || null) !== lastTop) {
+    lastTop = state.pile.top || null;
+    landedAt = Date.now();
+  }
+  const justLanded = Boolean(state.pile.top) && Date.now() - landedAt < LAND_MS;
 
   return h(
     'div.sh-middle',
     h(
       'div.sh-stock',
-      state.stock ? h('div.sh-stock__pile', [0, 1, 2].map((n) => h('span.sh-stock__card', { style: { '--n': String(n) } }))) : h('span.sh-stock__empty', { text: '—' }),
+      state.stock
+        ? h(
+            'div.sh-stock__pile',
+            // Real card backs, with the lattice on them. They were blank
+            // rectangles, which read as a grey block rather than as a deck.
+            [0, 1, 2].map((n) =>
+              h('div.sh-stock__card', { style: { '--n': String(n) } }, cardBack({ size: 'md' }))
+            )
+          )
+        : h('span.sh-stock__empty', { text: '—' }),
       h('span.sh-middle__label', { text: state.stock ? `${state.stock} left` : 'Deck gone' })
     ),
     h(
@@ -201,7 +244,10 @@ function middle(ctx) {
           ))
         : null,
       state.pile.top
-        ? cardFace(state.pile.top, { size: 'md', className: 'sh-discard__top' })
+        ? cardFace(state.pile.top, {
+            size: 'lg',
+            className: `sh-discard__top${justLanded ? ' sh-discard__top--land' : ''}`,
+          })
         : h('span.sh-discard__slot', { text: 'Empty' }),
       state.pile.count ? h('span.sh-discard__count', { text: String(state.pile.count) }) : null,
       canTake ? h('span.sh-middle__label.sh-middle__label--action', { text: 'Take the pile' }) : null
@@ -262,24 +308,35 @@ function yourCards(ctx) {
   if (you.zone === 'up') return faceUpRow(ctx);
 
   const playable = new Set(you.playable);
+  const chosen = ctx.ui.shChosen || [];
+  const chosenRank = chosen.length ? parseCard(chosen[0]).rank : null;
+  const room = chosenRank ? roomInRun(state, chosenRank) : 0;
+
   return h(
     'div.sh-yours',
     h('span.eyebrow.center', { text: `Your hand — ${you.hand.length}` }),
     h(
       'div.hand',
-      sortHand(you.hand).map((cardId, i) =>
-        h(
+      sortByRank(you.hand).map((cardId, i) => {
+        const isChosen = chosen.includes(cardId);
+        const rank = parseCard(cardId).rank;
+        // Once you have picked one up, the only other cards that mean anything
+        // are the same number — so everything else stops offering itself.
+        const joinable = chosenRank ? rank === chosenRank && chosen.length < room : playable.has(cardId);
+        const live = you.isTurn && !ctx.ui.shSending && (isChosen || joinable);
+        return h(
           'div.hand__card',
           { style: { '--i': String(i) } },
           cardFace(cardId, {
-            size: 'md',
-            state: you.isTurn ? (playable.has(cardId) ? 'playable' : 'blocked') : null,
-            className: sending(ctx, cardId) ? 'card-face--sending' : '',
-            onClick:
-              you.isTurn && playable.has(cardId) && !ctx.ui.shSending ? () => choose(ctx, cardId) : undefined,
+            size: 'lg',
+            state: you.isTurn ? (isChosen || joinable ? 'playable' : 'blocked') : null,
+            className: [isChosen ? 'card-face--picked' : '', sending(ctx, cardId) ? 'card-face--sending' : '']
+              .filter(Boolean)
+              .join(' '),
+            onClick: live ? () => toggle(ctx, cardId) : undefined,
           })
-        )
-      )
+        );
+      })
     ),
     // Your last hand card may go down with matching face-up cards, so they have
     // to be on screen for you to see the move is there.
@@ -292,38 +349,67 @@ function faceUpRow(ctx, { quiet } = {}) {
   const you = state.you;
   const giving = Boolean(ctx.ui.shGiveUp);
   const playable = new Set(you.playable);
+  const chosen = ctx.ui.shChosen || [];
+  const chosenRank = chosen.length ? parseCard(chosen[0]).rank : null;
+  // Your genuinely last hand card may go down with matching face-up cards —
+  // the only time the two halves of your table mix. It has to be selectable
+  // here, or that move simply cannot be made.
+  const crossover = quiet && you.hand.length === 1 && Boolean(chosenRank);
 
   return h(
     'div.sh-yours',
     h('span.eyebrow.center', {
-      text: giving ? 'Tap the card you will pick up with the pile' : quiet ? 'On the table' : 'Your face-up cards',
+      text: giving
+        ? 'Tap the card you will pick up with the pile'
+        : crossover
+        ? 'Your last card can go down with these'
+        : quiet
+        ? 'On the table'
+        : 'Your face-up cards',
     }),
     h(
       'div.sh-table-row',
       you.up.map((stack, index) => {
         const cardId = stack.length ? stack[stack.length - 1] : null;
+        const down = you.downLeft[index];
         if (!cardId) {
           return h(
-            'div.sh-slot',
-            you.downLeft[index] ? cardBack({ size: 'md', label: 'a face-down card' }) : h('span.sh-slot__gone', { text: '—' })
+            'div.sh-pile.sh-pile--still',
+            down ? cardBack({ size: 'lg', className: 'sh-pile__down', label: 'a face-down card' }) : null,
+            down ? null : h('span.sh-slot__gone', { text: '—' })
           );
         }
         const canPlay = !giving && !quiet && you.isTurn && you.zone === 'up' && playable.has(cardId);
-        const canGive = giving;
+        const isChosen = chosen.includes(cardId);
+        const canJoin =
+          crossover && you.isTurn && (isChosen || parseCard(cardId).rank === chosenRank);
+        const onClick = ctx.ui.shSending
+          ? undefined
+          : giving
+          ? () => takePile(ctx, index)
+          : canJoin
+          ? () => toggle(ctx, cardId)
+          : canPlay
+          ? () => play(ctx, [cardId])
+          : undefined;
+        // The face-down card sits proud behind the face-up one, the same way it
+        // does while you are sorting — so it is obvious there are two cards
+        // there, and that one of them is still a mystery.
         return h(
-          'div.sh-slot',
+          'div',
+          { className: `sh-pile${onClick ? '' : ' sh-pile--still'}` },
+          down ? cardBack({ size: 'lg', className: 'sh-pile__down', label: 'a face-down card' }) : null,
           cardFace(cardId, {
-            size: 'md',
-            state: canPlay ? 'playable' : null,
-            className: sending(ctx, cardId) ? 'card-face--sending' : '',
-            onClick:
-              ctx.ui.shSending
-                ? undefined
-                : canGive
-                ? () => takePile(ctx, index)
-                : canPlay
-                ? () => choose(ctx, cardId)
-                : undefined,
+            size: 'lg',
+            state: canPlay || canJoin ? 'playable' : null,
+            className: [
+              'sh-pile__up',
+              isChosen ? 'card-face--picked' : '',
+              sending(ctx, cardId) ? 'card-face--sending' : '',
+            ]
+              .filter(Boolean)
+              .join(' '),
+            onClick,
           })
         );
       })
@@ -340,27 +426,24 @@ function faceDownRow(ctx) {
     h(
       'div.sh-table-row',
       you.downLeft.map((there, index) =>
-        h(
-          'div.sh-slot',
-          there
-            ? h(
-                'button.sh-facedown',
-                {
-                  type: 'button',
-                  'aria-label': `Turn over your ${index + 1}${['st', 'nd', 'rd'][index] || 'th'} face-down card`,
-                  disabled: !you.isTurn || Boolean(ctx.ui.shSending),
-                  onClick: async () => {
-                    ctx.ui.shSending = ['flip'];
-                    ctx.render();
-                    await ctx.send({ type: 'play/flip', pileIndex: index });
-                    ctx.ui.shSending = null;
-                    ctx.render();
-                  },
+        there
+          ? h(
+              'button.sh-pile.sh-facedown',
+              {
+                type: 'button',
+                'aria-label': `Turn over one of your face-down cards`,
+                disabled: !you.isTurn || Boolean(ctx.ui.shSending),
+                onClick: async () => {
+                  ctx.ui.shSending = ['flip'];
+                  ctx.render();
+                  await ctx.send({ type: 'play/flip', pileIndex: index });
+                  ctx.ui.shSending = null;
+                  ctx.render();
                 },
-                cardBack({ size: 'md' })
-              )
-            : h('span.sh-slot__gone', { text: '—' })
-        )
+              },
+              cardBack({ size: 'lg' })
+            )
+          : h('div.sh-pile.sh-pile--still', h('span.sh-slot__gone', { text: '—' }))
       )
     )
   );
@@ -371,26 +454,26 @@ function faceDownRow(ctx) {
 function actions(ctx) {
   const state = ctx.state;
   const you = state.you;
-  const many = ctx.ui.shCount;
+  const chosen = ctx.ui.shChosen || [];
 
-  if (many) {
+  // Cards pulled out of your hand, waiting to go down together.
+  //
+  // This replaces a "how many 7s?" row that appeared under the hand and was
+  // missed completely: people tapped a card, saw nothing move, and concluded
+  // that pairs did not work. Now the card lifts out where your eye already is,
+  // the others of that number stay lit, and one button puts them down.
+  if (chosen.length) {
+    const rank = parseCard(chosen[0]).rank;
     return h(
       'div.sh-actions',
-      h('span.eyebrow.center', { text: `How many ${many.rank}s?` }),
       h(
-        'div.sh-count',
-        Array.from({ length: many.max }, (_, i) => i + 1).map((n) =>
-          h('button.sh-count__btn', {
-            type: 'button',
-            text: String(n),
-            onClick: () => play(ctx, many.pool.slice(0, n)),
-          })
-        ),
+        'div.stack.stack--tight',
+        action(chosen.length === 1 ? `Play the ${rank}` : `Play ${chosen.length} ${rank}s`, () => play(ctx, chosen)),
         h('button.btn.btn--link', {
           type: 'button',
-          text: 'Cancel',
+          text: 'Put them back',
           onClick: () => {
-            ctx.ui.shCount = null;
+            ctx.ui.shChosen = null;
             ctx.render();
           },
         })
@@ -426,36 +509,20 @@ function actions(ctx) {
 }
 
 /**
- * Tapping a card plays it — unless you hold more than one of that number, in
- * which case it asks how many. One tap for the ordinary move, two for the
- * clever one.
+ * Pick a card up, or put it back.
+ *
+ * Tapping pulls the card out of your hand and leaves it lifted. Tap another of
+ * the same number and it comes too; tap a lifted one to drop it back. One
+ * button then plays whatever you are holding out — so one card is a tap and a
+ * tap, and three is one tap more, rather than a different mechanism entirely.
  */
-function choose(ctx, cardId) {
-  const state = ctx.state;
-  const pool = sameRankPool(state, cardId);
-  const max = Math.min(pool.length, roomInRun(state, parseCard(cardId).rank));
-  if (max <= 1) {
-    play(ctx, [cardId]);
-    return;
-  }
-  ctx.ui.shCount = { rank: parseCard(cardId).rank, pool, max };
+function toggle(ctx, cardId) {
+  const chosen = (ctx.ui.shChosen || []).slice();
+  const at = chosen.indexOf(cardId);
+  if (at !== -1) chosen.splice(at, 1);
+  else chosen.push(cardId);
+  ctx.ui.shChosen = chosen.length ? chosen : null;
   ctx.render();
-}
-
-/** Every card of this rank you are allowed to send together. */
-function sameRankPool(state, cardId) {
-  const you = state.you;
-  const rank = parseCard(cardId).rank;
-  const sameRank = (c) => parseCard(c).rank === rank;
-  const upTops = you.up.filter((stack) => stack.length).map((stack) => stack[stack.length - 1]);
-
-  if (you.zone === 'up') return [cardId].concat(upTops.filter((c) => c !== cardId && sameRank(c)));
-
-  const fromHand = you.hand.filter((c) => c !== cardId && sameRank(c));
-  // The one crossover in the game: your very last hand card may go down with
-  // matching face-up cards.
-  const fromTable = you.hand.length === 1 ? upTops.filter(sameRank) : [];
-  return [cardId].concat(fromHand, fromTable);
 }
 
 /** How many more of a rank the pile will take before four in a row sacks it. */
@@ -465,7 +532,7 @@ function roomInRun(state, rank) {
 }
 
 async function play(ctx, cardIds) {
-  ctx.ui.shCount = null;
+  ctx.ui.shChosen = null;
   ctx.ui.shGiveUp = false;
   // Mark the cards as on their way BEFORE the round trip.
   //
@@ -498,7 +565,7 @@ async function takePile(ctx, upIndex) {
     return;
   }
   ctx.ui.shGiveUp = false;
-  ctx.ui.shCount = null;
+  ctx.ui.shChosen = null;
   ctx.ui.shSending = ['pile'];
   ctx.render();
   await ctx.send(upIndex === undefined ? { type: 'play/takePile' } : { type: 'play/takePile', upIndex });
