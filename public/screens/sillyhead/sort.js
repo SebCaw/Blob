@@ -59,7 +59,11 @@ export function sortScreen(ctx) {
       return;
     }
     ctx.ui.shPick = null;
+    ctx.ui.shSending = [pick.cardId];
+    ctx.render();
     await ctx.send(command);
+    ctx.ui.shSending = null;
+    ctx.render();
   };
 
   const tapHandCard = (cardId) => {
@@ -109,7 +113,12 @@ export function sortScreen(ctx) {
             cardFace(cardId, {
               size: 'md',
               state: picked === cardId ? 'playable' : null,
-              className: picked === cardId ? 'card-face--picked' : '',
+              className: [
+                picked === cardId ? 'card-face--picked' : '',
+                ctx.ui.shSending && ctx.ui.shSending.includes(cardId) ? 'card-face--sending' : '',
+              ]
+                .filter(Boolean)
+                .join(' '),
               onClick: () => tapHandCard(cardId),
             })
           )

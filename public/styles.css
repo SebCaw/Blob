@@ -3230,3 +3230,34 @@ html[data-size='huge'] .bid__lead { display: none; }
   flex: 0 0 auto;
 }
 .topbar__back:hover { color: var(--ink); }
+
+/* -- Answering the tap ------------------------------------------------------ */
+/* Every button in this app visibly depresses when you press it. Cards did not,
+   and cards are what you tap in Silly Head — so a tap looked like nothing at
+   all until the server answered. On a fast connection that is 15ms and nobody
+   notices; on a small instance the other side of the Atlantic it is most of a
+   second, and the app reads as broken rather than slow.
+
+   Two separate things, and the distinction matters. The press is pure CSS and
+   costs nothing: it happens under your finger, before any code runs. The
+   sending state is the card saying "I have gone to ask" — it does NOT move the
+   card, because nothing here is applied until the server says so. */
+
+button.card-face:active:not(:disabled) {
+  transform: translateY(2px) scale(0.98);
+  filter: brightness(1.08);
+}
+
+/* In flight: lifted and faded, and no longer tappable, which also stops the
+   second tap that a silent button invites. */
+.card-face--sending {
+  opacity: 0.55;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: transform 90ms ease, opacity 90ms ease;
+}
+
+/* The pile is a button too, and the biggest one on the screen. */
+.sh-discard--live:active {
+  transform: translateY(2px);
+}

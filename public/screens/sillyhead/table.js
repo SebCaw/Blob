@@ -248,6 +248,11 @@ function statusLine(ctx) {
 
 // ── Your cards ───────────────────────────────────────────────────────────────
 
+/** Cards this phone has tapped and is still waiting on the server for. */
+function sending(ctx, cardId) {
+  return Boolean(ctx.ui.shSending && ctx.ui.shSending.includes(cardId));
+}
+
 function yourCards(ctx) {
   const state = ctx.state;
   const you = state.you;
@@ -269,7 +274,9 @@ function yourCards(ctx) {
           cardFace(cardId, {
             size: 'md',
             state: you.isTurn ? (playable.has(cardId) ? 'playable' : 'blocked') : null,
-            onClick: you.isTurn && playable.has(cardId) ? () => choose(ctx, cardId) : undefined,
+            className: sending(ctx, cardId) ? 'card-face--sending' : '',
+            onClick:
+              you.isTurn && playable.has(cardId) && !ctx.ui.shSending ? () => choose(ctx, cardId) : undefined,
           })
         )
       )
@@ -308,11 +315,15 @@ function faceUpRow(ctx, { quiet } = {}) {
           cardFace(cardId, {
             size: 'md',
             state: canPlay ? 'playable' : null,
-            onClick: canGive
-              ? () => takePile(ctx, index)
-              : canPlay
-              ? () => choose(ctx, cardId)
-              : undefined,
+            className: sending(ctx, cardId) ? 'card-face--sending' : '',
+            onClick:
+              ctx.ui.shSending
+                ? undefined
+                : canGive
+                ? () => takePile(ctx, index)
+                : canPlay
+                ? () => choose(ctx, cardId)
+                : undefined,
           })
         );
       })
@@ -337,8 +348,14 @@ function faceDownRow(ctx) {
                 {
                   type: 'button',
                   'aria-label': `Turn over your ${index + 1}${['st', 'nd', 'rd'][index] || 'th'} face-down card`,
-                  disabled: !you.isTurn,
-                  onClick: () => ctx.send({ type: 'play/flip', pileIndex: index }),
+                  disabled: !you.isTurn || Boolean(ctx.ui.shSending),
+                  onClick: async () => {
+                    ctx.ui.shSending = ['flip'];
+                    ctx.render();
+                    await ctx.send({ type: 'play/flip', pileIndex: index });
+                    ctx.ui.shSending = null;
+                    ctx.render();
+                  },
                 },
                 cardBack({ size: 'md' })
               )
@@ -450,7 +467,18 @@ function roomInRun(state, rank) {
 async function play(ctx, cardIds) {
   ctx.ui.shCount = null;
   ctx.ui.shGiveUp = false;
+  // Mark the cards as on their way BEFORE the round trip.
+  //
+  // Nothing is applied optimistically — the card does not move until the server
+  // says so — but the tap is acknowledged instantly, which is a different
+  // thing. Without it, a slow connection reads as a dead button and people tap
+  // again. It also stops the second tap: a card already in flight is not
+  // playable.
+  ctx.ui.shSending = cardIds.slice();
+  ctx.render();
   await ctx.send({ type: 'play/cards', cardIds });
+  ctx.ui.shSending = null;
+  ctx.render();
 }
 
 /**
@@ -471,7 +499,11 @@ async function takePile(ctx, upIndex) {
   }
   ctx.ui.shGiveUp = false;
   ctx.ui.shCount = null;
+  ctx.ui.shSending = ['pile'];
+  ctx.render();
   await ctx.send(upIndex === undefined ? { type: 'play/takePile' } : { type: 'play/takePile', upIndex });
+  ctx.ui.shSending = null;
+  ctx.render();
 }
 
 // ── Fitting ──────────────────────────────────────────────────────────────────

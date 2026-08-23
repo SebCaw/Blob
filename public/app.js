@@ -91,6 +91,8 @@ const ui = {
   shCount: null,
   /** Silly Head: stuck on your face-up cards, choosing which one you lose. */
   shGiveUp: false,
+  /** Silly Head: cards tapped and still in flight, so the tap looks answered. */
+  shSending: null,
   /** The settings sheet, which can be opened from any screen in a game. */
   settingsOpen: false,
   /** How to play: which step, which tab, and the conversation so far. */
@@ -397,6 +399,7 @@ function resetGameView() {
   ui.shPick = null;
   ui.shCount = null;
   ui.shGiveUp = false;
+  ui.shSending = null;
   ui.settingsOpen = false;
   ui.helpOpen = false;
   ui.helpStep = 0;
@@ -506,6 +509,7 @@ function onSillyHeadState(next) {
     ui.shPick = null;
     ui.shCount = null;
     ui.shGiveUp = false;
+    ui.shSending = null;
     ui.confirmLeave = false;
   }
   // The three moments the game is waiting on you, and nothing else: the cards
