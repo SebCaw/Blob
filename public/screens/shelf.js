@@ -1,4 +1,4 @@
-import { h } from '../ui.js';
+import { h, fragment } from '../ui.js';
 import { GAMES, gameById } from '../games.js';
 import { sizeControl } from '../size.js';
 import { helpButton } from './help.js';
@@ -100,8 +100,27 @@ function tile(ctx, game) {
   return h(
     'button.tile',
     { style, type: 'button', onClick: () => ctx.openGame(game.id) },
-    h('span.tile__name', { text: game.name }),
+    h('div.tile__head', h('span.tile__name', { text: game.name }), icon(game)),
     h('span.tile__tagline', { text: game.tagline }),
     game.players ? h('span.tile__players', { text: `${game.players} players` }) : null
   );
+}
+
+/**
+ * What the game is like, in the space going spare beside its name.
+ *
+ * A name and a line of prose tell you what a game is called and what it does;
+ * the picture tells you what it FEELS like before you have read either — a fan
+ * of cards you decide from, or a card going down onto a pile. It sits in the
+ * room to the right of the name because that room is there and empty, and a
+ * long name simply takes it back.
+ *
+ * Drawn from the game's own row, so a new game arrives with its picture the way
+ * it arrives with its colour: one row, one game, nothing else to remember.
+ */
+function icon(game) {
+  if (!game.icon) return null;
+  const wrap = h('span.tile__icon', { 'aria-hidden': 'true' });
+  wrap.appendChild(fragment(game.icon));
+  return wrap;
 }

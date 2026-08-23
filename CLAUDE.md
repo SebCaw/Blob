@@ -65,11 +65,29 @@ reasoning.
 ## More than one game
 
 `public/games.js` is the shelf: one row per game, and the row IS the definition —
-name, hue, accent, whether it is ready. `screens/shelf.js` renders them and is the front
-door; picking one calls `ctx.openGame(id)`, which puts that game's colours on and moves to
-its own front page. Anything arriving with a destination — a scanned code, a shared link,
-a game already in progress — skips the shelf in `boot()`, because nobody being handed a
+name, tagline, hue, accent, the little icon beside the name, whether it is ready.
+`screens/shelf.js` renders them and is the front door; picking one calls
+`ctx.openGame(id)`, which puts that game's colours on and moves to its own front page. A
+scanned code or a shared link skips the shelf in `boot()`, because nobody being handed a
 code should have to pick a game first.
+
+**The front page does not change.** The shelf is the first thing anybody sees after
+tapping the link — every time, on every phone — and the ONLY change allowed to it is
+**adding a section**: another game on the shelf, or a new block below the ones already
+there. Not the wording, not the order, not the layout, not the colours, not what it does
+when you arrive, and not tidying done while passing through. If a change to the front page
+seems necessary, it needs the user to ask for it in those words first. A front page that
+has moved since the last time you opened it is one you stop trusting, and this one is the
+only screen every single player sees.
+
+That extends to what happens *before* it: a phone with a game in its session paints the
+shelf first and moves on once the server answers, so the front page is on the glass even
+on the way somewhere else. It used to paint that game's own front page instead, which on a
+sleeping instance is where you stayed — a mode picker for a game already running, in that
+game's colours, with no way from it to anything else.
+
+Adding a game is therefore one row in `games.js` and nothing else: it brings its own name,
+colour and icon with it, and appears on the shelf without `shelf.js` being touched at all.
 
 **A game gets a hue, not a palette.** `--hue` in `:root` rotates the whole dark ground,
 and every step keeps its lightness and saturation — so a green game has exactly the

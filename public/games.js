@@ -32,6 +32,14 @@ export const GAMES = [
     hue: 265,
     accent: '#c8ff3d',
     accentDeep: '#9fd614',
+    // A hand held as a fan: cards you look at and decide from, which is the
+    // half of Blob you spend the evening doing. Drawn rather than set in type,
+    // for the same reason the crown and the spoon are.
+    icon:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linejoin="round"><rect x="2.6" y="8" width="7.6" height="11.4" rx="1.6" ' +
+      'transform="rotate(-20 6.4 13.7)"/><rect x="8.2" y="5.6" width="7.6" height="11.4" rx="1.6"/>' +
+      '<rect x="13.8" y="8" width="7.6" height="11.4" rx="1.6" transform="rotate(20 17.6 13.7)"/></svg>',
     ready: true,
   },
   {
@@ -46,6 +54,13 @@ export const GAMES = [
     hue: 148,
     accent: '#ffd23d',
     accentDeep: '#e0a600',
+    // A card going down onto the pile: the whole game is getting rid of them,
+    // and everything lands in one place in the middle.
+    icon:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.6 V9.2"/>' +
+      '<path d="M8.7 5.9 L12 9.4 L15.3 5.9"/><path d="M6.4 12.4 V11 H17.6 V12.4"/>' +
+      '<rect x="3.8" y="12.6" width="16.4" height="7.8" rx="1.8"/></svg>',
     ready: true,
   },
 ];
