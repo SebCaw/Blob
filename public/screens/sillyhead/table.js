@@ -57,7 +57,7 @@ const ROWS_FROM = 9;
  * a phone gets the rows and a tablet keeps the ring, which is the shape each
  * one has the room for.
  */
-const RING_MIN_WIDTH = 420;
+const RING_MIN_WIDTH = 340;
 
 /** How far out the ring sits, and where its middle is, in percent of the table. */
 const RING_X = 40;
@@ -524,6 +524,7 @@ function yourCards(ctx) {
       { style: { '--i': String(i) } },
       cardFace(cardId, {
         size: 'lg',
+        corner: true,
         state: you.isTurn ? (isChosen || joinable ? 'playable' : 'blocked') : null,
         className: [isChosen ? 'card-face--picked' : '', sending(ctx, cardId) ? 'card-face--sending' : '']
           .filter(Boolean)
@@ -990,7 +991,10 @@ function fitSeatCards(screen) {
   // cards wider than the seat they sit in do not widen the seat: they hang out
   // of both sides of it, over whoever is next to it, and every box this file
   // measures afterwards says they are nowhere near each other.
-  const card = Math.max(20, Math.min(56, (seat.offsetWidth - 10) / 3));
+  // A little under a third of the seat each, rather than a hair over: at three
+  // to a row and no room to spare they ended up shoulder to shoulder with the
+  // cards either side of them.
+  const card = Math.max(20, Math.min(52, (seat.offsetWidth - 16) / 3));
   table.style.setProperty('--seat-card', `${Math.round(card)}px`);
 }
 

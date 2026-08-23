@@ -52,7 +52,8 @@ export const isRed = (suit) => RED.includes(suit);
  *
  * @param {string} cardId
  * @param {{size?:'xs'|'sm'|'md'|'lg', className?:string, onClick?:Function, index?:number,
- *          state?:'playable'|'blocked'|null, ring?:'win'|'turn'|null, crown?:boolean}} [options]
+ *          state?:'playable'|'blocked'|null, ring?:'win'|'turn'|null, crown?:boolean,
+ *          corner?:boolean}} [options]
  */
 export function cardFace(cardId, options = {}) {
   const { rank, suit, red } = parseCard(cardId);
@@ -68,6 +69,19 @@ export function cardFace(cardId, options = {}) {
     .join(' ');
 
   const inner = [
+    // The index in the top-left corner, the way it is on a real card — and for
+    // the same reason. A fan works at a table because the corner is the only
+    // part that has to be visible, and a hand of nine on a phone is a fan
+    // whether anybody planned it or not: without this you are looking at eight
+    // blank slivers and one card.
+    options.corner
+      ? h(
+          'span.card-face__corner',
+          { 'aria-hidden': 'true' },
+          h('span', { text: rank }),
+          h('span', { text: SUIT_GLYPH[suit] || '' })
+        )
+      : null,
     h('span.card-face__rank', { text: rank }),
     h('span.card-face__pip', { text: SUIT_GLYPH[suit] || '', 'aria-hidden': 'true' }),
     options.crown ? h('span.card-face__crown', { text: '♔', 'aria-hidden': 'true' }) : null,

@@ -176,6 +176,7 @@ export function sortScreen(ctx) {
               { style: { '--i': String(i) } },
               cardFace(cardId, {
                 size: 'lg',
+                corner: true,
                 state: picked === cardId ? 'playable' : null,
                 className: [picked === cardId ? 'card-face--picked' : '', sending(cardId) ? 'card-face--sending' : '']
                   .filter(Boolean)

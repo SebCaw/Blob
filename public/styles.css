@@ -1679,6 +1679,21 @@ html[data-size='huge'] .bid__current {
 .card-face__rank { font-size: calc(var(--w) * 0.42); }
 .card-face__pip { font-size: calc(var(--w) * 0.36); line-height: 1; }
 
+/* The corner index. Sized off the card like everything else on it, and tight to
+   the edge, because the whole point is that it survives being overlapped. */
+.card-face__corner {
+  position: absolute;
+  top: calc(var(--w) * 0.05);
+  left: calc(var(--w) * 0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--w) * 0.01);
+  font-size: calc(var(--w) * 0.24);
+  font-weight: 900;
+  line-height: 0.92;
+}
+
 .card-face__crown {
   position: absolute;
   top: -10px;
@@ -3576,6 +3591,12 @@ button.card-face:active:not(:disabled) {
 .sh-play .sh-discard .card-face--lg { --w: var(--mid-card); }
 .sh-play .sh-stock__pile,
 .sh-play .sh-stock__empty { width: calc(var(--mid-card) * 0.64); height: calc(var(--mid-card) * 0.9); }
+
+/* The backs on the deck are cards, and cards have a size of their own — so
+   while the box they sit in shrank with the middle, they did not, and three of
+   them hung out of the bottom of it and over the "N left" underneath. They are
+   the size of their box now. */
+.sh-play .sh-stock .card-face { --w: calc(var(--mid-card) * 0.64); }
 .sh-play .sh-discard__mess,
 .sh-play .sh-discard__slot { width: calc(var(--mid-card) * 0.74); height: calc(var(--mid-card) * 1.05); }
 .sh-play .sh-middle { gap: clamp(10px, 4vw, 26px); }
