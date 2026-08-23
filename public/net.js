@@ -79,8 +79,16 @@ export class Net {
   // -- Joining ---------------------------------------------------------------
 
   /** @returns {Promise<object>} the first state */
-  async createGame(name, handSize, mode) {
-    const data = await post('/api/games', { name, handSize, mode: mode === 'online' ? 'online' : 'table' });
+  async createGame(name, handSize, mode, extra = {}) {
+    const data = await post('/api/games', {
+      name,
+      handSize,
+      mode: mode === 'online' ? 'online' : 'table',
+      // Which game off the shelf, and its own options. A server that predates
+      // the shelf ignores both and deals Blob, which is the right fallback.
+      game: extra.game || 'blob',
+      quick: Boolean(extra.quick),
+    });
     this.setSession(pickSession(data));
     return data.state;
   }
@@ -306,7 +314,17 @@ async function asError(res) {
 }
 
 function pickSession(data) {
-  return { gameId: data.gameId, playerId: data.playerId, token: data.token, code: data.code };
+  return {
+    gameId: data.gameId,
+    playerId: data.playerId,
+    token: data.token,
+    code: data.code,
+    // Which game this seat is in. Kept so that reopening the app knows what it
+    // is reconnecting to BEFORE the first state arrives — otherwise it wears
+    // the wrong colours for a moment and, if the connection is slow or the game
+    // has gone, shows the wrong game's front page entirely.
+    game: data.game || (data.state && data.state.game) || 'blob',
+  };
 }
 
 function readSession() {

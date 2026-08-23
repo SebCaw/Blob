@@ -6,6 +6,7 @@ import { applySize, currentSize } from './size.js';
 import { play as sound } from './sound.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { shelfScreen } from './screens/shelf.js';
+import { sillyheadScreen, sillyheadWelcome } from './screens/sillyhead/index.js';
 import { applyGameTheme } from './games.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -70,6 +71,8 @@ const ui = {
   pendingCode: null,
   /** Leaving a running game cannot be undone, so it is asked about first. */
   confirmLeave: false,
+  /** The same question, asked from the settings sheet on the way to the shelf. */
+  confirmShelf: false,
   /** Ending the game for everyone is asked about the same way. */
   confirmEnd: false,
   /** The Master is fixing a round that was scored wrong. */
@@ -80,6 +83,14 @@ const ui = {
   lobbyHandSize: null,
   /** The game whose win has already been celebrated, so it happens once. */
   confettiShownFor: null,
+  /** Silly Head: the quick one-deck game, chosen before the game is created. */
+  shQuick: false,
+  /** Silly Head: the card picked up during the sort, waiting for a pile. */
+  shPick: null,
+  /** Silly Head: "how many 5s?", when you hold more than one of a number. */
+  shCount: null,
+  /** Silly Head: stuck on your face-up cards, choosing which one you lose. */
+  shGiveUp: false,
   /** The settings sheet, which can be opened from any screen in a game. */
   settingsOpen: false,
   /** How to play: which step, which tab, and the conversation so far. */
@@ -154,6 +165,52 @@ const ctx = {
     }
   },
   /**
+   * A Silly Head game. No mode to choose — it deals, because the whole game is
+   * cards nobody else can see and there is no score for a table version to keep.
+   */
+  async createSillyHead(name, quick) {
+    try {
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'sillyhead', quick: Boolean(quick) });
+      ui.route = 'game';
+      net.connect();
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /**
+   * Silly Head against three bots, in one tap.
+   *
+   * Three opponents makes four round the table, which is the size the game is
+   * usually played at and the size one deck would seat. It lands in the
+   * ordinary lobby rather than dealing straight away, because that is where the
+   * difficulty and the length already live — no new screen, and none wanted.
+   *
+   * Each bot goes in on its own and a failure is survivable: a lobby with two
+   * bots in it is still a game, so a wobbly connection costs a seat you can add
+   * back by hand rather than the whole thing.
+   */
+  async playSillyHeadSolo() {
+    try {
+      const name = (ui.name || '').trim() || lastName() || 'You';
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'sillyhead' });
+      ui.route = 'game';
+      net.connect();
+      render();
+      for (let i = 0; i < SOLO_BOTS; i += 1) {
+        try {
+          await net.send({ type: 'player/addBot', level: SOLO_LEVEL });
+        } catch {
+          /* the lobby's own "+ Add a bot" is right there */
+        }
+      }
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /**
    * A game against three bots, from the front door, in one tap.
    *
    * The whole point is that it costs nothing to start: no name to type, no
@@ -223,7 +280,11 @@ const ctx = {
       net.send({ type: 'player/remove', playerId: state.you.id }).catch(() => {});
     }
     disconnectFromGame();
-    ui.route = 'home';
+    // Back to the shelf, not to the front page of the game you have just left.
+    // Once there is more than one game, "out of this game" means the shelf —
+    // sending people to Blob's front door was how Silly Head became unreachable
+    // for anybody who had ever played anything.
+    ui.route = 'shelf';
     render();
   },
   /**
@@ -328,10 +389,14 @@ function resetGameView() {
   ui.takeover = null;
   ui.showCard = false;
   ui.confirmLeave = false;
+  ui.confirmShelf = false;
   ui.confirmEnd = false;
   ui.correcting = false;
   ui.correction = null;
   ui.lobbyHandSize = null;
+  ui.shPick = null;
+  ui.shCount = null;
+  ui.shGiveUp = false;
   ui.settingsOpen = false;
   ui.helpOpen = false;
   ui.helpStep = 0;
@@ -343,6 +408,15 @@ function resetGameView() {
 // -- State in ----------------------------------------------------------------
 
 net.on('state', (next) => {
+  // A phone that reconnects into a game, or follows a shared link, learns which
+  // game it is only when the first state lands — so the colours go on here as
+  // well as at boot.
+  if (next.game && next.game !== ui.game) {
+    ui.game = next.game;
+    applyGameTheme(next.game);
+  }
+  if (next.game === 'sillyhead') return onSillyHeadState(next);
+
   const roundChanged = next.roundIndex !== lastRoundIndex;
   const phaseChanged = next.phase !== lastPhase;
 
@@ -416,6 +490,49 @@ net.on('state', (next) => {
   if (carriedIntoRematch) claimRematchSeat(next.rematchGameId, next.masterName);
 });
 
+/**
+ * Silly Head's snapshots.
+ *
+ * Its own handler rather than a pile of conditionals in Blob's: there are no
+ * rounds, no bids and no score, so almost none of what that one does applies.
+ * What it shares is the part that matters — the state lands, the screen is
+ * redrawn, and nothing is decided on this phone.
+ */
+function onSillyHeadState(next) {
+  const phaseChanged = next.phase !== lastPhase;
+  const wasYourTurn = Boolean(state && state.you && state.you.isTurn);
+
+  if (phaseChanged) {
+    ui.shPick = null;
+    ui.shCount = null;
+    ui.shGiveUp = false;
+    ui.confirmLeave = false;
+  }
+  // The three moments the game is waiting on you, and nothing else: the cards
+  // arriving, and your go.
+  if (phaseChanged && next.phase === 'sort') {
+    buzz([14, 70, 14]);
+    sound('deal');
+  }
+  if (next.you && next.you.isTurn && !wasYourTurn) {
+    buzz(12);
+    sound('turn');
+  }
+  if (phaseChanged && next.phase === 'complete') {
+    const won = next.finished && next.finished.length && next.you && next.finished[0].id === next.you.id;
+    buzz(won ? [14, 50, 14] : 30);
+    sound(won ? 'win' : 'lose');
+  }
+
+  state = next;
+  lastPhase = next.phase;
+  lastRoundIndex = -1;
+  if (ui.route !== 'history') ui.route = 'game';
+  if (next.phase === 'complete') releaseWake();
+  else keepAwake();
+  render();
+}
+
 net.on('status', renderConnection);
 
 net.on('gone', (error) => {
@@ -423,13 +540,30 @@ net.on('gone', (error) => {
   ctx.leaveGame();
 });
 
+/** Out of whatever this is, and back to the shelf to pick something else. */
+ctx.backToShelf = () => {
+  if (state) {
+    disconnectFromGame();
+  }
+  ui.settingsOpen = false;
+  ui.route = 'shelf';
+  render();
+};
+
 // -- Render ------------------------------------------------------------------
 
 function pickScreen() {
   if (ui.pendingCode) return switchGameScreen(ctx);
   if (ui.route === 'history') return historyScreen(ctx);
   if (!state && ui.route === 'shelf') return shelfScreen(ctx);
-  if (!state || ui.route !== 'game') return welcomeScreen(ctx);
+  if (!state || ui.route !== 'game') {
+    // Silly Head has its own front page and its own new-game form. Joining is
+    // shared: a code and a name is the same job whatever is being played.
+    const own = ui.route === 'home' || ui.route === 'create';
+    if (ui.game === 'sillyhead' && own) return sillyheadWelcome(ctx);
+    return welcomeScreen(ctx);
+  }
+  if (state.game === 'sillyhead') return sillyheadScreen(ctx);
   // Handing the phone to someone else outranks the phase. Their bid is often
   // the one that locks the round, and without this the phone would jump
   // straight to the revealed bids while they were still holding it - losing
@@ -456,7 +590,8 @@ function screenKey() {
   if (ui.pendingCode) return 'switch';
   if (ui.route === 'history') return `history:${ui.historyRecord ? 'one' : 'list'}`;
   if (!state && ui.route === 'shelf') return 'shelf';
-  if (!state || ui.route !== 'game') return `welcome:${ui.route}`;
+  if (!state || ui.route !== 'game') return `welcome:${ui.game}:${ui.route}`;
+  if (state.game === 'sillyhead') return `sillyhead:${state.phase}`;
   if (ui.takeover) return 'takeover';
   return `game:${state.phase}:${ui.correcting ? 'fix' : ''}`;
 }
@@ -622,6 +757,12 @@ window.addEventListener('unhandledrejection', (event) => {
 // -- Boot --------------------------------------------------------------------
 
 function boot() {
+  // A session remembers which game it is in, so a phone reopening into a game
+  // wears the right colours from the first paint and — if that game has gone —
+  // falls back to ITS front page rather than to Blob's.
+  const saved = net.session;
+  if (saved && saved.game) ui.game = saved.game;
+
   // Both before the first paint, so nobody sees the default size or the default
   // colours flash past.
   applySize(currentSize());

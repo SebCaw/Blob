@@ -2918,3 +2918,292 @@ html[data-size='huge'] .bid__lead { display: none; }
   color: var(--ink-faint);
   margin-top: 2px;
 }
+
+/* -- Silly Head ------------------------------------------------------------ */
+/* The second game on the shelf. It borrows the table, the seats, the hand fan
+   and every card from Blob — a green Blob would be a waste of both. What is
+   here is only what Silly Head has and Blob does not: three piles in front of
+   you, two piles in the middle, and a screen that can seat sixteen. */
+
+.wordmark--plain {
+  font-size: clamp(38px, 11vw, 54px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--ink);
+}
+
+.chip--quiet { color: var(--ink-faint); background: rgba(255, 255, 255, 0.06); }
+
+/* A two-way switch, for a setting with exactly two answers. */
+.seg {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--radius);
+  background: var(--night-800);
+}
+.seg__btn {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.seg__btn--on { background: var(--lime); color: var(--ink-dark); }
+.seg__btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* -- The sort -------------------------------------------------------------- */
+
+.sh-sort__hint {
+  margin: 0 0 14px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 700;
+  min-height: 1.4em;
+}
+
+.sh-piles {
+  display: flex;
+  justify-content: center;
+  gap: clamp(10px, 4vw, 20px);
+}
+
+/* One pile: the face-down card underneath, whatever is stacked on top, and a
+   count when it is more than one. The face-down card is drawn slightly proud so
+   you can see it is there — it is the card you will end up turning over. */
+.sh-pile {
+  position: relative;
+  width: 64px;
+  height: 96px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.sh-pile__down { position: absolute; left: 8px; top: 12px; opacity: 0.75; }
+.sh-pile__up { position: absolute; left: 0; top: 0; }
+.sh-pile__slot {
+  position: absolute;
+  inset: 8px 6px;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--night-500);
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+  font-size: 22px;
+  font-weight: 900;
+}
+.sh-pile__count {
+  position: absolute;
+  right: -4px;
+  top: -6px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--gold);
+  color: var(--ink-dark);
+  font-size: 12px;
+  font-weight: 900;
+}
+.sh-pile--picked .sh-pile__up { outline: 3px solid var(--lime); outline-offset: 2px; border-radius: 8px; }
+
+.sh-sort__tools {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  min-height: 8px;
+}
+.sh-hand__head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.card-face--picked { transform: translateY(-10px); }
+
+/* -- The table ------------------------------------------------------------- */
+
+.sh-counts { display: flex; gap: 6px; align-items: center; }
+
+.seat--out { opacity: 0.4; }
+.sh-seat__table {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  margin-top: 3px;
+  min-height: 14px;
+}
+.sh-seat__down { font-size: 10px; font-weight: 900; color: var(--ink-faint); letter-spacing: -0.08em; }
+
+/* Past eight the ring stops being a table. Two rows keep every name readable
+   and leave the middle exactly where it was. */
+.sh-rows { display: flex; flex-direction: column; gap: 10px; padding: 6px 0; }
+.sh-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; }
+.seat--flat { position: static; transform: none; width: auto; min-width: 56px; }
+
+/* The middle: one neat pile, one messy one. */
+.sh-middle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 6vw, 34px);
+  padding: 10px 0;
+}
+.sh-play .table__ring .sh-middle {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+}
+.sh-stock { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.sh-stock__pile { position: relative; width: 44px; height: 62px; }
+.sh-stock__card {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: var(--night-600);
+  border: 2px solid var(--night-500);
+  transform: translate(calc(var(--n) * 2px), calc(var(--n) * -2px));
+}
+.sh-stock__empty {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 62px;
+  border: 2px dashed var(--night-500);
+  border-radius: 8px;
+  color: var(--ink-faint);
+}
+.sh-middle__label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.sh-middle__label--action { color: var(--gold); }
+
+.sh-discard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  font: inherit;
+}
+.sh-discard--live { cursor: pointer; background: rgba(255, 201, 60, 0.12); outline: 2px solid var(--gold); }
+.sh-discard__mess { position: absolute; left: 50%; top: 8px; width: 54px; height: 76px; transform: translateX(-50%); }
+.sh-discard__scrap {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: var(--night-700);
+  border: 2px solid var(--night-500);
+  transform: rotate(calc((var(--n) - 1) * 7deg));
+}
+.sh-discard__top { position: relative; }
+.sh-discard__slot {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 76px;
+  border: 2px dashed var(--night-500);
+  border-radius: 8px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 800;
+}
+.sh-discard__count {
+  position: absolute;
+  right: 0;
+  top: 2px;
+  min-width: 24px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--ink-dark);
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+/* -- What is going on ------------------------------------------------------ */
+
+.sh-status { text-align: center; padding: 4px 0 8px; min-height: 46px; }
+.sh-status__turn { margin: 0; font-size: 15px; font-weight: 800; color: var(--ink-soft); }
+.sh-status__turn--you { color: var(--lime); }
+.sh-status__rule { margin: 2px 0 0; font-size: 13px; font-weight: 700; color: var(--gold); }
+.sh-status__flip { margin: 2px 0 0; font-size: 13px; color: var(--ink-faint); }
+
+/* -- Your cards ------------------------------------------------------------ */
+
+.sh-yours { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.sh-table-row { display: flex; justify-content: center; gap: clamp(8px, 3vw, 16px); }
+.sh-slot { position: relative; display: grid; place-items: center; min-width: 54px; min-height: 76px; }
+.sh-slot__gone { color: var(--night-500); font-size: 20px; font-weight: 900; }
+.sh-facedown { border: 0; padding: 0; background: transparent; cursor: pointer; }
+.sh-facedown:disabled { cursor: default; opacity: 0.7; }
+
+.sh-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 8px;
+  padding-top: 8px;
+}
+.sh-count { display: flex; align-items: center; gap: 8px; }
+.sh-count__btn {
+  min-width: 52px;
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--lime);
+  color: var(--ink-dark);
+  font: inherit;
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: var(--lift-sm) var(--lime-deep);
+}
+
+/* -- The end --------------------------------------------------------------- */
+
+.sh-over__title { font-size: clamp(26px, 7vw, 34px); font-weight: 900; text-align: center; margin: 0; }
+.sh-order { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sh-order__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--night-800);
+}
+.sh-order__row--first { background: var(--night-700); outline: 2px solid var(--lime); }
+.sh-order__place { min-width: 22px; font-weight: 900; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.sh-order__name { flex: 1; font-weight: 800; }
+
+.sh-loser {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: rgba(255, 107, 107, 0.12);
+  outline: 2px solid var(--bad);
+}
+.sh-loser__name { font-weight: 900; font-size: 18px; }
+.sh-loser__label {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bad);
+}

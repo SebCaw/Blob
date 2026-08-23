@@ -35,18 +35,18 @@ export const GAMES = [
     ready: true,
   },
   {
-    // A placeholder, and deliberately an honest one: a tile promising a game
-    // that does not exist is worse than a tile saying so. Fill this in when the
-    // game is real — see `GAMES` above for what a row needs.
-    id: 'next',
-    name: 'Next game',
-    tagline: 'No scoring — the cards settle it.',
-    blurb: 'Not built yet.',
-    players: null,
+    id: 'sillyhead',
+    name: 'Silly Head',
+    tagline: 'Shed your cards. Last one holding them loses.',
+    // The house name is the one on the tile, and the published ones go here —
+    // so anybody who already knows the game recognises it, and nobody has to
+    // hear what it is usually called at the dinner table.
+    blurb: 'Also played as Palace, Karma or Shed. No score — the cards settle it.',
+    players: '2 to 16',
     hue: 148,
     accent: '#ffd23d',
     accentDeep: '#e0a600',
-    ready: false,
+    ready: true,
   },
 ];
 

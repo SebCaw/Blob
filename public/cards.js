@@ -14,11 +14,26 @@ const SUIT_GLYPH = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const SUIT_NAME = { S: 'spades', H: 'hearts', D: 'diamonds', C: 'clubs' };
 const RED = ['H', 'D'];
 
-/** Split a card id into its rank and suit. `10H` needs no special case. */
+/**
+ * Split a card id into its rank and suit. `10H` needs no special case.
+ *
+ * A game played with more than one deck tags each card with which deck it came
+ * from — `10H#2` — because two identical cards have to be told apart. The tag
+ * is stripped here and nowhere else: it is bookkeeping, never something anybody
+ * should see on a card.
+ */
 export function parseCard(cardId) {
-  const suit = String(cardId).slice(-1);
-  const rank = String(cardId).slice(0, -1);
+  const raw = String(cardId);
+  const hash = raw.indexOf('#');
+  const face = hash === -1 ? raw : raw.slice(0, hash);
+  const suit = face.slice(-1);
+  const rank = face.slice(0, -1);
   return { rank, suit, red: RED.includes(suit) };
+}
+
+/** The rank of a card id, copy tag and all. */
+export function rankOf(cardId) {
+  return parseCard(cardId).rank;
 }
 
 /** "the ace of spades", for anyone using a screen reader. */

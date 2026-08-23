@@ -45,11 +45,74 @@ function soundRow(ctx) {
   );
 }
 
+/**
+ * The way back to the other games, from anywhere.
+ *
+ * The shelf used to be reachable only from a game's own front page, which you
+ * never see once you are in a game — so somebody halfway through a hand of Blob
+ * had no way to discover Silly Head existed short of leaving and knowing where
+ * to look. Settings is on every screen, so it goes here.
+ *
+ * It asks first when there is a game to lose, because leaving one is one-way:
+ * the session goes, and a game that has started will not let you back in. The
+ * question is asked in place rather than as a screen of its own — one tap arms
+ * it, the next does it, and closing the sheet forgets it.
+ */
+function shelfRow(ctx, close) {
+  if (!ctx.state) {
+    return h('button.btn.btn--ghost', {
+      text: 'All games',
+      type: 'button',
+      onClick: () => {
+        close();
+        ctx.backToShelf();
+      },
+    });
+  }
+
+  if (!ctx.ui.confirmShelf) {
+    return h('button.btn.btn--ghost', {
+      text: 'Leave and pick another game',
+      type: 'button',
+      onClick: () => {
+        ctx.ui.confirmShelf = true;
+        ctx.render();
+      },
+    });
+  }
+
+  return h(
+    'div.sheet__row',
+    h('p.sheet__hint', {
+      text: 'Leaving is one-way — you cannot rejoin a game once it has started.',
+    }),
+    h('button.btn.btn--primary', {
+      text: 'Leave this game',
+      type: 'button',
+      onClick: () => {
+        ctx.ui.confirmShelf = false;
+        close();
+        ctx.backToShelf();
+      },
+    }),
+    h('button.btn.btn--link', {
+      text: 'Stay',
+      type: 'button',
+      onClick: () => {
+        ctx.ui.confirmShelf = false;
+        ctx.render();
+      },
+    })
+  );
+}
+
 export function settingsSheet(ctx) {
   if (!ctx.ui.settingsOpen) return null;
 
   const close = () => {
     ctx.ui.settingsOpen = false;
+    // A half-armed question does not survive the sheet being shut.
+    ctx.ui.confirmShelf = false;
     ctx.render();
   };
 
@@ -92,6 +155,13 @@ export function settingsSheet(ctx) {
         },
         { kind: 'ghost' }
       ),
+      // The way back to the other games, from anywhere.
+      //
+      // The shelf used to be reachable only from a game's own front page, which
+      // you never see once you are in a game — so somebody halfway through a
+      // hand of Blob had no way to discover Silly Head existed short of leaving
+      // and knowing where to look. Settings is on every screen, so it goes here.
+      shelfRow(ctx, close),
       h('button.btn.btn--ghost', { text: 'Done', type: 'button', onClick: close })
     )
   );

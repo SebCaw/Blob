@@ -5,6 +5,7 @@ const fsp = require('fs/promises');
 const path = require('path');
 
 const { MIN_HAND_SIZE } = require('../lib/rounds');
+const { knownEngine, DEFAULT_ENGINE } = require('../lib/engines');
 
 /**
  * The HTTP surface: a handful of JSON endpoints, one Server-Sent Events stream,
@@ -119,8 +120,12 @@ async function createGameHandler(req, res, { rooms, limiter }) {
   const hostName = cleanName(body.name);
   if (!hostName) return sendJson(res, 400, badRequest('Pop your name in first.'));
 
+  // Which game off the shelf. Anything unrecognised is Blob, which is what a
+  // client that predates the shelf is asking for anyway.
+  const gameId = knownEngine(body.game) ? body.game : DEFAULT_ENGINE;
+
   const handSize = Number.isInteger(body.handSize) ? body.handSize : 7;
-  if (handSize < MIN_HAND_SIZE) {
+  if (gameId === 'blob' && handSize < MIN_HAND_SIZE) {
     return sendJson(res, 400, badRequest(`The starting hand needs to be at least ${MIN_HAND_SIZE} cards.`));
   }
 
@@ -128,9 +133,16 @@ async function createGameHandler(req, res, { rooms, limiter }) {
   // both the original mode and the one we would rather people played.
   const mode = body.mode === 'online' ? 'online' : 'table';
 
-  const { room, player, token } = rooms.create({ hostName, startHandSize: handSize, mode });
+  const { room, player, token } = rooms.create({
+    game: gameId,
+    hostName,
+    startHandSize: handSize,
+    mode,
+    quick: Boolean(body.quick),
+  });
   return sendJson(res, 201, {
     gameId: room.state.id,
+    game: room.state.game || DEFAULT_ENGINE,
     code: room.state.code,
     playerId: player.id,
     token,
@@ -170,6 +182,7 @@ function lookupHandler(res, code, { rooms }) {
   if (!room) return sendJson(res, 404, badRequest("We couldn't find a game with that code."));
   return sendJson(res, 200, {
     code: room.state.code,
+    game: room.state.game || DEFAULT_ENGINE,
     phase: room.state.phase,
     mode: room.state.mode || 'table',
     players: room.state.players.length,

@@ -8,7 +8,7 @@ have actually been made here.
 
 ```bash
 node server.js     # http://localhost:4100 — no build step, no install needed
-npm test           # node --test, 200 tests
+npm test           # node --test, 277 tests
 node --check <f>   # quick syntax check on a single file
 ```
 
@@ -82,6 +82,145 @@ stopped being one.
 
 Do not hand-pick a second set of hex values for a new game. If a game needs more than a
 hue to look right, the thing to fix is the design it is fighting, not the token list.
+
+## Silly Head
+
+The second game. The rules as the house plays them are in
+[SILLY-HEAD.md](SILLY-HEAD.md) — read that before touching `lib/sillyhead/`, and
+keep it current, because it is the only place the house rules are written down.
+
+**One server, two engines.** `server/room.js` used to require Blob's rules
+directly; it now asks `lib/engines.js` which rules this room is running, chosen
+by `state.game`. An engine supplies `createGame`, `applyCommand`, `findPlayer`,
+`viewFor`, `historyRecord`, `stallWatch` and `bots` (null if it has none) — and
+nothing else, because nothing else differs. Rooms, sessions, the command queue,
+presence, grace windows and Master elections are the same whatever is being
+played, and they must stay that way: two command queues would be two things to
+keep serialized, and two privacy boundaries would be two things to keep honest.
+
+A state with no `game` field is Blob. That is what every game saved before the
+shelf existed looks like, and the default has to keep being right.
+
+**Silly Head has no rounds.** One shuffle, one deal, play until one person is
+left holding cards. That is why it is a separate reducer rather than a third
+mode: Blob's whole shape is a sequence of scored rounds, and none of
+`lib/rounds.js` or `lib/scoring.js` applies. What it does reuse is
+`lib/deck.js`'s seeded shuffle, the whole of `server/`, and on the client the
+topbar, the lobby furniture, `cards.js`, `sound.js` and the table ring.
+
+**A card id carries which deck it came from.** Silly Head deals two decks or
+more, so the same face turns up twice and `10H#2` is a different card from
+`10H#1`. `public/cards.js` strips the tag when it draws, which is the only place
+that knows about it — the copy number is bookkeeping and must never appear on a
+card. Blob's ids are untagged and stay that way.
+
+**Your own face-down cards are a secret from YOU.** This is the interesting half
+of the privacy boundary and the one Blob had no equivalent of. `lib/sillyhead/
+view.js` sends `downLeft` — how many are left, as booleans — and never the ids.
+`test/sillyhead-server.test.js` asserts over a real socket that nothing
+card-shaped reaches a phone beyond its own hand and everybody's face-up cards;
+that test is load-bearing.
+
+**The sort is the only phase where more than one player acts at once.** Everybody
+tidies their table at the same time and draws from one shared stock, so
+"whoever grabs the top card gets it" is settled by the command queue rather than
+by anything in the reducer. That is the whole reason it is safe.
+
+**The run rule lives in one place.** Four of a number in a row sacks the pile,
+however they got there, and a play that would push a run past four is refused
+rather than truncated. `lib/sillyhead/rules.js` owns that and knows nothing
+about players or turns; the reducer owns everything about whose go it is. Keep
+the two apart — the specials are where this game lives, and they are only
+testable one at a time because of it.
+
+**Nothing special-cases the 2's reset.** A 2 is the lowest card in the deck, so
+"equal or higher than a 2" already means "anything". If you find yourself adding
+a branch for it, the ordering is doing the job already.
+
+### The Silly Head bots
+
+Four levels, same names as Blob's, and the same one rule underneath: a bot is
+handed `viewFor(state, botId)` and nothing else. `lib/sillyhead/bot.js` cannot
+reach `state`, so it cannot see a hand, and it cannot see its own three
+face-down cards either. `test/sillyhead-bot.test.js` pins the private seed the
+way Blob's does.
+
+**A bot sorts, one command at a time.** It has to go through the same door a
+phone does, so `nextSortMove` returns one move and the engine keeps asking.
+Three things make it terminate, and all three were bugs first:
+
+- It only ever swaps a card off a pile holding ONE card. Pull apart a stacked
+  pair and step 3 puts it straight back, for ever.
+- It fills an empty pile with its BEST card, never its worst — otherwise it puts
+  back exactly what it just took off.
+- It stacks a pair and stops. Without that cap a bot keeps matching and drawing
+  until the stock is in its hand.
+
+**"Being refilled" is not "the deck has cards".** You only draw back up to
+three, so the moment a hand is bigger than that the deck stops replacing
+anything — and it can sit at thirty-nine cards, untouched, for the rest of the
+game. Everything about how freely a bot spends hangs off `beingRefilled(view)`,
+not off `view.stock`. Getting this wrong livelocked games with a nearly full
+deck: both bots thought their cards were free and traded whole sets for ever.
+
+**A set of unbeatable cards must go down one at a time.** Dumping all three of
+your aces sheds nothing — the next player cannot beat them, takes the pile, and
+now THEY have all three to hand back. One at a time, the pile returns a card
+lighter each time. The exception is a rank that matches the top, which is
+building the run towards the four that sacks.
+
+**There is a deliberate breakout, and it is load-bearing.** Once a bot is not
+being refilled it has a small chance of taking a pile it could have beaten. The
+chance falls as the pile grows and rises the longer the game has gone on. It is
+there because two players holding the last low cards with every 2 and 10 sacked
+can trade the same handful for ever — a 9 on the pile blocks everything above it
+— and no bot can see that it is going in a circle. Measured: without it, about 1
+game in 250 never ended.
+
+**Impossible counts the cards, and everything it counts is public.** Every card
+in the pile went down face up in front of the room; so did every sacked card
+before it went; the face-up cards are face up; and a pile somebody picks up is
+watched by everybody as they take it. `view.pile.cards`, `view.sackedCards` and
+`players[].knownCards` carry exactly that and nothing more — a card drawn from
+the deck is unseen and never appears in `knownCards`. `countCards()` subtracts
+the lot from the full deck to get what is unaccounted for. It is memory, not
+X-ray vision, and there is a test that changing a hidden hand cannot change the
+count.
+
+**What the counting is FOR, and what it is not for.** The obvious use — work out
+what the next player cannot follow and put them under — is worth almost nothing,
+and that is measured, not assumed: it took Impossible from 53% against Hard to
+50%, dead level. Making somebody pick up hands them an EMPTY pile and the lead,
+which is the best seat at the table. What the count is actually worth is the
+other direction: knowing when one of your own cards has quietly become
+unbeatable. Once both aces are gone a king is as good as a 2, and a card like
+that is an escape worth keeping for the moment you are stuck. That took it to
+56%. `unbeatableness()` is the term that earns its place; the stranding term is
+kept small and only fires against somebody about to go out.
+
+**The rest of the ladder is slip rate, not cleverness.** Every other heuristic
+worth having is in the one policy, and the levels differ by how often they
+ignore it (`SLIP`). Reading opponents' face-up cards, hoarding specials harder,
+spending a 9 to block, sharper openings — all tried, all measured, all made
+Impossible worse. Over several thousand duels the ladder runs easy → medium 79%,
+medium → hard 60%, hard → impossible 56%. If you change the policy, re-measure
+HEAD TO HEAD: a five-way game is far too noisy to tell medium from impossible in
+a few hundred games, and that is how the ordering got shipped upside down the
+first time.
+
+**Bots are lobby-only and never Master.** `eligibleForMaster` and `nextMaster`
+both skip them, `conn/set` leaves them alone, and the stall machinery never
+fires for them — they have no phone to lose.
+
+**The ring stops at eight.** Past that `screens/sillyhead/table.js` switches to
+two compact rows, because sixteen seats round one circle are too small to read
+whatever the arithmetic says. Both paths keep the middle exactly where it is.
+
+**The middle is usable here, and only here.** In Blob nothing small survives in
+the centre of the table because every seat's played card lands within 28px of
+it. Silly Head plays nothing to a seat, so the centre carries the deck and the
+pile — and the pile is a button: on your turn it says "Take the pile", and when
+you have nothing legal it is the only thing on screen you can tap.
 
 ## UI conventions
 
@@ -271,6 +410,19 @@ election/start  election/vote  election/resolve
 `results/submit` and `results/amend` are **table-only**; `trick/play` is **online-only**.
 Each refuses in the other mode rather than doing something surprising.
 
+Silly Head has its own set, in `HANDLERS` in `lib/sillyhead/game.js`. The two
+lists never mix: a command aimed at the wrong engine comes back
+`unknown-command` rather than doing something surprising, and there is a test
+for that.
+
+```
+player/join  player/remove  game/setQuick  game/start  game/end  game/rematchStarted
+sort/bin  sort/stack  sort/place  sort/take  sort/done
+play/cards  play/takePile  play/flip  play/stalled  play/skipTurns
+conn/set  conn/takeover
+election/start  election/vote  election/resolve
+```
+
 Every refusal message is shown to a player as-is, so write it in plain English. Give a
 `code` only when the client needs to branch on it. Commands that could be double-tapped
 must be idempotent — a second tap is a no-op, not an error.
@@ -367,9 +519,18 @@ queue and can take 10–15 minutes.
 
 ## Testing
 
-`npm test` runs `node --test` over `test/`: the rules (round sequences, scoring, bid
+`npm test` runs `node --test` over `test/`: Blob's rules (round sequences, scoring, bid
 authority, corrections, elections, ties), the real HTTP and SSE surface, the bots, and the
 QR encoder against pinned reference output.
+
+`test/sillyhead.test.js` and `test/sillyhead-server.test.js` do the same for the
+second game: the pile rules one special at a time, the sort, the endgame, the
+privacy boundary over a real socket, and a soak test that deals twelve
+four-player games and plays every one of them out. `test/sillyhead-bot.test.js`
+plays whole games with every seat driven by a brain, routed through the same
+engine `server/room.js` uses, so a scheduling mistake surfaces there too. That last one is there for
+deadlocks — a turn that never moves, or a player who is out and still dealt one
+— which would otherwise surface as a hang in a pub rather than as a red test.
 
 `test/bot.test.js` plays whole games through the reducer with the brain deciding, so an
 illegal choice surfaces as a refusal rather than as a bad hand months later. Bot strength

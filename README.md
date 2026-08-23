@@ -1,10 +1,18 @@
 # Blob
 
-A companion app for the physical card game **Blob**. It handles the bidding,
-the scoring and the arguments; the cards stay on the table.
+A shelf of card games for a group with phones. Two of them so far:
 
-The app knows nothing about trumps, suits or tricks. It runs the bidding, locks
-it, takes the results the Master types in, and keeps the leaderboard.
+- **Blob** — the original, and the one the app is named after. A companion for
+  the physical game: it handles the bidding, the scoring and the arguments while
+  the cards stay on the table. It can also deal, if nobody has a pack.
+- **Silly Head** — shedding, no score, last one holding cards loses. Played
+  elsewhere as Palace, Karma or Shed. This one always deals: the whole game is
+  cards nobody else can see. Two to sixteen players, or on your own against
+  bots. See [SILLY-HEAD.md](SILLY-HEAD.md) for the rules as the house plays
+  them.
+
+Each game gets a hue rather than a palette, so a second game is a different
+colour and not a different amount of contrast. `public/games.js` is the shelf.
 
 ```
 node server.js          # http://localhost:4100
@@ -14,7 +22,7 @@ No build step and no dependencies — Node's standard library and static files.
 `npm install` is not needed; `package.json` exists only so hosts (Railway,
 Render, etc.) auto-detect this as a Node app and know how to start it.
 
-## The game
+## Blob, the game
 
 Everyone secretly bids how many tricks they will win, before every round. The
 hand size counts down from the starting size to one and back up again, so a
@@ -26,17 +34,27 @@ You score **only** if you win exactly what you bid, and then you get
 ## How it fits together
 
 ```
-lib/          the rules, pure and testable  (no I/O, no clock, no network)
-server/       rooms, the command queue, SSE, persistence, HTTP
-server.js     the entry point
-public/       the app: vanilla ES modules, no framework
-test/         node:test
+lib/            Blob's rules, pure and testable  (no I/O, no clock, no network)
+lib/sillyhead/  Silly Head's, the same way
+lib/engines.js  which rules a room is running
+server/         rooms, the command queue, SSE, persistence, HTTP
+server.js       the entry point
+public/         the app: vanilla ES modules, no framework
+test/           node:test
 ```
+
+**One server, two games.** `server/` owns rooms, sessions, the queue, presence,
+grace windows and Master elections, and none of that differs by game. What does
+differ — the rules, the redaction, what a missing player holds up — is an
+*engine*, and `lib/engines.js` is where the branch lives. Forking `server/` per
+game would mean two command queues to keep serialized and two privacy boundaries
+to keep honest; there is one of each.
 
 **`lib/` is the game and nothing else.** `applyCommand(state, command, ctx)`
 returns a new state or a refusal, with `now` and `newId` injected — so the rules
-can be driven at speed in tests, and a future digital-cards mode could reuse the
-file unchanged.
+can be driven at speed in tests. Silly Head's reducer is a separate file under
+`lib/sillyhead/` rather than a third mode of Blob's: it has no rounds, no bids
+and no score, so there was nothing of Blob's round machinery to share.
 
 **`server/` is what makes it safe with several phones on it.** Each game has a
 serialized command queue, so two bids landing at the same instant are applied

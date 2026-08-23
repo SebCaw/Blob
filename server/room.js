@@ -1,8 +1,6 @@
 'use strict';
 
-const game = require('../lib/game');
-const bot = require('../lib/bot');
-const { viewFor, historyRecord } = require('../lib/view');
+const { engineFor } = require('../lib/engines');
 const { makeId, makeToken, tokensMatch } = require('../lib/ids');
 
 /**
@@ -62,6 +60,11 @@ class Room {
     }
   ) {
     this.state = state;
+    /**
+     * The rules this room is running. Everything else in here — the queue, the
+     * sessions, presence, grace, elections — is the same whatever the game is.
+     */
+    this.engine = engineFor(state);
     this.store = store;
     this.graceMs = graceMs;
     this.electionMs = electionMs;
@@ -155,7 +158,7 @@ class Room {
   /** @returns {boolean} */
   authenticate(playerId, token) {
     const known = this.sessions[playerId];
-    return Boolean(known) && tokensMatch(known, token) && Boolean(game.findPlayer(this.state, playerId));
+    return Boolean(known) && tokensMatch(known, token) && Boolean(this.engine.findPlayer(this.state, playerId));
   }
 
   // ── Commands ───────────────────────────────────────────────────────────────
@@ -183,7 +186,7 @@ class Room {
     const ctx = { now: Date.now(), newId: makeId, actorId };
     let outcome;
     try {
-      const out = game.applyCommand(this.state, command, ctx);
+      const out = this.engine.applyCommand(this.state, command, ctx);
       if (out.error) {
         outcome = { ok: false, error: out.error };
       } else {
@@ -236,7 +239,7 @@ class Room {
     const justFinished = previous.phase !== 'complete';
     const correctedSinceFinishing = this.state.amendedAt !== previous.amendedAt;
     if (this.state.phase === 'complete' && (justFinished || correctedSinceFinishing)) {
-      this.store.saveHistory(historyRecord(this.state)).catch((err) => {
+      this.store.saveHistory(this.engine.historyRecord(this.state)).catch((err) => {
         console.error('[blob] could not save history', err.message);
       });
     }
@@ -251,13 +254,8 @@ class Room {
    * played on anyone's behalf until they take it.
    */
   _watchForStall() {
-    const round = game.currentRound(this.state);
-    const turnId = this.state.phase === 'playing' && round && round.trick ? round.trick.turnId : null;
-    const player = turnId ? game.findPlayer(this.state, turnId) : null;
-    const skipping = Boolean(round && round.autoPlay && round.autoPlay[turnId]);
-    // Once the offer is on the Master's screen there is nothing left to wait for.
-    const alreadyOffered = Boolean(round && round.stalledPlayerId === turnId);
-    const waitingOn = player && !player.connected && !skipping && !alreadyOffered ? turnId : null;
+    const watch = this.engine.stallWatch(this.state);
+    const waitingOn = watch ? watch.playerId : null;
 
     if (this.stallFor === waitingOn) return; // already watching the right person
     if (this.stallTimer) clearTimeout(this.stallTimer);
@@ -268,7 +266,7 @@ class Room {
     this.stallTimer = setTimeout(() => {
       this.stallTimer = null;
       this.stallFor = null;
-      this.dispatch({ type: 'trick/stalled', playerId: waitingOn }, { actorId: null });
+      this.dispatch(watch.command, { actorId: null });
     }, this.stallMs);
     if (this.stallTimer.unref) this.stallTimer.unref();
   }
@@ -282,26 +280,8 @@ class Room {
    * this, and so three bots bid one after another rather than all at once.
    */
   _botOwing() {
-    const state = this.state;
-    if (state.mode !== 'online') return null;
-    const round = game.currentRound(state);
-    if (!round) return null;
-
-    if (state.phase === 'bidding' && !round.locked) {
-      const owing = game.roundPlayers(state, round).find((p) => p.isBot && !round.bids[p.id]);
-      if (owing) return { playerId: owing.id, kind: 'bid', at: `${round.index}` };
-    }
-    if (state.phase === 'playing' && round.trick) {
-      const turn = game.findPlayer(state, round.trick.turnId);
-      if (turn && turn.isBot) {
-        return {
-          playerId: turn.id,
-          kind: 'play',
-          at: `${round.index}:${round.trick.number}:${round.trick.plays.length}`,
-        };
-      }
-    }
-    return null;
+    if (!this.engine.bots) return null;
+    return this.engine.bots.owing(this.state);
   }
 
   /**
@@ -321,10 +301,10 @@ class Room {
     this.botFor = key;
     if (!owed) return;
 
-    const player = game.findPlayer(this.state, owed.playerId);
+    const player = this.engine.findPlayer(this.state, owed.playerId);
     let delay = 900;
     try {
-      delay = bot.thinkMs(this.viewFor(player.id), this._botSecret(player), owed.kind);
+      delay = this.engine.bots.thinkMs(this.viewFor(player.id), this._botSecret(player), owed.kind);
     } catch {
       /* a broken brain still gets a pause, and the fallback below still moves */
     }
@@ -354,7 +334,7 @@ class Room {
    * a table sat waiting — that is worse than a bad play.
    */
   _runBotMove(owed) {
-    const player = game.findPlayer(this.state, owed.playerId);
+    const player = this.engine.findPlayer(this.state, owed.playerId);
     if (!player || !player.isBot) return;
     const now = this._botOwing();
     if (!now || now.playerId !== owed.playerId || now.kind !== owed.kind || now.at !== owed.at) {
@@ -363,35 +343,9 @@ class Room {
     }
 
     const view = this.viewFor(player.id);
-    const secret = this._botSecret(player);
     this.lastBotMoveAt = Date.now();
-
-    if (owed.kind === 'bid') {
-      let value = 0;
-      try {
-        value = bot.chooseBid(view, secret);
-      } catch (err) {
-        console.error('[blob] bot could not bid', err.message);
-      }
-      const handSize = (view.round && view.round.handSize) || 0;
-      if (!Number.isInteger(value) || value < 0 || value > handSize) value = 0;
-      this.dispatch({ type: 'bid/submit', playerId: player.id, value }, { actorId: player.id });
-      return;
-    }
-
-    const playable = (view.you && view.you.playable) || [];
-    let cardId = null;
-    try {
-      cardId = bot.chooseCard(view, secret);
-    } catch (err) {
-      console.error('[blob] bot could not choose a card', err.message);
-    }
-    // A null card is right in the forehead round, where it is holding one card
-    // it is not allowed to see and the reducer plays it unnamed. Anywhere else
-    // it means the brain gave up, and any legal card beats a frozen table.
-    if (!cardId && playable.length > 1) cardId = playable[0];
-    const command = cardId ? { type: 'trick/play', cardId } : { type: 'trick/play' };
-    this.dispatch(command, { actorId: player.id });
+    const command = this.engine.bots.move(view, this._botSecret(player), owed);
+    if (command) this.dispatch(command, { actorId: player.id });
   }
 
   // ── Subscribers ────────────────────────────────────────────────────────────
@@ -414,7 +368,7 @@ class Room {
       this.graceTimers.delete(playerId);
     }
 
-    const player = game.findPlayer(this.state, playerId);
+    const player = this.engine.findPlayer(this.state, playerId);
     if (player && !player.connected) {
       this.dispatch({ type: 'conn/set', playerId, connected: true }, { actorId: null });
     } else {
@@ -448,7 +402,7 @@ class Room {
 
     const timer = setTimeout(async () => {
       this.graceTimers.delete(playerId);
-      const player = game.findPlayer(this.state, playerId);
+      const player = this.engine.findPlayer(this.state, playerId);
       if (!player || player.connected) return;
 
       if (this.state.masterId === playerId) {
@@ -478,7 +432,7 @@ class Room {
 
   /** @param {string|null} playerId */
   viewFor(playerId) {
-    return viewFor(this.state, playerId);
+    return this.engine.viewFor(this.state, playerId);
   }
 
   /** How many live connections a player has. */

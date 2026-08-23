@@ -1,7 +1,7 @@
 'use strict';
 
 const { Room } = require('./room');
-const game = require('../lib/game');
+const { engineById, DEFAULT_ENGINE } = require('../lib/engines');
 const { makeGameCode, makeId } = require('../lib/ids');
 
 /** Finished games stay reachable for a while, so nobody loses the final screen. */
@@ -65,13 +65,18 @@ class Rooms {
 
   /**
    * Create a game with its host as Master.
-   * @param {{hostName:string, startHandSize?:number, mode?:'table'|'online'}} args
+   *
+   * `game` picks the engine. Every engine takes the same argument bag and
+   * ignores what does not apply to it, so a new game on the shelf needs nothing
+   * here beyond its row in `lib/engines.js`.
+   *
+   * @param {{hostName:string, game?:string, startHandSize?:number, mode?:'table'|'online', quick?:boolean}} args
    * @returns {{room:Room, player:object, token:string}}
    */
-  create({ hostName, startHandSize, mode }) {
+  create({ hostName, startHandSize, mode, game: gameId = DEFAULT_ENGINE, quick = false }) {
     const code = this._freeCode();
-    const { state, player } = game.createGame(
-      { hostName, code, startHandSize, mode },
+    const { state, player } = engineById(gameId).createGame(
+      { hostName, code, startHandSize, mode, quick },
       { now: Date.now(), newId: makeId }
     );
     const room = new Room(state, {
@@ -125,7 +130,7 @@ class Rooms {
     if (oldRoom.state.rematchGameId) {
       const mine = oldRoom.rematchSessions && oldRoom.rematchSessions.get(actorId);
       const existing = mine && this.get(mine.gameId);
-      const player = existing && game.findPlayer(existing.state, mine.playerId);
+      const player = existing && existing.engine.findPlayer(existing.state, mine.playerId);
       if (existing && player) return { room: existing, player, token: mine.token };
       return {
         error: { code: 'rematch-gone', message: 'That rematch is no longer available. Start a new game instead.' },
@@ -142,8 +147,10 @@ class Rooms {
     // an online group would find themselves waiting for cards nobody has.
     const created = this.create({
       hostName: master.name,
+      game: oldRoom.state.game,
       startHandSize: oldRoom.state.startHandSize,
       mode: oldRoom.state.mode,
+      quick: oldRoom.state.quick,
     });
     /** @type {Map<string, {gameId:string, code:string, playerId:string, token:string}>} */
     const sessions = new Map();

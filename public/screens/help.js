@@ -2,6 +2,11 @@ import { h } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { cardFace, cardBack } from '../cards.js';
 import { fragment } from '../ui.js';
+import {
+  STEPS as SILLYHEAD_STEPS,
+  ANSWERS as SILLYHEAD_ANSWERS,
+  SUGGESTED as SILLYHEAD_SUGGESTED,
+} from './help-sillyhead.js';
 
 /**
  * How to play — shown, and asked about.
@@ -24,7 +29,7 @@ import { fragment } from '../ui.js';
  * step with anything, forwards or backwards.
  */
 
-const STEPS = [
+const BLOB_STEPS = [
   {
     title: 'Everyone puts down one card',
     body: 'The best card wins all of them. That is called a trick. Winning tricks is the whole game.',
@@ -131,7 +136,7 @@ const STEPS = [
  * it answers the questions people actually ask at a kitchen table, and says so
  * plainly when it does not know.
  */
-const ANSWERS = [
+const BLOB_ANSWERS = [
   {
     ask: 'What is a trick?',
     words: ['trick', 'tricks', 'what do i win'],
@@ -210,7 +215,40 @@ const ANSWERS = [
 ];
 
 /** The questions offered as taps, so nobody has to think of one. */
-const SUGGESTED = [0, 1, 2, 4];
+const BLOB_SUGGESTED = [0, 1, 2, 4];
+
+/**
+ * Which game's rules to teach.
+ *
+ * Read from the game in progress first and the shelf choice second, so somebody
+ * who scanned a code straight into a game is taught the game they are actually
+ * sat in rather than the one this phone last looked at.
+ */
+function lessonFor(ctx) {
+  const id = (ctx.state && ctx.state.game) || (ctx.ui && ctx.ui.game) || 'blob';
+  if (id === 'sillyhead') {
+    return {
+      name: 'Silly Head',
+      steps: SILLYHEAD_STEPS,
+      answers: SILLYHEAD_ANSWERS,
+      suggested: SILLYHEAD_SUGGESTED,
+      greeting: 'Ask me anything about Silly Head. Tap one below if you like.',
+      shrug:
+        'I do not know that one, sorry. Try asking about the special cards, the sorting bit, or your face-down ' +
+        'cards — or have a look at Show me.',
+    };
+  }
+  return {
+    name: 'Blob',
+    steps: BLOB_STEPS,
+    answers: BLOB_ANSWERS,
+    suggested: BLOB_SUGGESTED,
+    greeting: 'Ask me anything about the game. Tap one below if you like.',
+    shrug:
+      'I do not know that one, sorry. Try asking about trumps, points, whose turn it is, or what a blob is — or ' +
+      'have a look at Show me.',
+  };
+}
 
 export function helpOverlay(ctx) {
   if (!ctx.ui.helpOpen) return null;
@@ -261,6 +299,7 @@ function tab(label, on, onClick) {
 // ── Show me ──────────────────────────────────────────────────────────────────
 
 function stepsView(ctx, close) {
+  const STEPS = lessonFor(ctx).steps;
   const index = Math.min(Math.max(ctx.ui.helpStep || 0, 0), STEPS.length - 1);
   const step = STEPS[index];
   const last = index === STEPS.length - 1;
@@ -294,11 +333,10 @@ function stepsView(ctx, close) {
 
 // ── Ask Blob ─────────────────────────────────────────────────────────────────
 
-/** The first thing Blob says, before anybody has asked anything. */
-const GREETING = { from: 'blob', text: 'Ask me anything about the game. Tap one below if you like.' };
-
 function askView(ctx) {
-  const thread = ctx.ui.helpChat && ctx.ui.helpChat.length ? ctx.ui.helpChat : [GREETING];
+  const lesson = lessonFor(ctx);
+  const greeting = { from: 'blob', text: lesson.greeting };
+  const thread = ctx.ui.helpChat && ctx.ui.helpChat.length ? ctx.ui.helpChat : [greeting];
 
   const say = (question) => {
     const asked = String(question || '').trim();
@@ -313,7 +351,7 @@ function askView(ctx) {
     clearTimeout(thinkTimer);
     thinkTimer = setTimeout(() => {
       ctx.ui.helpThinking = false;
-      ctx.ui.helpChat = [...(ctx.ui.helpChat || []), { from: 'blob', text: answerFor(asked) }];
+      ctx.ui.helpChat = [...(ctx.ui.helpChat || []), { from: 'blob', text: answerFor(asked, lesson) }];
       ctx.render();
     }, 520);
   };
@@ -347,8 +385,12 @@ function askView(ctx) {
     ),
     h(
       'div.chat__chips',
-      SUGGESTED.map((i) =>
-        h('button.chat__chip', { type: 'button', text: ANSWERS[i].ask, onClick: () => say(ANSWERS[i].ask) })
+      lesson.suggested.map((i) =>
+        h('button.chat__chip', {
+          type: 'button',
+          text: lesson.answers[i].ask,
+          onClick: () => say(lesson.answers[i].ask),
+        })
       )
     ),
     h(
@@ -381,11 +423,11 @@ function sendArrow() {
  * lands on the right one. No match is a plain "I do not know that one" rather
  * than a guess — a wrong answer about the rules is worse than no answer.
  */
-function answerFor(question) {
+function answerFor(question, lesson) {
   const asked = question.toLowerCase();
   let best = null;
   let bestScore = 0;
-  for (const entry of ANSWERS) {
+  for (const entry of lesson.answers) {
     let score = 0;
     for (const word of entry.words) if (asked.includes(word)) score += word.length;
     if (score > bestScore) {
@@ -394,7 +436,7 @@ function answerFor(question) {
     }
   }
   if (best) return best.reply;
-  return 'I do not know that one, sorry. Try asking about trumps, points, whose turn it is, or what a blob is — or have a look at Show me.';
+  return lesson.shrug;
 }
 
 /** The way in, from the front page and from settings. */
