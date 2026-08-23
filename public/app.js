@@ -565,10 +565,17 @@ function pickScreen() {
   if (ui.route === 'history') return historyScreen(ctx);
   if (!state && ui.route === 'shelf') return shelfScreen(ctx);
   if (!state || ui.route !== 'game') {
-    // Silly Head has its own front page and its own new-game form. Joining is
-    // shared: a code and a name is the same job whatever is being played.
-    const own = ui.route === 'home' || ui.route === 'create';
-    if (ui.game === 'sillyhead' && own) return sillyheadWelcome(ctx);
+    // Silly Head has its own front page and its own new-game form, and it gets
+    // them for every route except joining — a code and a name is the same job
+    // whatever is being played.
+    //
+    // Listed as the exception rather than as the two routes that qualify. It
+    // was the other way round, which meant a route that was neither — a phone
+    // reopening into a Silly Head game the server no longer has, which on the
+    // free instance is every game after it has slept — fell through to BLOB's
+    // front page wearing Silly Head's green, with no Silly Head anywhere on it.
+    const shared = ui.route === 'join' || ui.route === 'nudge';
+    if (ui.game === 'sillyhead' && !shared) return sillyheadWelcome(ctx);
     return welcomeScreen(ctx);
   }
   if (state.game === 'sillyhead') return sillyheadScreen(ctx);
