@@ -302,6 +302,20 @@ function middle(ctx) {
   }
   const justLanded = Boolean(state.pile.top) && Date.now() - landedAt < LAND_MS;
 
+  // Two or three of a number in a row are fanned rather than stacked.
+  //
+  // Stacked they are one card with a line of text under the table saying there
+  // are more, and the number on the pile is the single most important thing on
+  // the screen: it decides whether you can go, and how close the pile is to
+  // being sacked. Fanned, you can see how many there are and what they are, the
+  // way you would spread them in your hand to check.
+  //
+  // Every card in the pile is public — the room watched each one go down — so
+  // there is nothing here the view is not already sending.
+  const runOf = Math.max(1, Math.min(state.pile.run || 1, state.pile.runToSack || 4));
+  const runCards = (state.pile.cards || []).slice(-runOf);
+  const runRank = state.pile.top ? parseCard(state.pile.top).rank : null;
+
   return h(
     'div.sh-middle',
     h(
@@ -326,7 +340,9 @@ function middle(ctx) {
         'aria-label': canTake
           ? `Take the pile, ${state.pile.count} cards`
           : state.pile.top
-          ? `The pile, ${state.pile.count} cards, ${cardLabel(state.pile.top)} on top`
+          ? `The pile, ${state.pile.count} cards, ${
+              runCards.length > 1 ? `${runCards.length} ${runRank}s in a row` : cardLabel(state.pile.top)
+            } on top`
           : 'The pile is empty',
         onClick: canTake ? () => takePile(ctx) : undefined,
       },
@@ -338,10 +354,20 @@ function middle(ctx) {
           ))
         : null,
       state.pile.top
-        ? cardFace(state.pile.top, {
-            size: 'lg',
-            className: `sh-discard__top${justLanded ? ' sh-discard__top--land' : ''}`,
-          })
+        ? h(
+            'div.sh-discard__run',
+            { style: { '--run': String(runCards.length) } },
+            // Oldest first, so the one on top is the last child and paints over
+            // the rest without anybody having to count z-indexes.
+            runCards.map((cardId, index) => {
+              const back = runCards.length - 1 - index;
+              return cardFace(cardId, {
+                size: 'lg',
+                index: back,
+                className: back === 0 ? `sh-discard__top${justLanded ? ' sh-discard__top--land' : ''}` : '',
+              });
+            })
+          )
         : h('span.sh-discard__slot', { text: 'Empty' }),
       state.pile.count ? h('span.sh-discard__count', { text: String(state.pile.count) }) : null,
       canTake ? h('span.sh-middle__label.sh-middle__label--action', { text: 'Take the pile' }) : null
@@ -360,8 +386,12 @@ function statusLine(ctx) {
 
   let text;
   if (you.out) text = 'You are out. Watching the rest of it.';
-  else if (you.isTurn && state.stuck) text = 'Nothing you can play — take the pile.';
+  // The face-down check comes FIRST. Down there you have nothing playable by
+  // definition — you have not seen the card yet — so the stuck line fired and
+  // told you to take the pile, which is the one thing the rules will not let
+  // you do from there.
   else if (you.isTurn && you.zone === 'down') text = 'Turn one of your face-down cards over.';
+  else if (you.isTurn && state.stuck) text = 'Nothing you can play — take the pile.';
   else if (you.isTurn) text = 'Your go.';
   else text = `Waiting for ${turn ? turn.name : 'the next player'}.`;
 

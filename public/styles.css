@@ -3532,6 +3532,39 @@ button.card-face:active:not(:disabled) {
 .sh-play .sh-discard__slot { width: calc(var(--mid-card) * 0.74); height: calc(var(--mid-card) * 1.05); }
 .sh-play .sh-middle { gap: clamp(10px, 4vw, 26px); }
 
+/* A run of the same number, fanned.
+
+   Two 8s stacked are one 8 with a caption; fanned they are two 8s you can
+   count without reading anything, which is what decides whether you can go and
+   how close the pile is to being sacked. Same shape as a hand spread in your
+   fingers to check what is in it — each one behind the last, up and to the
+   left, far enough that its corner index clears the card in front.
+
+   No z-index anywhere: the cards are in the order they were played, so the one
+   on top is the last child and paints over the rest by being there last. And
+   the whole fan shifts back by half its own spread, so a pile of three does not
+   sit noticeably left of a pile of one. */
+.sh-discard__run {
+  position: relative;
+  width: var(--mid-card);
+  height: calc(var(--mid-card) * 1.42);
+  transform: translateX(calc((var(--run, 1) - 1) * var(--mid-card) * 0.14));
+}
+
+.sh-discard__run .card-face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(calc(var(--i, 0) * var(--mid-card) * -0.28), calc(var(--i, 0) * -5px));
+}
+
+/* The heap the fan sits on. It is a pile people have been throwing cards at,
+   and it should look like one — further out and turned harder than it was, so
+   it reads as untidy rather than as a shadow. */
+.sh-play .sh-discard__scrap {
+  transform: rotate(calc((var(--n) - 1) * 11deg)) translate(calc((var(--n) - 1) * 3px), 2px);
+}
+
 /* The labels under the two piles are not allowed to decide how wide the middle
    is. "Take the pile" laid out on one line is wider than the pile it names, and
    a flex item takes its content's width by default — so the widest thing in the
