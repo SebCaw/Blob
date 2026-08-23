@@ -1,6 +1,6 @@
 import { h, initials } from '../../ui.js';
 import { cardFace, cardBack, sortByRank, parseCard, cardLabel } from '../../cards.js';
-import { topbar, action, ownName, fitFan, fitCards } from '../common.js';
+import { topbar, action, ownName, fitFan, fitCards, splitHand } from '../common.js';
 import { uiZoom } from '../../size.js';
 
 /**
@@ -436,32 +436,34 @@ function yourCards(ctx) {
   const chosenRank = chosen.length ? parseCard(chosen[0]).rank : null;
   const room = chosenRank ? roomInRun(state, chosenRank) : 0;
 
+  // Pick the pile up twice and a hand is fifteen cards long. One row of that
+  // cannot be fanned tight enough to fit a phone and still show the corner you
+  // read a card by, so it comes out over two rows — or three.
+  const handCard = (cardId, i) => {
+    const isChosen = chosen.includes(cardId);
+    const rank = parseCard(cardId).rank;
+    // Once you have picked one up, the only other cards that mean anything
+    // are the same number — so everything else stops offering itself.
+    const joinable = chosenRank ? rank === chosenRank && chosen.length < room : playable.has(cardId);
+    const live = you.isTurn && !ctx.ui.shSending && (isChosen || joinable);
+    return h(
+      'div.hand__card',
+      { style: { '--i': String(i) } },
+      cardFace(cardId, {
+        size: 'lg',
+        state: you.isTurn ? (isChosen || joinable ? 'playable' : 'blocked') : null,
+        className: [isChosen ? 'card-face--picked' : '', sending(ctx, cardId) ? 'card-face--sending' : '']
+          .filter(Boolean)
+          .join(' '),
+        onClick: live ? () => toggle(ctx, cardId) : undefined,
+      })
+    );
+  };
+
   return h(
     'div.sh-yours',
     h('span.eyebrow.center', { text: `Your hand — ${you.hand.length}` }),
-    h(
-      'div.hand',
-      sortByRank(you.hand).map((cardId, i) => {
-        const isChosen = chosen.includes(cardId);
-        const rank = parseCard(cardId).rank;
-        // Once you have picked one up, the only other cards that mean anything
-        // are the same number — so everything else stops offering itself.
-        const joinable = chosenRank ? rank === chosenRank && chosen.length < room : playable.has(cardId);
-        const live = you.isTurn && !ctx.ui.shSending && (isChosen || joinable);
-        return h(
-          'div.hand__card',
-          { style: { '--i': String(i) } },
-          cardFace(cardId, {
-            size: 'lg',
-            state: you.isTurn ? (isChosen || joinable ? 'playable' : 'blocked') : null,
-            className: [isChosen ? 'card-face--picked' : '', sending(ctx, cardId) ? 'card-face--sending' : '']
-              .filter(Boolean)
-              .join(' '),
-            onClick: live ? () => toggle(ctx, cardId) : undefined,
-          })
-        );
-      })
-    ),
+    splitHand(sortByRank(you.hand)).map((row) => h('div.hand', row.map(handCard))),
     // Your last hand card may go down with matching face-up cards, so they have
     // to be on screen for you to see the move is there — but ONLY then.
     //
@@ -992,10 +994,47 @@ function showLastMove(ctx, screen) {
   shownSeq = event.seq;
   // Arriving mid-game, or coming back to a tab that was in the background, must
   // not replay whatever happened while you were not looking.
-  if (!seenOne || reducedMotion()) return;
+  if (!seenOne) return;
+
+  // Why the pile has just gone is information, not decoration, so it is said
+  // whatever the phone thinks of animations.
+  if (event.type === 'play' && event.sacked) shoutSack(screen, event);
+  if (reducedMotion()) return;
 
   if (event.type === 'play') flyPlay(screen, event);
   else if (event.type === 'pickup') flyPickup(screen, event);
+}
+
+/** How long the shout stays up. Long enough to read, short enough not to wait on. */
+const SACK_MS = 1400;
+
+/**
+ * Say what just sacked the pile, out loud, over the table.
+ *
+ * A sacked pile is the biggest thing that happens in this game and it happened
+ * in about a tenth of a second: the pile was there, and then it was not. The
+ * status line could not carry it — by the time you looked down the next player
+ * had gone — and knowing WHICH of the two rules did it is most of learning the
+ * game. A 10 sacks whatever it lands on. Four of a number in a row sacks it
+ * however they got there.
+ *
+ * On the body rather than in the screen, like everything else here, because a
+ * pushed state rebuilds the screen and would take it away mid-sentence.
+ */
+function shoutSack(screen, event) {
+  const rank = event.cards && event.cards.length ? parseCard(event.cards[0]).rank : null;
+  const word = rank === '10' ? 'A ten!' : rank ? `Four ${rank}s!` : 'Sacked!';
+  const banner = h(
+    'div.sh-sack',
+    { 'aria-live': 'polite' },
+    h('span.sh-sack__word', { text: word }),
+    h('span.sh-sack__note', { text: `Pile sacked — ${event.sacked} gone for good` })
+  );
+  const spot = pileSpot(screen);
+  banner.style.left = `${spot ? spot.x : window.innerWidth / 2}px`;
+  banner.style.top = `${spot ? spot.y : window.innerHeight / 2}px`;
+  document.body.appendChild(banner);
+  window.setTimeout(() => banner.remove(), SACK_MS);
 }
 
 /** A card out of somebody's seat and onto the pile. */

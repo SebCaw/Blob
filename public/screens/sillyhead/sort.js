@@ -1,6 +1,6 @@
 import { h } from '../../ui.js';
 import { cardFace, cardBack, sortByRank, parseCard } from '../../cards.js';
-import { topbar, action, fitFan, fitCards } from '../common.js';
+import { topbar, action, fitFan, fitCards, splitHand } from '../common.js';
 import { askBeforeStart, setAskBeforeStart } from '../../prefs.js';
 
 /**
@@ -164,20 +164,25 @@ export function sortScreen(ctx) {
         h('span.eyebrow', { text: `Your hand — ${you.hand.length}` }),
         h('span.eyebrow', { text: `${state.stock} left in the deck` })
       ),
-      h(
-        'div.hand.hand--sort',
-        sortByRank(you.hand).map((cardId, i) =>
-          h(
-            'div.hand__card',
-            { style: { '--i': String(i) } },
-            cardFace(cardId, {
-              size: 'lg',
-              state: picked === cardId ? 'playable' : null,
-              className: [picked === cardId ? 'card-face--picked' : '', sending(cardId) ? 'card-face--sending' : '']
-                .filter(Boolean)
-                .join(' '),
-              onClick: () => tapHandCard(cardId),
-            })
+      // Stacking pairs draws you a card each time, so a sort can leave you
+      // holding a dozen. Past what one row can fan and still be read, it comes
+      // out over two.
+      splitHand(sortByRank(you.hand)).map((row) =>
+        h(
+          'div.hand.hand--sort',
+          row.map((cardId, i) =>
+            h(
+              'div.hand__card',
+              { style: { '--i': String(i) } },
+              cardFace(cardId, {
+                size: 'lg',
+                state: picked === cardId ? 'playable' : null,
+                className: [picked === cardId ? 'card-face--picked' : '', sending(cardId) ? 'card-face--sending' : '']
+                  .filter(Boolean)
+                  .join(' '),
+                onClick: () => tapHandCard(cardId),
+              })
+            )
           )
         )
       )

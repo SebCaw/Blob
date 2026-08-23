@@ -3601,7 +3601,14 @@ button.card-face:active:not(:disabled) {
 
 /* Everything below the ring is exactly as tall as it needs to be. The status
    line reserved 46px for a sentence that is usually one line. */
-.sh-status { min-height: 0; padding: 2px 0 4px; }
+/* Room kept for the line about a 9 showing or a run building, whether or not
+   there is one to say.
+
+   Without it the status line grows and shrinks by a line as the pile changes,
+   the screen's height changes with it, and the fit pass that keeps this screen
+   inside the phone answers by resizing every card on it. Reserving the line is
+   cheaper than watching the cards breathe all game. */
+.sh-status { min-height: 3.4em; padding: 2px 0 4px; }
 .sh-play .sh-yours { gap: 6px; }
 .sh-play .hand { min-height: 0; padding: 10px 4px 2px; }
 .sh-actions { padding-top: 4px; min-height: 0; }
@@ -3692,6 +3699,59 @@ button.card-face:active:not(:disabled) {
    arrived. The class is on the body because a repaint mid-flight would take it
    off anything inside the screen. */
 body.sh-flying .sh-discard__top { visibility: hidden; }
+
+/* What just sacked the pile, said out loud over the table.
+
+   Loud on purpose: a sacked pile is the biggest thing that happens in this game
+   and it happened in a tenth of a second, so the screen has to shout it and
+   hold it there long enough to read. Under the settings sheet, like the flying
+   cards — nothing should ever land on top of a dialog. */
+.sh-sack {
+  position: fixed;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 10px 20px 12px;
+  border-radius: 16px;
+  background: var(--gold);
+  color: var(--ink-dark);
+  border: 3px solid rgba(0, 0, 0, 0.32);
+  box-shadow: 0 7px 0 rgba(0, 0, 0, 0.32);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-4deg);
+  animation: sh-sack-pop 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sh-sack__word {
+  font-size: clamp(22px, 6vw, 30px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.sh-sack__note {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  opacity: 0.72;
+}
+
+@keyframes sh-sack-pop {
+  0% { transform: translate(-50%, -50%) rotate(-4deg) scale(0.4); opacity: 0; }
+  12% { transform: translate(-50%, -50%) rotate(-4deg) scale(1.14); opacity: 1; }
+  22% { transform: translate(-50%, -50%) rotate(-4deg) scale(1); }
+  76% { transform: translate(-50%, -50%) rotate(-4deg) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -62%) rotate(-4deg) scale(0.96); opacity: 0; }
+}
+
+/* Still said, just not thrown about. The words are the point of it. */
+@media (prefers-reduced-motion: reduce) {
+  .sh-sack { animation: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .fly-layer { display: none; }

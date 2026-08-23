@@ -94,8 +94,13 @@ export function ownName(name, isYou) {
  * @param {string} [selector]
  */
 export function fitFan(screen, selector = '.hand') {
-  const hand = screen.querySelector(selector);
-  if (!hand) return;
+  // Every fan on the screen, not the first one: a big hand is dealt out over
+  // more than one row, and a second row left at its resting spacing runs off
+  // the phone exactly as one row of fourteen used to.
+  for (const hand of screen.querySelectorAll(selector)) fitOneFan(hand);
+}
+
+function fitOneFan(hand) {
   const cards = [...hand.querySelectorAll('.hand__card')];
   if (cards.length < 2) return;
 
@@ -111,6 +116,31 @@ export function fitFan(screen, selector = '.hand') {
   // Floored rather than rounded: a fan a pixel too tight is invisible, and a
   // pixel too wide runs off the phone.
   hand.style.setProperty('--fan-overlap', `${Math.floor(Math.min(overlap, -14))}px`);
+}
+
+/**
+ * A hand, cut into as many rows as it needs.
+ *
+ * Past about eleven cards one row cannot be fanned tightly enough to fit a
+ * phone and still show the corner you read a card by — the cards end up as
+ * slivers, and a hand you cannot read is a hand you cannot play. So it becomes
+ * two rows, or three, each one fanned to fit on its own.
+ *
+ * Split evenly rather than filling the first row and leaving four on the
+ * second: a lopsided hand looks like a mistake, and the rows are the same
+ * length whichever way you count them.
+ *
+ * @param {string[]} cards
+ * @param {number} [max] the most that may share a row
+ * @returns {string[][]}
+ */
+export function splitHand(cards, max = 11) {
+  if (cards.length <= max) return [cards];
+  const rows = Math.ceil(cards.length / max);
+  const per = Math.ceil(cards.length / rows);
+  const out = [];
+  for (let at = 0; at < cards.length; at += per) out.push(cards.slice(at, at + per));
+  return out;
 }
 
 /** How big a Silly Head card is drawn before anything has to give. */
@@ -151,11 +181,60 @@ export function fitCards(screen, options = {}) {
   const room = screen.clientHeight;
   if (!room) return;
   const max = Math.max(SH_CARD_MIN, options.max || SH_CARD);
-  for (let size = max; size > SH_CARD_MIN; size -= 6) {
+  const key = fitKey(screen, max);
+  const fits = (size, spare = 0) => {
     screen.style.setProperty('--sh-card', `${size}px`);
-    if (screen.scrollHeight <= room && !tooWide(screen)) return;
+    return screen.scrollHeight <= room - spare && !tooWide(screen);
+  };
+
+  // Settled already on this screen, at this size, in this window: keep it.
+  //
+  // Every state the server pushes re-runs this, and the screen it measures is
+  // not the same height each time — the status line grows a line when a 9 is
+  // showing or a run is building, and shrinks again when it is not. Fitting
+  // from scratch each time, the cards grew and shrank all game, which reads as
+  // the app being unable to make its mind up. So it only ever gives ground:
+  // it shrinks when what is on screen genuinely stops fitting, and takes the
+  // room back when the window or the text size changes, which is when the
+  // player has actually asked for something different.
+  // Clamped on the way down rather than counted down to: six at a time from 84
+  // steps straight over 52 to 48, and the floor is only a floor if it is landed
+  // on.
+  const smaller = (size) => Math.max(SH_CARD_MIN, size - 6);
+
+  if (lastFit.key === key && lastFit.size) {
+    let size = lastFit.size;
+    while (size > SH_CARD_MIN && !fits(size)) size = smaller(size);
+    lastFit = { key, size };
+    return;
   }
-  screen.style.setProperty('--sh-card', `${SH_CARD_MIN}px`);
+
+  let size = max;
+  // A little headroom on the first fit, so the first line the status line grows
+  // does not cost a card size straight away.
+  while (size > SH_CARD_MIN && !fits(size, HEADROOM)) size = smaller(size);
+  if (!fits(size)) {
+    size = SH_CARD_MIN;
+    screen.style.setProperty('--sh-card', `${size}px`);
+  }
+  lastFit = { key, size };
+}
+
+/** Height that is left spare on the first fit, in the app's own pixels. */
+const HEADROOM = 22;
+
+/** What this screen settled on last time, and what it was settling for. */
+let lastFit = { key: null, size: 0 };
+
+/** The same screen, in the same window, at the same text size — or not. */
+function fitKey(screen, max) {
+  return [
+    screen.className.replace(/\s*screen--enter\s*/, ''),
+    window.innerWidth,
+    window.innerHeight,
+    document.documentElement.dataset.size || 'normal',
+    max,
+  ].join('|');
 }
 
 /**

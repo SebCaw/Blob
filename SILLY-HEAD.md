@@ -260,6 +260,14 @@ bot seed never leaving the server, and the ladder pointing the right way).
 
 ## Still open
 
+- **The pile should look properly thrown.** The cards under the top one sit at a
+  few fixed angles at the moment, which reads as a stack with a shadow rather
+  than as a pile. A real one has them at any angle at all — 0 to 360, some at
+  right angles to each other — landing anywhere within a small radius of the
+  middle rather than squarely on it, and it is the disagreement between them
+  that makes it look like a pile. Photographs of real ones are coming and a
+  prototype comes before anything is built, so nothing here is decided yet.
+
 - **Hard and Impossible are close.** 56% over more than a thousand duels, which
   you may still feel as "about the same". Making Impossible genuinely frightening
   needs a brain that looks ahead rather than another rule of thumb; seven of
