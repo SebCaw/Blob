@@ -288,7 +288,9 @@ const ctx = {
     // Once there is more than one game, "out of this game" means the shelf —
     // sending people to Blob's front door was how Silly Head became unreachable
     // for anybody who had ever played anything.
+    ui.resuming = null;
     ui.route = 'shelf';
+    applyGameTheme(null);
     render();
   },
   /**
@@ -479,7 +481,7 @@ net.on('state', (next) => {
   state = next;
   lastRoundIndex = next.roundIndex;
   lastPhase = next.phase;
-  if (ui.route !== 'history') ui.route = 'game';
+  arrived(next);
   // Cards are on the table for minutes at a time — the phone must not lock in
   // the middle of a round. A finished game has no reason to hold the screen.
   if (next.phase === 'complete') releaseWake();
@@ -535,10 +537,27 @@ function onSillyHeadState(next) {
   state = next;
   lastPhase = next.phase;
   lastRoundIndex = -1;
-  if (ui.route !== 'history') ui.route = 'game';
+  arrived(next);
   if (next.phase === 'complete') releaseWake();
   else keepAwake();
   render();
+}
+
+/**
+ * A state has landed: put its colours on and show the game it belongs to.
+ *
+ * Two screens it must NOT drag you off, and they are the two you can only be on
+ * deliberately. The history is somebody reading last week's scores while a game
+ * runs on in another room. A game's own front page is somebody who went to the
+ * shelf and tapped the other tile — a bot moving in the game they left should
+ * not throw them back into it mid-tap.
+ */
+function arrived(next) {
+  ui.resuming = null;
+  const chosen = ui.route === 'history' || ui.route === 'home' || ui.route === 'create';
+  if (chosen) return;
+  if (ui.route !== 'game') applyGameTheme(next.game || 'blob');
+  ui.route = 'game';
 }
 
 net.on('status', renderConnection);
@@ -554,7 +573,10 @@ ctx.backToShelf = () => {
     disconnectFromGame();
   }
   ui.settingsOpen = false;
+  ui.resuming = null;
   ui.route = 'shelf';
+  // The shelf shows the games in their own colours, so it wears neither.
+  applyGameTheme(null);
   render();
 };
 
@@ -773,8 +795,7 @@ window.addEventListener('unhandledrejection', (event) => {
 
 function boot() {
   // A session remembers which game it is in, so a phone reopening into a game
-  // wears the right colours from the first paint and — if that game has gone —
-  // falls back to ITS front page rather than to Blob's.
+  // knows which one it is asking the server about.
   const saved = net.session;
   if (saved && saved.game) ui.game = saved.game;
 
@@ -799,7 +820,23 @@ function boot() {
     // stream cannot push a state update over the question.
     ui.pendingCode = code;
   } else if (session) {
-    ui.route = 'game';
+    // The front door is the shelf, even with a game to go back to.
+    //
+    // The state cannot possibly have arrived yet — it is a round trip away —
+    // so SOMETHING is drawn first, and it used to be the front page of the game
+    // in the session: a mode picker, for a game already in progress, wearing
+    // that game's colours. When the state landed a moment later it was gone
+    // again and nobody noticed. When the state did NOT land — the free instance
+    // asleep, no signal, a game the server has since forgotten — that was the
+    // screen you were left on, with no way to reach the other game from it.
+    //
+    // The shelf is a better thing to be left on: it is the front door, it says
+    // what the app is, and both games are one tap away. The game you were in
+    // sits at the top of it and opens itself the moment the server answers, so
+    // a phone picked up mid-hand still goes straight back to the table.
+    ui.route = 'shelf';
+    ui.resuming = { game: session.game || null, code: session.code || null };
+    applyGameTheme(null);
     net.connect();
   }
 

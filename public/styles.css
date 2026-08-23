@@ -2870,6 +2870,66 @@ html[data-size='huge'] .bid__lead { display: none; }
   gap: 12px;
 }
 
+/* The game you are already in, above the shelf itself.
+
+   Deliberately not a tile: a tile is a choice between games and this is not one
+   — it is the way back to something already happening. So it is a bar in that
+   game's colour, wide and first, with the game and the code under it so you can
+   see WHICH game before you commit a tap to it. */
+.shelf__resume {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 14px 18px;
+  text-align: left;
+  border-radius: var(--radius);
+  border: 2px solid hsl(var(--tile-hue) 60% 46%);
+  background: linear-gradient(145deg, hsl(var(--tile-hue) 58% 22%), hsl(var(--tile-hue) 63% 14%));
+  color: var(--ink);
+  font-family: var(--font);
+  box-shadow: var(--lift-sm) hsl(var(--tile-hue) 65% 10%);
+  cursor: pointer;
+}
+
+.shelf__resume:active { transform: translateY(2px); box-shadow: none; }
+
+.shelf__resume__label {
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--tile-accent);
+}
+
+.shelf__resume__meta {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+
+/* Still asking the server whether that game is there. It says what it is doing
+   rather than offering a button that would do nothing — and it pulses, because
+   a phone waking a sleeping instance can sit here for a while and a still
+   screen reads as a broken one. */
+.shelf__resume--waiting {
+  cursor: default;
+  border-style: dashed;
+  box-shadow: none;
+  animation: shelf-waiting 1.6s ease-in-out infinite;
+}
+
+.shelf__resume--waiting .shelf__resume__label { color: var(--ink-soft); }
+
+@keyframes shelf-waiting {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.62; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shelf__resume--waiting { animation: none; }
+}
+
 .tile {
   display: flex;
   flex-direction: column;

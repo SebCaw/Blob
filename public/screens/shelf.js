@@ -1,5 +1,5 @@
 import { h } from '../ui.js';
-import { GAMES } from '../games.js';
+import { GAMES, gameById } from '../games.js';
 import { sizeControl } from '../size.js';
 import { helpButton } from './help.js';
 
@@ -15,8 +15,12 @@ import { helpButton } from './help.js';
  * is worth it only because the alternative — a menu buried behind a settings
  * cog — makes a second game feel like a hidden feature rather than a game.
  *
- * A scanned QR, a shared link, or a game already in progress all skip straight
- * past this. Nobody being handed a code should have to pick a game first.
+ * A scanned QR or a shared link skips straight past this — nobody being handed
+ * a code should have to pick a game first. A game already in progress does not
+ * skip it so much as pass through it: it sits at the top as the first thing on
+ * the shelf and opens itself as soon as the server answers, so the wait for
+ * that answer is spent on the front door rather than on a screen belonging to
+ * one game.
  */
 export function shelfScreen(ctx) {
   return h(
@@ -27,10 +31,46 @@ export function shelfScreen(ctx) {
       h('p.lede.center', { text: 'Pick one. Blob keeps the score, or deals as well.' })
     ),
     h('div.spacer'),
+    resumeRow(ctx),
     h('div.shelf__list', GAMES.map((game) => tile(ctx, game))),
     h('div.spacer'),
     helpButton(ctx, { kind: 'link' }),
     sizeControl(ctx)
+  );
+}
+
+/**
+ * The game you are already in, at the top of the shelf.
+ *
+ * It is the first thing here because it is the likeliest thing you came for: a
+ * phone opened mid-hand wants the table, not a menu. Before the server has
+ * answered it says so and cannot be pressed — a phone with no signal offering
+ * "back into your game" and then doing nothing is worse than one that says it
+ * is looking.
+ *
+ * It disappears of its own accord: a game the server no longer has clears the
+ * session, and the shelf is then simply the shelf.
+ */
+function resumeRow(ctx) {
+  const state = ctx.state;
+  const waiting = ctx.ui.resuming;
+  if (!state && !waiting) return null;
+
+  const game = gameById(state ? state.game || 'blob' : waiting.game);
+  const code = state ? state.code : waiting.code;
+  const live = Boolean(state);
+
+  return h(
+    'button',
+    {
+      className: `shelf__resume${live ? '' : ' shelf__resume--waiting'}`,
+      style: { '--tile-hue': String(game.hue), '--tile-accent': game.accent },
+      type: 'button',
+      disabled: !live,
+      onClick: () => ctx.go('game'),
+    },
+    h('span.shelf__resume__label', { text: live ? 'Back into your game' : 'Finding your game…' }),
+    h('span.shelf__resume__meta', { text: code ? `${game.name} · ${code}` : game.name })
   );
 }
 
