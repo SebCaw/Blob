@@ -3433,6 +3433,17 @@ button.card-face:active:not(:disabled) {
    of leaving a hole in the middle of it. */
 .sh-sort .sh-piles { margin-top: auto; }
 .sh-sort .sh-hand { margin-top: auto; }
+
+/* And the hand keeps its distance from the button under it.
+
+   With the spare height all going above the hand, the cards sat directly on top
+   of "I am ready" — near enough to tap the wrong one, and it read as one block
+   rather than as your cards and then a decision about them. Tied to the card
+   size so it gives way with everything else on a screen that has to fit. */
+.sh-sort .sh-hand { margin-bottom: calc(var(--sh-card) * 0.22); }
+
+/* Same on the table: your hand is not part of the button below it. */
+.sh-play .sh-actions { padding-top: calc(var(--sh-card) * 0.16); }
 .hand--sort { justify-content: center; }
 .sh-dontask {
   display: flex;

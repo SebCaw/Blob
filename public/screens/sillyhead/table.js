@@ -591,19 +591,30 @@ function faceUpRow(ctx, { quiet } = {}) {
             down ? null : h('span.sh-slot__gone', { text: '—' })
           );
         }
-        const canPlay = !giving && !quiet && you.isTurn && you.zone === 'up' && playable.has(cardId);
         const isChosen = chosen.includes(cardId);
-        const canJoin =
-          crossover && you.isTurn && (isChosen || parseCard(cardId).rank === chosenRank);
-        const onClick = ctx.ui.shSending
-          ? undefined
-          : giving
-          ? () => takePile(ctx, index)
-          : canJoin
-          ? () => toggle(ctx, cardId)
-          : canPlay
-          ? () => play(ctx, [cardId])
-          : undefined;
+        const rank = parseCard(cardId).rank;
+        // Two 8s showing go down together, the same way two 8s in your hand do.
+        //
+        // They could not, and it is the sort of thing you only find by playing:
+        // the row put every card down on its own, so a pair on the table had to
+        // be played one at a time — and the second one lands on a pile that is
+        // now showing an 8, which is fine, but three of a number could never
+        // finish a four and sack. The rules always allowed it; this row was the
+        // only thing in the way.
+        const room = chosenRank ? roomInRun(state, chosenRank) : 0;
+        const joinable = chosenRank
+          ? rank === chosenRank && chosen.length < room
+          : you.zone === 'up' && playable.has(cardId);
+        const canPlay = !giving && !quiet && you.isTurn && (isChosen || joinable);
+        const canJoin = crossover && you.isTurn && (isChosen || rank === chosenRank);
+        const onClick =
+          ctx.ui.shSending || !you.isTurn
+            ? undefined
+            : giving
+            ? () => takePile(ctx, index)
+            : canJoin || canPlay
+            ? () => toggle(ctx, cardId)
+            : undefined;
         // The face-down card sits proud behind the face-up one, the same way it
         // does while you are sorting — so it is obvious there are two cards
         // there, and that one of them is still a mystery.
@@ -755,11 +766,17 @@ function toggle(ctx, cardId) {
 
   const rank = parseCard(cardId).rank;
   const playable = new Set(you.playable);
+  // Where the others of that number would be coming from: your hand while you
+  // have one, and the cards showing on your table once you have not.
+  const pool =
+    you.zone === 'up'
+      ? (you.up || []).filter((stack) => stack.length).map((stack) => stack[stack.length - 1])
+      : sortByRank(you.hand);
   // A run never goes past four, and a play that would push it there is refused
   // rather than truncated — so "all of them" has to stop where the pile does.
   const room = roomInRun(state, rank);
   const all = [cardId]
-    .concat(sortByRank(you.hand).filter((id) => id !== cardId && parseCard(id).rank === rank && playable.has(id)))
+    .concat(pool.filter((id) => id !== cardId && parseCard(id).rank === rank && playable.has(id)))
     .slice(0, Math.max(1, room));
 
   // The exception: your last hand card can go down with matching face-up cards,

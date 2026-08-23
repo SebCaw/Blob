@@ -472,6 +472,41 @@ test('the table is untouchable until the stock has gone', () => {
   assert.equal(err.code, 'hand-first');
 });
 
+test('matching face-up cards go down together, and four of them sack the pile', () => {
+  // The rules always allowed this and the screen would only ever send one card,
+  // so a pair on the table had to be played one at a time and three of a number
+  // could never finish a four.
+  const g = playing(['A', 'B'], {
+    hands: { 0: [] },
+    up: { 0: [C('8S'), C('8H'), C('KD')] },
+    pile: [C('4D')],
+  });
+  const me = g.ids[0];
+
+  let state = ok(g.state, { type: 'play/cards', cardIds: [C('8S'), C('8H')] }, me, g.ctxf).state;
+  assert.deepEqual(
+    state.up[me].map((stack) => stack.length),
+    [0, 0, 1],
+    'both 8s have left the table'
+  );
+  assert.equal(state.pile.length, 3, 'and both are on the pile');
+
+  // And the same play that completes a four takes the pile with it.
+  const four = playing(['A', 'B'], {
+    hands: { 0: [] },
+    up: { 0: [C('9S'), C('9H'), D('9S')] },
+    pile: [C('4D'), D('9D')],
+  });
+  const sacked = ok(
+    four.state,
+    { type: 'play/cards', cardIds: [C('9S'), C('9H'), D('9S')] },
+    four.ids[0],
+    four.ctxf
+  ).state;
+  assert.equal(sacked.pile.length, 0, 'four 9s in a row sacks it');
+  assert.equal(sacked.turnId, four.ids[0], 'and whoever sacked it goes again');
+});
+
 test('being stuck on your face-up cards costs you one of them, and you choose which', () => {
   const g = playing(['A', 'B'], {
     hands: { 0: [] },
