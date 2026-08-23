@@ -61,6 +61,9 @@ const RING_MID_Y = 45;
 /** Below this width there is no room for a name under the badge. */
 const NAME_MIN_PCT = 17;
 
+/** Past this many cards a hand stops showing you the ones you cannot play. */
+const HIDE_FROM = 11;
+
 /**
  * The widest a seat gets.
  *
@@ -466,6 +469,23 @@ function yourCards(ctx) {
   const chosenRank = chosen.length ? parseCard(chosen[0]).rank : null;
   const room = chosenRank ? roomInRun(state, chosenRank) : 0;
 
+  // A big hand shows only what you can put down.
+  //
+  // Seventeen cards is two rows of tiny ones, and on most turns three of them
+  // are moves and fourteen are scenery — you are reading a wall to find the
+  // pair you already know you are playing. So past a hand one row can hold, the
+  // ones you cannot play this turn are tucked away and the rest are drawn from
+  // the room that frees up.
+  //
+  // Only ever on your turn, and only when there is something playable: the view
+  // says nothing about what is playable when it is not your go, so hiding then
+  // would hide the lot. And it says so, with the way back one tap away —
+  // cards quietly missing from your own hand would be the worst bug in the app,
+  // so it must never look like one.
+  const hideable = you.hand.length > HIDE_FROM && you.isTurn && playable.size > 0;
+  const hiding = hideable && !ctx.ui.shShowAll;
+  const inHand = hiding ? sortByRank(you.hand).filter((id) => playable.has(id)) : sortByRank(you.hand);
+
   // Pick the pile up twice and a hand is fifteen cards long. One row of that
   // cannot be fanned tight enough to fit a phone and still show the corner you
   // read a card by, so it comes out over two rows — or three.
@@ -492,8 +512,22 @@ function yourCards(ctx) {
 
   return h(
     'div.sh-yours',
-    h('span.eyebrow.center', { text: `Your hand — ${you.hand.length}` }),
-    splitHand(sortByRank(you.hand)).map((row) => h('div.hand', row.map(handCard))),
+    h('span.eyebrow.center', {
+      text: hiding
+        ? `Your hand — ${you.hand.length}, showing the ${inHand.length} you can play`
+        : `Your hand — ${you.hand.length}`,
+    }),
+    splitHand(inHand).map((row) => h('div.hand', row.map(handCard))),
+    hideable
+      ? h('button.btn.btn--link.sh-hand__toggle', {
+          type: 'button',
+          text: hiding ? `Show all ${you.hand.length}` : 'Show only what I can play',
+          onClick: () => {
+            ctx.ui.shShowAll = !ctx.ui.shShowAll;
+            ctx.render();
+          },
+        })
+      : null,
     // Your last hand card may go down with matching face-up cards, so they have
     // to be on screen for you to see the move is there — but ONLY then.
     //
@@ -745,6 +779,9 @@ function roomInRun(state, rank) {
 async function play(ctx, cardIds) {
   ctx.ui.shChosen = null;
   ctx.ui.shGiveUp = false;
+  // Each turn starts tucked again. Asking to see the whole hand is about the
+  // turn you are taking, not a setting.
+  ctx.ui.shShowAll = false;
   // Mark the cards as on their way BEFORE the round trip.
   //
   // Nothing is applied optimistically — the card does not move until the server

@@ -3623,6 +3623,15 @@ button.card-face:active:not(:disabled) {
 .sh-hand .hand { width: 100%; min-width: 0; }
 .sh-actions { padding-top: 4px; min-height: 0; }
 
+/* The way back to the cards a big hand is not showing you. Quiet, because most
+   of the time you do not want them — but never absent, because a hand missing
+   cards with no explanation would read as the app having lost them. */
+.sh-hand__toggle {
+  min-height: 0;
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
 /* A Silly Head seat carries three face-up cards as well as a name, so it is
    allowed to be wider than Blob's — and those cards are sized to the seat by
    `fitSeatCards` rather than pinned at the smallest card the app draws. */
