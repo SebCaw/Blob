@@ -48,8 +48,8 @@ const ROWS_FROM = 9;
  *
  * In the app's pixels rather than the screen's, because turning the text size
  * up narrows the app exactly as a smaller phone would: at Largest a 375px phone
- * has 268 of them to spend. Two and three players are never in this position —
- * nobody is sitting level with the pile.
+ * has 268 of them to spend, and three seats and two piles do not go into that
+ * however the arithmetic is arranged.
  */
 const RING_MIN_WIDTH = 340;
 
@@ -86,7 +86,9 @@ function seatLimits() {
 
 /** Is there room for a ring at all, at the size this player has asked for? */
 function tooTightForRing(total) {
-  if (total <= 3) return false;
+  // Two of you is one seat opposite another with the piles between them, which
+  // fits whatever the screen. Three is already a triangle round the middle.
+  if (total <= 2) return false;
   const zoom = uiZoom() || 1;
   return window.innerWidth / zoom < RING_MIN_WIDTH;
 }

@@ -190,13 +190,25 @@ const SH_CARD_MIN = 52;
  * @param {{max?:number}} [options]
  */
 export function fitCards(screen, options = {}) {
-  const room = screen.clientHeight;
-  if (!room) return;
+  if (!screen.clientHeight) return;
   const max = Math.max(SH_CARD_MIN, options.max || SH_CARD);
   const key = fitKey(screen, max);
-  const fits = (size, spare = 0) => {
+  // Does the stack fit — the pieces laid out one under another, ending with
+  // whatever is last?
+  //
+  // Asked of the flow rather than of `scrollHeight`, which counts anything
+  // hanging out of the box as well: the seats are positioned inside the ring
+  // and the top and bottom ones lean out of it by design, so scrollHeight
+  // reported a screen that did not fit and every card on it was shrunk to the
+  // floor to make room for an overhang that was never in anybody's way. Seats
+  // leaning out of the ring is `fitRing` and `fitSeats`' business, not this
+  // pass's.
+  const fits = (size) => {
     screen.style.setProperty('--sh-card', `${size}px`);
-    return screen.scrollHeight <= room - spare && !tooWide(screen);
+    const last = screen.lastElementChild;
+    if (!last) return true;
+    const bottom = last.getBoundingClientRect().bottom;
+    return bottom <= screen.getBoundingClientRect().bottom && !tooWide(screen);
   };
 
   // Settled already on this screen, at this size, in this window: keep it.
@@ -221,19 +233,23 @@ export function fitCards(screen, options = {}) {
     return;
   }
 
+  // Down from the biggest allowed until it fits, and no further.
+  //
+  // There is deliberately no headroom in that test, and it cost an afternoon to
+  // learn why: the table is a flex item that takes whatever is going, so the
+  // stack always ends exactly at the bottom of the screen whatever size the
+  // cards are. Asking for twenty spare pixels asks for something that can never
+  // be true, and the loop walked every screen to the smallest card it had. What
+  // keeps the size steady is the reserved line in the status and the memory
+  // below, not slack that does not exist.
   let size = max;
-  // A little headroom on the first fit, so the first line the status line grows
-  // does not cost a card size straight away.
-  while (size > SH_CARD_MIN && !fits(size, HEADROOM)) size = smaller(size);
+  while (size > SH_CARD_MIN && !fits(size)) size = smaller(size);
   if (!fits(size)) {
     size = SH_CARD_MIN;
     screen.style.setProperty('--sh-card', `${size}px`);
   }
   lastFit = { key, size };
 }
-
-/** Height that is left spare on the first fit, in the app's own pixels. */
-const HEADROOM = 22;
 
 /** What this screen settled on last time, and what it was settling for. */
 let lastFit = { key: null, size: 0 };
