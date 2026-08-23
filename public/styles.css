@@ -3427,6 +3427,11 @@ button.card-face:active:not(:disabled) {
   max-width: 30ch;
   margin-inline: auto;
 }
+/* The piles sit in the room, rather than at the top of it. Two automatic
+   margins split whatever is going spare between the gap above the cards and the
+   gap above the hand, so a tall window lowers the cards down the screen instead
+   of leaving a hole in the middle of it. */
+.sh-sort .sh-piles { margin-top: auto; }
 .sh-sort .sh-hand { margin-top: auto; }
 .hand--sort { justify-content: center; }
 .sh-dontask {
@@ -3510,7 +3515,11 @@ button.card-face:active:not(:disabled) {
 .sh-sort .card-face--lg .card-face__pip,
 .sh-play .card-face--lg .card-face__pip { font-size: calc(var(--w) * 0.31); }
 
-.sh-pile { width: calc(var(--sh-card) * 1.19); height: calc(var(--sh-card) * 1.64); }
+/* A pile is a face-up card with a face-down one under it, and the offset is the
+   whole point: perfectly overlapped it reads as one card and you forget there
+   is something beneath you will have to turn over. The box is taller than the
+   card it holds, to leave that second card somewhere to show itself. */
+.sh-pile { width: calc(var(--sh-card) * 1.12); height: calc(var(--sh-card) * 1.76); }
 
 /* The two piles in the middle have their own size, because they are the piece
    that has to give when the seats round them cannot fit. It starts as the card
@@ -3537,7 +3546,10 @@ button.card-face:active:not(:disabled) {
 /* The pile is a button and keeps its own padding, but not at the price of the
    seats either side of it. */
 .sh-play .sh-discard { padding: 6px 5px 4px; }
-.sh-pile__down { left: calc(var(--sh-card) * 0.17); top: calc(var(--sh-card) * 0.21); }
+/* And it shows itself BELOW rather than beside, because under is where a card
+   underneath another one looks like it is. Offset to the side it read as two
+   cards side by side, half hidden. */
+.sh-pile__down { left: calc(var(--sh-card) * 0.1); top: calc(var(--sh-card) * 0.32); }
 
 /* -- The table, told to fit -------------------------------------------------- */
 

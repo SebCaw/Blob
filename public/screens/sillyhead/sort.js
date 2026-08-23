@@ -188,8 +188,11 @@ export function sortScreen(ctx) {
   // The cards give way until the screen fits, then the fan tightens until it is
   // on the phone. This screen promises to hold its shape at every size setting,
   // and something has to give for that to be true.
+  // The sort screen has three piles, a hand and a button on it and nothing
+  // else, so it can afford the biggest cards in the app — these three are the
+  // decision the whole screen exists to make.
   requestAnimationFrame(() => {
-    fitCards(screen);
+    fitCards(screen, { max: 132 });
     fitFan(screen);
   });
   return screen;

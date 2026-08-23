@@ -78,7 +78,13 @@ rule and it is the most unusual part of the game.
     from the stock and fish for something better to finish with.
   - Stacking leaves you a pile short, so you put a card from hand down to keep
     three piles, then refill your hand to three from the stock.
-  - You may stack a card you have just drawn.
+  - You may stack a card you have just drawn, and that is worth watching for:
+    put a 5 down, draw another 5, and the second one can go straight on top of
+    the first. The stock is shared, so the card you want may be gone before you
+    reach it — being quick is part of it.
+  - The screen does not point this out. Everything else it wants from you it
+    says out loud, but a move you have to spot is a move worth spotting, and a
+    sort where every possibility lights up is a sort the app is doing for you.
   - As built, a card may be stacked from your hand **or** from another pile, and
     every action refills your hand to three. Both routes end in the same place —
     one more card drawn per pair — and doing it from the hand is the same move a

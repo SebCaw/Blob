@@ -116,6 +116,9 @@ export function fitFan(screen, selector = '.hand') {
 /** How big a Silly Head card is drawn before anything has to give. */
 const SH_CARD = 84;
 
+/** And the smallest it may be squeezed to before the screen has to give instead. */
+const SH_CARD_MIN = 52;
+
 /**
  * Shrink the cards until the screen fits the phone it is on.
  *
@@ -130,19 +133,44 @@ const SH_CARD = 84;
  * a table, and a screen that silently changes kind when you turn the text up is
  * worse than either size on its own.
  *
+ * It grows as well as shrinks, up to whatever `max` the screen thinks it can
+ * use. Space is no good to anybody if the cards do not take it: the sort screen
+ * on a laptop was three small cards at the top and a hand at the bottom with
+ * half the window empty between them, and the cards are the whole point of the
+ * screen. Same reasoning as Blob's peek, which fans tighter rather than
+ * shrinking so a hand is never smaller on the screen you study it on.
+ *
  * Measured rather than calculated, for the usual reason — how tall this ends up
  * depends on the size setting, the number of seats, and whether the status line
  * has one thing to say or three.
  *
  * @param {HTMLElement} screen
+ * @param {{max?:number}} [options]
  */
-export function fitCards(screen) {
+export function fitCards(screen, options = {}) {
   const room = screen.clientHeight;
   if (!room) return;
-  for (let scale = 1; scale >= 0.62; scale -= 0.06) {
-    screen.style.setProperty('--sh-card', `${Math.round(SH_CARD * scale)}px`);
-    if (screen.scrollHeight <= room) return;
+  const max = Math.max(SH_CARD_MIN, options.max || SH_CARD);
+  for (let size = max; size > SH_CARD_MIN; size -= 6) {
+    screen.style.setProperty('--sh-card', `${size}px`);
+    if (screen.scrollHeight <= room && !tooWide(screen)) return;
   }
+  screen.style.setProperty('--sh-card', `${SH_CARD_MIN}px`);
+}
+
+/**
+ * Is a row of whole cards wider than the screen it is on?
+ *
+ * Height is not the only way a bigger card runs out of room — three piles side
+ * by side stop fitting long before they stop fitting downwards. The hand is not
+ * asked, because a hand answers this itself by fanning tighter (`fitFan`), and
+ * asking it here would shrink every card on the screen to solve something the
+ * next pass along was about to solve on its own.
+ */
+function tooWide(screen) {
+  return [...screen.querySelectorAll('.sh-piles, .sh-table-row')].some(
+    (row) => row.scrollWidth > row.clientWidth + 1
+  );
 }
 
 /** Pieces that turn up on more than one screen. */

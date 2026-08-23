@@ -63,7 +63,9 @@ export const STEPS = [
   },
   {
     title: 'Bin your 3s, stack your pairs',
-    body: 'A 3 is the worst card there is, so get rid of it now. Two the same? Stack them, and you get another card out of the deck.',
+    body:
+      'A 3 is the worst card there is, so get rid of it now. Two the same? Stack them, and you get another card ' +
+      'out of the deck — including one you have only just drawn.',
     art: () =>
       h(
         'div.help-art.help-art--follow',
@@ -208,7 +210,9 @@ export const ANSWERS = [
     reply:
       'Before anyone plays, everybody tidies their own table at the same time. Bin any 3s — they start the pile in ' +
       'the middle — and stack pairs to pull more cards out of the deck, so you can leave better cards face up. Tap ' +
-      'a card, then tap a pile. Any pairs still stacked come back to your hand when you say you are ready.',
+      'a card in your hand, then tap a pile: the same number stacks, anything else swaps the two over. A card you ' +
+      'have just drawn counts, so if you put a 5 down and then draw another 5 it can go straight on top — the deck ' +
+      'is shared, so be quick. Any pairs still stacked come back to your hand when you say you are ready.',
   },
   {
     ask: 'Which cards should I leave face up?',
