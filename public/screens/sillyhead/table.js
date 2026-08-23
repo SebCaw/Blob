@@ -50,8 +50,14 @@ const ROWS_FROM = 9;
  * up narrows the app exactly as a smaller phone would: at Largest a 375px phone
  * has 268 of them to spend, and three seats and two piles do not go into that
  * however the arithmetic is arranged.
+ *
+ * Set above the width of a phone on purpose. A ring wants a seat east and west
+ * of the piles, and no phone has the width for both and a readable card — every
+ * arrangement tried came out as three tiny cards squeezed against the deck. So
+ * a phone gets the rows and a tablet keeps the ring, which is the shape each
+ * one has the room for.
  */
-const RING_MIN_WIDTH = 340;
+const RING_MIN_WIDTH = 420;
 
 /** How far out the ring sits, and where its middle is, in percent of the table. */
 const RING_X = 40;

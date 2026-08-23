@@ -58,12 +58,23 @@ export function applySize(id) {
 export function uiZoom() {
   // Measured rather than read: the variable resolves to a `calc()` expression
   // rather than a number, and a browser that ignores `zoom` altogether would
-  // still report one. An element's visible width over its own width is the
-  // factor whatever the browser did with it.
+  // still report one.
+  //
+  // Measured with a box of a KNOWN size, not with the app's own width against
+  // itself. The app's width depends on what is in it, on the stylesheet and on
+  // whether the window has finished settling, and read at the wrong moment it
+  // gave 2.1 where the zoom was 1.4 — which quietly threw out every sum that
+  // divides by this. A 100px box is 100px whatever else is going on, so
+  // whatever it comes back as IS the scale.
   const app = document.getElementById('app');
-  if (!app || !app.offsetWidth) return 1;
-  const factor = app.getBoundingClientRect().width / app.offsetWidth;
-  return Number.isFinite(factor) && factor > 0 ? factor : 1;
+  if (!app) return 1;
+  const probe = document.createElement('div');
+  probe.style.cssText =
+    'position:absolute;top:0;left:0;width:100px;height:100px;visibility:hidden;pointer-events:none;';
+  app.appendChild(probe);
+  const scale = probe.getBoundingClientRect().height / 100;
+  probe.remove();
+  return Number.isFinite(scale) && scale > 0.2 && scale < 4 ? scale : 1;
 }
 
 /**
@@ -83,21 +94,7 @@ export function uiZoom() {
  * before there is anything to measure.
  */
 export function pinViewport() {
-  const app = document.getElementById('app');
-  if (!app) return 0;
-  // Measured with a box of a known size rather than by comparing the app's own
-  // width to itself: the app's width depends on what is in it and on the
-  // stylesheet, and reading it at the wrong moment — mid-load, mid-resize —
-  // gives a number that is not the zoom at all. A 100px box is 100px whatever
-  // else is going on, so whatever it comes back as IS the scale.
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:absolute;top:0;left:0;width:100px;height:100px;visibility:hidden;pointer-events:none;';
-  app.appendChild(probe);
-  const measured = probe.getBoundingClientRect().height / 100;
-  probe.remove();
-
-  const zoom = Number.isFinite(measured) && measured > 0.2 && measured < 4 ? measured : 1;
-  const height = Math.max(320, window.innerHeight / zoom);
+  const height = Math.max(320, window.innerHeight / (uiZoom() || 1));
   document.documentElement.style.setProperty('--app-h', `${Math.floor(height)}px`);
   return height;
 }
