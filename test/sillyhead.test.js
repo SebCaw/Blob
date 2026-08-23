@@ -111,7 +111,9 @@ test('a card id carries its copy, and parses the same as Blob otherwise', () => 
 });
 
 test('decks scale with the table, and the quick game is always one', () => {
-  assert.equal(deck.decksFor(2), 2);
+  assert.equal(deck.decksFor(2), 1, 'one deck is enough for four');
+  assert.equal(deck.decksFor(4), 1);
+  assert.equal(deck.decksFor(5), 2, 'and a fifth player needs a second one');
   assert.equal(deck.decksFor(8), 2);
   assert.equal(deck.decksFor(9), 3);
   assert.equal(deck.decksFor(12), 3);
@@ -807,7 +809,7 @@ test('a dealt game always plays out to one Silly Head', () => {
       ...(state.up[id] || []).flat(),
       ...(state.down[id] || []).filter(Boolean),
     ]);
-    assert.equal(held.length + state.pile.length + state.stock.length + state.sacked, 104);
+    assert.equal(held.length + state.pile.length + state.stock.length + state.sacked, state.decks * 52);
   }
 });
 

@@ -126,10 +126,11 @@ mode: Blob's whole shape is a sequence of scored rounds, and none of
 `lib/deck.js`'s seeded shuffle, the whole of `server/`, and on the client the
 topbar, the lobby furniture, `cards.js`, `sound.js` and the table ring.
 
-**A card id carries which deck it came from.** Silly Head deals two decks or
-more, so the same face turns up twice and `10H#2` is a different card from
-`10H#1`. `public/cards.js` strips the tag when it draws, which is the only place
-that knows about it — the copy number is bookkeeping and must never appear on a
+**A card id carries which deck it came from.** Silly Head deals one deck up to
+four players and shuffles another in for every four after that, so past four
+the same face turns up twice and `10H#2` is a different card from `10H#1`.
+`public/cards.js` strips the tag when it draws, which is the only place that
+knows about it — the copy number is bookkeeping and must never appear on a
 card. Blob's ids are untagged and stay that way.
 
 **Your own face-down cards are a secret from YOU.** This is the interesting half

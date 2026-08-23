@@ -256,8 +256,8 @@ export const ANSWERS = [
     ask: 'How many decks are we playing with?',
     words: ['deck', 'decks', 'how many cards', 'quick', 'standard', 'duplicate', 'same card twice'],
     reply:
-      'Two decks normally, and another for every four extra players — so up to sixteen can play. A quick game is ' +
-      'one deck and seats four. Two decks means the same card turns up twice, and that is fine.',
+      'One deck up to four players, and another for every four after that — so up to sixteen can play. From five ' +
+      'players up that means the same card turns up twice, and that is fine.',
   },
   {
     ask: 'When do I pick a card up from the deck?',

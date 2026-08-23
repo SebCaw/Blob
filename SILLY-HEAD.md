@@ -30,24 +30,30 @@ is a separate reducer rather than a third mode of Blob.
 
 The deck is **shared by everybody and shuffled once, at the very beginning**.
 
-Two decks is the standard game. More players means more decks, scaled rather
-than asked about:
+**One deck per four players**, and never more than the table needs. Scaled
+rather than asked about:
 
 | Players  | Decks |
 | -------- | ----- |
-| 2 to 8   | 2     |
+| 2 to 4   | 1     |
+| 5 to 8   | 2     |
 | 9 to 12  | 3     |
 | 13 to 16 | 4     |
 
-One deck per four players, minimum two.
+This started as two decks minimum, on the grounds that two decks is how the
+game is usually played, and it was changed after playing it: at a table of four
+that is eight kings in 104 cards, and a hand where any card you hold might be
+the second of a pair reads as the app dealing badly rather than as the game
+being played properly. Four players take 36 of the 52, which leaves a stock of
+sixteen — short, and that is the point of it.
 
-A **quick game** is one deck, 2 to 4 players, and no more — one deck will not
-stretch further once nine cards each have gone out.
+A **quick game** is one deck and seats four. At those sizes that is now the same
+deal a standard game gives you; what the setting still does is cap the table.
 
-Two decks means **duplicate cards**: two identical seven of hearts in play is
-expected and fine. Card ids therefore carry a copy number (`10H#1`, `10H#2`),
-which is never shown to anybody and exists only so two identical cards can be
-told apart when one of them is played.
+More than one deck means **duplicate cards**, so from five players up two
+identical seven of hearts in play is expected and fine. Card ids therefore carry
+a copy number (`10H#1`, `10H#2`), which is never shown to anybody and exists
+only so two identical cards can be told apart when one of them is played.
 
 ---
 
@@ -106,8 +112,9 @@ rule and it is the most unusual part of the game.
 The stock is shared, so the sort is a scramble: **whoever grabs the top card
 gets it.** The server's command queue already serialises everything, so the
 first request in genuinely wins and two people can never take the same card. It
-only bites at the very tail of the stock, and with two decks that is a long way
-off.
+bites at the tail of the stock, which at four players and one deck is sixteen
+cards away rather than sixty-eight — so being quick is worth something now, and
+the pair you draw for is worth going after.
 
 If the stock runs dry during the sort, the sort simply ends.
 

@@ -118,7 +118,7 @@ function createView(ctx) {
           'div.stack.stack--tight',
           lengthCard(ctx, {
             title: 'Standard',
-            blurb: 'Two decks or more, up to sixteen players. The proper game.',
+            blurb: 'A deck for every four players, up to sixteen. The proper game.',
             on: !quick,
             onClick: () => {
               ctx.ui.shQuick = false;

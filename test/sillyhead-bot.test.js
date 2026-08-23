@@ -74,6 +74,9 @@ function playing2(names, setup = {}) {
   });
   state.stock = (setup.stock || []).slice();
   state.pile = (setup.pile || []).slice();
+  // Rigged with two of some cards (`KD#1`, `KD#2`), so it is a two-deck table
+  // whatever the deal would have handed a pair of players.
+  state.decks = setup.decks || 2;
   state.sackedCards = [];
   state.publicHand = {};
   state.phase = 'playing';
