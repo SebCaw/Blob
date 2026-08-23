@@ -219,6 +219,14 @@ function seat(ctx, player, { style, flat } = {}) {
     .join(' ');
 
   const ups = (player.up || []).filter((stack) => stack.length).map((stack) => stack[stack.length - 1]);
+  // Your own three, drawn twice.
+  //
+  // Once you are playing off the table they are already at the bottom of the
+  // screen at full size, because that is where you tap them — and the copy in
+  // your seat is the same three cards again, smaller, a few inches above. Two
+  // rows of one thing reads as two things. Everybody else's seat keeps its
+  // cards; it is only your own that has a bigger version of itself elsewhere.
+  const doubled = you && showsOwnTable(state.you);
 
   return h(
     'div',
@@ -236,11 +244,23 @@ function seat(ctx, player, { style, flat } = {}) {
       : h(
           'div.sh-seat__table',
           // Their face-up cards, because everybody can see those at a table.
-          ups.map((cardId) => cardFace(cardId, { size: 'xs' })),
+          doubled ? null : ups.map((cardId) => cardFace(cardId, { size: 'xs' })),
           // And how many face-down are left, which you can also see. Not what.
           player.downLeft ? h('span.sh-seat__down', { text: `▪${player.downLeft}` }) : null
         )
   );
+}
+
+/**
+ * Is this player's own table already on the screen at full size?
+ *
+ * True once they are playing off it — their face-up cards, then their face-down
+ * ones — and for the one hand-and-table move in between, where the row is on
+ * screen so the move can be made at all.
+ */
+function showsOwnTable(you) {
+  if (!you || you.out) return false;
+  return you.zone === 'up' || you.zone === 'down' || Boolean(crossoverRank(you));
 }
 
 function placeLabel(place) {
