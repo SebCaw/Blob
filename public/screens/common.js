@@ -238,6 +238,7 @@ export function fitCards(screen, options = {}) {
     let size = lastFit.size;
     while (size > SH_CARD_MIN && !fits(size)) size = smaller(size);
     lastFit = { key, size };
+    allowSpill(screen);
     return;
   }
 
@@ -257,6 +258,25 @@ export function fitCards(screen, options = {}) {
     screen.style.setProperty('--sh-card', `${size}px`);
   }
   lastFit = { key, size };
+  allowSpill(screen);
+}
+
+/**
+ * If it still does not fit, let it scroll.
+ *
+ * The promise this screen makes is that it fits, and everything above is spent
+ * keeping it — but there is a point past which it cannot be kept: the largest
+ * text setting, on a small phone, at a full table. Before this, that came out
+ * as the bottom of the screen simply missing, because a screen that must not
+ * scroll and does not fit has nowhere to put what is left over. Losing your own
+ * hand is far worse than a screen that moves, so when the cards have given
+ * everything they have and it is STILL too tall, it scrolls.
+ */
+function allowSpill(screen) {
+  const last = screen.lastElementChild;
+  if (!last) return;
+  const spills = last.getBoundingClientRect().bottom > screen.getBoundingClientRect().bottom + 1;
+  screen.classList.toggle('screen--spill', spills);
 }
 
 

@@ -198,6 +198,14 @@ html[data-size] .screen--fixed.screen--fits {
   overflow: hidden;
 }
 
+/* Unless even the smallest cards will not fit it, which `fitCards` works out
+   and says so here. Equal specificity to the rule above it and later in the
+   file, which is what lets it win. */
+html .screen--fixed.screen--fits.screen--spill {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
 /* And it does not stretch to its own content either.
 
    `.screen` is `flex: 1`, which grows a screen to whatever is inside it — so a
@@ -2220,8 +2228,20 @@ html[data-size='huge'] .bid__current {
   animation: sheet-in 160ms ease both;
 }
 
+/* The sheet scrolls when it is taller than the phone.
+
+   It has to, and this was a trap rather than an untidiness: turn the text size
+   up to Largest and the sheet grows past the bottom of the screen, taking the
+   size control with it — so the one control that could put it back was the one
+   you could no longer reach. */
 .sheet__panel {
   width: min(100%, 520px);
+  /* Against the measured height, not `dvh`: this sheet lives inside the zoomed
+     subtree, where a viewport unit is not reliably the viewport — which is the
+     same fault that put the bottom of the table under the phone's browser bar. */
+  max-height: calc(var(--app-h, 92dvh) * 0.92);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2231,6 +2251,10 @@ html[data-size='huge'] .bid__current {
   border-top: 2px solid rgba(255, 255, 255, 0.1);
   animation: sheet-up 220ms var(--ease-pop) both;
 }
+
+/* Nothing in a scrolling sheet may refuse to shrink, or it scrolls sideways
+   as well. */
+.sheet__panel > * { flex: 0 0 auto; }
 
 .sheet__head {
   display: flex;
@@ -3196,7 +3220,7 @@ html[data-size='huge'] .bid__lead { display: none; }
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.sh-middle__label--action { color: var(--gold); }
+.sh-middle__label--action { color: var(--gold); margin-top: 4px; }
 
 .sh-discard {
   position: relative;
@@ -3686,15 +3710,31 @@ button.card-face:active:not(:disabled) {
   text-align: left;
 }
 
+/* Name over numbers rather than beside them.
+
+   Side by side it is the widest thing in the row, and at the largest text size
+   "5 in hand · 3 down" ran under the cards — the row overflowed and the cards,
+   being later in the row, painted straight over the words. Stacked it takes
+   half the width and nothing collides. Both lines are cut with an ellipsis if
+   a name is long, because the cards' share of the row is not negotiable. */
 .sh-play .seat--flat .seat__who {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
   min-width: 0;
+  overflow: hidden;
 }
 
-.sh-play .seat--flat .seat__name { max-width: 8ch; }
-.sh-play .seat--flat .sh-seat__table { margin-top: 0; margin-left: auto; }
+.sh-play .seat--flat .seat__name,
+.sh-play .seat--flat .seat__meta {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-play .seat--flat .sh-seat__table { margin-top: 0; margin-left: auto; flex: 0 0 auto; }
 
 /* Bigger than they are round a ring, because a row has the width to spare —
    and tied to the card size, so they give way with everything else. */
