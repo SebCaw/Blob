@@ -3611,6 +3611,16 @@ button.card-face:active:not(:disabled) {
 .sh-status { min-height: 3.4em; padding: 2px 0 4px; }
 .sh-play .sh-yours { gap: 6px; }
 .sh-play .hand { min-height: 0; padding: 10px 4px 2px; }
+
+/* A hand is as wide as the screen it is on, never as wide as its cards.
+
+   `.sh-yours` is a flex column, so a row inside it takes its content's width by
+   default — and a flex item will not shrink below its content unless it is told
+   it may. So a hand of nine hung off both edges of the phone, and the pass that
+   fans a hand tighter measured that overflowing width, concluded it fitted
+   comfortably, and left it exactly where it was. */
+.sh-yours .hand,
+.sh-hand .hand { width: 100%; min-width: 0; }
 .sh-actions { padding-top: 4px; min-height: 0; }
 
 /* A Silly Head seat carries three face-up cards as well as a name, so it is

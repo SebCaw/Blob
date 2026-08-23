@@ -100,6 +100,16 @@ export function fitFan(screen, selector = '.hand') {
   for (const hand of screen.querySelectorAll(selector)) fitOneFan(hand);
 }
 
+/**
+ * How much of a card behind another one still has to show.
+ *
+ * The corner you read a card by, and a little more. Tighter than this and a fan
+ * is a row of white slivers: you cannot tell a 4 from a 9 without pulling it
+ * out, which you cannot do on a screen. Past this point the cards themselves
+ * have to get smaller, which is `fitCards`' job, not this one's.
+ */
+const FAN_MIN_SHOW = 0.34;
+
 function fitOneFan(hand) {
   const cards = [...hand.querySelectorAll('.hand__card')];
   if (cards.length < 2) return;
@@ -112,10 +122,12 @@ function fitOneFan(hand) {
   if (spread <= available) return;
 
   const gaps = cards.length - 1;
-  const overlap = (available - cards.length * cardWidth) / gaps / zoom;
-  // Floored rather than rounded: a fan a pixel too tight is invisible, and a
-  // pixel too wide runs off the phone.
-  hand.style.setProperty('--fan-overlap', `${Math.floor(Math.min(overlap, -14))}px`);
+  const wanted = (available - cards.length * cardWidth) / gaps / zoom;
+  // Never tighter than a card you can still read, and never looser than the
+  // resting spacing. Floored rather than rounded: a fan a pixel too tight is
+  // invisible, and a pixel too wide runs off the phone.
+  const tightest = -(cardWidth / zoom) * (1 - FAN_MIN_SHOW);
+  hand.style.setProperty('--fan-overlap', `${Math.floor(Math.min(Math.max(wanted, tightest), -14))}px`);
 }
 
 /**
@@ -247,9 +259,22 @@ function fitKey(screen, max) {
  * next pass along was about to solve on its own.
  */
 function tooWide(screen) {
-  return [...screen.querySelectorAll('.sh-piles, .sh-table-row')].some(
-    (row) => row.scrollWidth > row.clientWidth + 1
-  );
+  for (const row of screen.querySelectorAll('.sh-piles, .sh-table-row')) {
+    if (row.scrollWidth > row.clientWidth + 1) return true;
+  }
+  // A hand answers this by fanning tighter — but only down to the corner you
+  // read a card by. Seventeen cards will not fit a phone at any size worth
+  // drawing, so past that point the cards give and the hand is asked here
+  // rather than left to overflow silently.
+  for (const hand of screen.querySelectorAll('.hand')) {
+    const count = hand.querySelectorAll('.hand__card').length;
+    const card = hand.querySelector('.card-face');
+    if (count < 2 || !card) continue;
+    const width = card.getBoundingClientRect().width;
+    if (!width) continue;
+    if (width + (count - 1) * width * FAN_MIN_SHOW > hand.clientWidth) return true;
+  }
+  return false;
 }
 
 /** Pieces that turn up on more than one screen. */

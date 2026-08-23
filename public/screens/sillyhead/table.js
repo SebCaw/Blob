@@ -62,20 +62,23 @@ const RING_MID_Y = 45;
 const NAME_MIN_PCT = 17;
 
 /**
- * The widest a seat gets, and it depends on how many of you there are.
+ * The widest a seat gets.
  *
- * Wider than Blob's 23.5% either way, because a Silly Head seat carries three
- * face-up cards as well as a name, and those cards are how you read everybody
- * else's endgame — pinned at the smallest card the app draws, they were
- * unreadable on a table with room going spare.
+ * A shade wider than Blob's 23.5%, because a Silly Head seat carries three
+ * face-up cards as well as a name and those cards are how you read everybody
+ * else's endgame — but only a shade, and the reason is the two piles sitting in
+ * the middle of the ring.
  *
- * Two or three players sit nowhere near the piles in the middle: everybody is
- * above or below them, so a seat may be half the table wide. From four up there
- * is somebody sitting east and west, level with the pile, and the wider the seat
- * the closer their cards come to it.
+ * This was 46% for two or three players, on the grounds that at those sizes
+ * nobody is sitting level with the pile. That was wrong on a phone, and it is
+ * worth writing down why: the ring comes IN to keep a wide seat on the screen,
+ * and coming in is exactly what walks the seats into the middle. At 46% the two
+ * top seats of a three-handed table met each other at the centre with the deck
+ * and the pile underneath them. On a laptop it looked fine. A phone is where
+ * this game is played.
  */
-function seatLimits(total) {
-  return total <= 3 ? { maxPct: 46, capPx: 168 } : { maxPct: 30, capPx: 112 };
+function seatLimits() {
+  return { maxPct: 28, capPx: 116 };
 }
 
 /** Is there room for a ring at all, at the size this player has asked for? */
@@ -218,7 +221,27 @@ function seat(ctx, player, { style, flat } = {}) {
     .filter(Boolean)
     .join(' ');
 
-  const ups = (player.up || []).filter((stack) => stack.length).map((stack) => stack[stack.length - 1]);
+  const ups = (player.up || []).map((stack) => (stack.length ? stack[stack.length - 1] : null));
+  // What is still in front of them: the card showing on each pile, and the back
+  // of a face-down card wherever the face-up one has gone.
+  //
+  // Only the face-up ones were drawn before, so somebody down to their last
+  // three had an empty space in front of them and a small count off to one side
+  // — and at a real table those are three cards you can see perfectly well, and
+  // the thing everybody is watching at the end of a game.
+  //
+  // How many face-down cards somebody has left is public; WHICH piles they are
+  // under is not in the payload and does not need to be. The cards showing keep
+  // their places and whatever is left over fills the empty ones.
+  let spare = Math.max(0, (player.downLeft || 0) - ups.filter(Boolean).length);
+  const table = ups.map((card) => {
+    if (card) return { card };
+    if (spare > 0) {
+      spare -= 1;
+      return { back: true };
+    }
+    return null;
+  });
   // Your own three, drawn twice.
   //
   // Once you are playing off the table they are already at the bottom of the
@@ -243,9 +266,16 @@ function seat(ctx, player, { style, flat } = {}) {
       ? null
       : h(
           'div.sh-seat__table',
-          // Their face-up cards, because everybody can see those at a table.
-          doubled ? null : ups.map((cardId) => cardFace(cardId, { size: 'xs' })),
-          // And how many face-down are left, which you can also see. Not what.
+          // Everything in front of them, because everybody can see it at a
+          // table: the cards face up, and the backs of the ones nobody has
+          // turned over. Never what those are.
+          doubled
+            ? null
+            : table.map((slot) =>
+                slot ? (slot.card ? cardFace(slot.card, { size: 'xs' }) : cardBack({ size: 'xs' })) : null
+              ),
+          // And the count, which says how many are left when the backs are
+          // hidden behind a card showing.
           player.downLeft ? h('span.sh-seat__down', { text: `▪${player.downLeft}` }) : null
         )
   );
