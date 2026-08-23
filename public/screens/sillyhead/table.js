@@ -206,9 +206,22 @@ function ring(ctx, ordered) {
  * shape is the one that fits.
  */
 function seatRows(ctx, ordered) {
-  const half = Math.ceil(ordered.length / 2);
-  const row = (list) => h('div.sh-row', list.map((player) => seat(ctx, player, { flat: true })));
-  return h('div.sh-rows', row(ordered.slice(half)), row(ordered.slice(0, half)));
+  const you = ctx.state.you;
+  // You are not in the list.
+  //
+  // The bottom half of the screen is already yours — your name is on the seat
+  // nobody needs, your cards are drawn at full size where you tap them, and the
+  // count of what you are holding is written above your hand. Putting your seat
+  // in with the others cost a place in the row and, at three players, sat you
+  // shoulder to shoulder with an opponent as though you were a pair.
+  const others = ordered.filter((player) => !you || player.id !== you.id);
+  // A row each, the full width of the table: name and numbers on the left, what
+  // is in front of them on the right. Two seats sharing a row is what put one
+  // player's cards through another's.
+  return h(
+    'div.sh-rows',
+    others.map((player) => h('div.sh-row', seat(ctx, player, { flat: true })))
+  );
 }
 
 /** One player. */
@@ -264,7 +277,12 @@ function seat(ctx, player, { style, flat } = {}) {
       h('div.seat__badge', { text: initials(player.name) }),
       h('div.seat__name', { text: ownName(player.name, you) }),
       h('div.seat__meta', {
-        text: player.out ? placeLabel(player.place) : `${player.cardsHeld} in hand`,
+        // The face-down count lives here rather than on a badge beside the
+        // cards. Pinned to the corner of the row it landed on the last card,
+        // and there is no spare width in a seat to give it a place of its own.
+        text: player.out
+          ? placeLabel(player.place)
+          : `${player.cardsHeld} in hand${player.downLeft ? ` · ${player.downLeft} down` : ''}`,
       })
     ),
     player.out
@@ -279,9 +297,6 @@ function seat(ctx, player, { style, flat } = {}) {
             : table.map((slot) =>
                 slot ? (slot.card ? cardFace(slot.card, { size: 'xs' }) : cardBack({ size: 'xs' })) : null
               ),
-          // And the count, which says how many are left when the backs are
-          // hidden behind a card showing.
-          player.downLeft ? h('span.sh-seat__down', { text: `▪${player.downLeft}` }) : null
         )
   );
 }

@@ -38,6 +38,8 @@ export function applySize(id) {
   const size = SIZES.some((s) => s.id === id) ? id : 'normal';
   if (size === 'normal') delete document.documentElement.dataset.size;
   else document.documentElement.dataset.size = size;
+  // The zoom has just changed, so how tall the app may be has changed with it.
+  pinViewport();
   try {
     localStorage.setItem(KEY, size);
   } catch {
@@ -62,6 +64,42 @@ export function uiZoom() {
   if (!app || !app.offsetWidth) return 1;
   const factor = app.getBoundingClientRect().width / app.offsetWidth;
   return Number.isFinite(factor) && factor > 0 ? factor : 1;
+}
+
+/**
+ * How tall the app is allowed to be, in its own pixels, measured rather than
+ * declared.
+ *
+ * `100dvh` is meant to be the window and the stylesheet divides it back out by
+ * the zoom the way everything else does. Inside a `zoom`ed subtree that is not
+ * reliable: measured on a phone at the largest text setting, a screen that
+ * should have been 852 tall came out 1075 — a quarter taller than the window,
+ * with everything past the fold behind the browser's own furniture, which is
+ * where the hand lives.
+ *
+ * So the height is written down as a variable from the one number that is never
+ * in doubt: `window.innerHeight`, divided by the zoom actually in force. The
+ * stylesheet keeps the `dvh` expression as its fallback, for the first paint
+ * before there is anything to measure.
+ */
+export function pinViewport() {
+  const app = document.getElementById('app');
+  if (!app) return 0;
+  // Measured with a box of a known size rather than by comparing the app's own
+  // width to itself: the app's width depends on what is in it and on the
+  // stylesheet, and reading it at the wrong moment — mid-load, mid-resize —
+  // gives a number that is not the zoom at all. A 100px box is 100px whatever
+  // else is going on, so whatever it comes back as IS the scale.
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:absolute;top:0;left:0;width:100px;height:100px;visibility:hidden;pointer-events:none;';
+  app.appendChild(probe);
+  const measured = probe.getBoundingClientRect().height / 100;
+  probe.remove();
+
+  const zoom = Number.isFinite(measured) && measured > 0.2 && measured < 4 ? measured : 1;
+  const height = Math.max(320, window.innerHeight / zoom);
+  document.documentElement.style.setProperty('--app-h', `${Math.floor(height)}px`);
+  return height;
 }
 
 /**

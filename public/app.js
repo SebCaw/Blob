@@ -2,7 +2,7 @@ import { h, fill, reducedMotion, buzz } from './ui.js';
 import { mascot } from './mascot.js';
 import { Net, LIVE, RETRYING, LOST, lastName } from './net.js';
 import { keepAwake, releaseWake } from './wake.js';
-import { applySize, currentSize } from './size.js';
+import { applySize, currentSize, pinViewport } from './size.js';
 import { play as sound } from './sound.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { shelfScreen } from './screens/shelf.js';
@@ -842,6 +842,14 @@ function boot() {
 
   render();
   renderConnection(net.status);
+
+  // How tall the app may be, measured now that there is something to measure,
+  // and again whenever the window changes shape — which on a phone is the
+  // browser's own bar sliding in and out as much as it is anybody turning
+  // their phone over.
+  pinViewport();
+  window.addEventListener('resize', pinViewport);
+  window.addEventListener('orientationchange', pinViewport);
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {

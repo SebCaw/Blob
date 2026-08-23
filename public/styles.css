@@ -145,7 +145,10 @@ ul {
 #app {
   zoom: var(--ui-zoom);
   position: relative;
-  min-height: calc(100dvh / var(--ui-zoom));
+  /* Measured by `pinViewport()` and written down, because a viewport unit
+     inside a zoomed subtree is not reliably the viewport. The `dvh` is the
+     fallback for the first paint, before there is anything to measure. */
+  min-height: var(--app-h, calc(100dvh / var(--ui-zoom)));
   display: flex;
   flex-direction: column;
   background:
@@ -176,7 +179,7 @@ ul {
 
 /* A screen that must never scroll on a phone (bidding) */
 .screen--fixed {
-  height: calc(100dvh / var(--ui-zoom));
+  height: var(--app-h, calc(100dvh / var(--ui-zoom)));
   overflow: hidden;
 }
 
@@ -193,6 +196,16 @@ html[data-size] .screen--fixed {
    its own. Those screens shrink their cards to fit instead (`fitCards`). */
 html[data-size] .screen--fixed.screen--fits {
   overflow: hidden;
+}
+
+/* And it does not stretch to its own content either.
+
+   `.screen` is `flex: 1`, which grows a screen to whatever is inside it — so a
+   table that wanted 768 of the app's pixels GOT 768 of them, on a window with
+   608, and everything past the fold went behind the phone's own browser bar.
+   The screen is the size of the window; what is in it is what gives way. */
+.screen--fits {
+  flex: 0 0 auto;
 }
 
 /* At the largest setting the pad sheds its labels.
@@ -3135,7 +3148,7 @@ html[data-size='huge'] .bid__lead { display: none; }
   margin-top: 3px;
   min-height: 14px;
 }
-.sh-seat__down { font-size: 10px; font-weight: 900; color: var(--ink-faint); letter-spacing: -0.08em; }
+
 
 /* Past eight the ring stops being a table. Two rows keep every name readable
    and leave the middle exactly where it was. */
@@ -3648,14 +3661,47 @@ button.card-face:active:not(:disabled) {
    `fitSeatCards` rather than pinned at the smallest card the app draws. */
 .sh-play .seat { width: min(var(--seat-cap, 136px), calc(var(--seat-pct, 23.5) * 1%)); }
 
-/* How many face-down cards somebody has left, pinned to the corner of the seat
-   rather than sitting in the row. In the row it took a card's worth of width
-   away from the three cards the row is for. */
-.sh-play .seat:not(.seat--flat) .sh-seat__down {
-  position: absolute;
-  right: 0;
-  bottom: -2px;
+/* One player to a row, and the row is the width of the table.
+
+   This is what a phone gets: a ring wants a seat east and west of the two piles
+   and there is no width on a phone for both, whatever the arithmetic. Two seats
+   sharing a row was worse than either — at three players it put one player's
+   cards through another's and sat you shoulder to shoulder with an opponent as
+   though you were a pair.
+
+   So: who they are on the left, what is in front of them pushed to the right,
+   and the whole width between them. */
+.sh-rows { display: flex; flex-direction: column; gap: 8px; padding: 2px 0; }
+.sh-row { display: block; }
+
+.sh-play .seat--flat {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.045);
+  text-align: left;
 }
+
+.sh-play .seat--flat .seat__who {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sh-play .seat--flat .seat__name { max-width: 8ch; }
+.sh-play .seat--flat .sh-seat__table { margin-top: 0; margin-left: auto; }
+
+/* Bigger than they are round a ring, because a row has the width to spare —
+   and tied to the card size, so they give way with everything else. */
+.sh-rows { --seat-card: calc(var(--sh-card) * 0.46); }
+
+/* Whose go it is, on a row rather than a ring. */
+.sh-play .seat--flat.seat--turn { background: rgba(255, 201, 60, 0.12); }
 .sh-play .sh-seat__table { gap: 3px; min-height: 0; margin-top: 4px; }
 .sh-play .sh-seat__table .card-face { --w: var(--seat-card, 30px); }
 

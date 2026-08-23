@@ -1,5 +1,5 @@
 import { h, initials, fragment } from '../ui.js';
-import { uiZoom } from '../size.js';
+import { uiZoom, pinViewport } from '../size.js';
 
 /**
  * A drawn crown rather than the U+265B glyph. A font that lacks it renders
@@ -191,6 +191,14 @@ const SH_CARD_MIN = 52;
  */
 export function fitCards(screen, options = {}) {
   if (!screen.clientHeight) return;
+  // How tall the app may be, measured again now that this screen is laid out.
+  //
+  // It is measured at boot and on every resize as well, and neither is enough
+  // on its own: the automatic scale for a bigger screen is a media query, so a
+  // window that settles into its final size after the first paint — which is
+  // every phone browser with a bar that slides away — leaves the boot
+  // measurement describing a screen that no longer exists.
+  pinViewport();
   const max = Math.max(SH_CARD_MIN, options.max || SH_CARD);
   const key = fitKey(screen, max);
   // Does the stack fit — the pieces laid out one under another, ending with
@@ -250,6 +258,7 @@ export function fitCards(screen, options = {}) {
   }
   lastFit = { key, size };
 }
+
 
 /** What this screen settled on last time, and what it was settling for. */
 let lastFit = { key: null, size: 0 };
