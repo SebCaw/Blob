@@ -1,6 +1,6 @@
 import { h } from '../../ui.js';
 import { cardFace, cardBack, sortByRank, parseCard } from '../../cards.js';
-import { topbar, action, fitFan } from '../common.js';
+import { topbar, action, fitFan, fitCards } from '../common.js';
 import { askBeforeStart, setAskBeforeStart } from '../../prefs.js';
 
 /**
@@ -73,16 +73,29 @@ export function sortScreen(ctx) {
       return;
     }
 
-    const command = !top
-      ? pick.zone === 'hand'
-        ? { type: 'sort/place', cardId: pick.cardId, pileIndex: index }
-        : null
-      : parseCard(top).rank === parseCard(pick.cardId).rank
-      ? { type: 'sort/stack', cardId: pick.cardId, pileIndex: index }
-      : null;
+    // What a tap on a pile means depends entirely on what is already there, the
+    // same way it does with real cards: an empty pile takes the card, a matching
+    // one stacks it, and anything else trades places with it.
+    let command = null;
+    let refusal = null;
+    if (!top) {
+      if (pick.zone === 'hand') command = { type: 'sort/place', cardId: pick.cardId, pileIndex: index };
+      else refusal = 'That card has to come from your hand.';
+    } else if (parseCard(top).rank === parseCard(pick.cardId).rank) {
+      command = { type: 'sort/stack', cardId: pick.cardId, pileIndex: index };
+    } else if (pick.zone !== 'hand') {
+      refusal = 'You can only stack cards of the same number.';
+    } else if (stack.length > 1) {
+      refusal = 'Take the spare cards back before you swap that one.';
+    } else {
+      // One command, not a take and a place: between the two the pile would sit
+      // empty and the screen would nag about it, and a dropped second request
+      // would leave you a card short.
+      command = { type: 'sort/swap', cardId: pick.cardId, pileIndex: index };
+    }
 
     if (!command) {
-      ctx.toast(top ? 'You can only stack cards of the same number.' : 'That card has to come from your hand.');
+      ctx.toast(refusal);
       return;
     }
     await send(command, pick.cardId);
@@ -113,7 +126,7 @@ export function sortScreen(ctx) {
   };
 
   const screen = h(
-    'div.screen.screen--fixed.sh-sort',
+    'div.screen.screen--fixed.screen--fits.sh-sort',
     topbar(state, { title: 'Sort your cards', ctx }),
     h('p.sh-sort__hint', {
       className: mustFill || stacked ? 'sh-sort__hint--urgent' : '',
@@ -172,7 +185,13 @@ export function sortScreen(ctx) {
     action('I am ready', finish, { disabled: mustFill })
   );
 
-  requestAnimationFrame(() => fitFan(screen));
+  // The cards give way until the screen fits, then the fan tightens until it is
+  // on the phone. This screen promises to hold its shape at every size setting,
+  // and something has to give for that to be true.
+  requestAnimationFrame(() => {
+    fitCards(screen);
+    fitFan(screen);
+  });
   return screen;
 }
 
@@ -210,10 +229,10 @@ function pileTile(you, index, { picked, wanted, sending, onClick }) {
 function hint({ pick, you, mustFill, stacked }) {
   if (mustFill) return 'That pile is empty — tap a card to put there.';
   if (stacked) return 'Take the spare cards back before you start.';
-  if (pick && pick.zone === 'hand') return 'Now tap a pile to put it down.';
+  if (pick && pick.zone === 'hand') return 'Now tap a pile: the same number stacks, anything else swaps.';
   if (pick && pick.zone === 'pile') return 'Tap another pile to stack it, or take it back.';
   if (you.hand.some((c) => parseCard(c).rank === '3')) return 'Bin your 3s, and stack any pairs to draw more cards.';
-  return 'Stack any pairs to draw more cards. Tap a card, then tap a pile.';
+  return 'Tap a card in your hand, then tap a pile to swap it or stack a pair.';
 }
 
 /**
@@ -227,21 +246,27 @@ function confirmView(ctx) {
   const state = ctx.state;
   const you = state.you;
 
+  // The question comes first, before anything else on the screen. It used to
+  // sit under a spacer, which centred it on a tall phone: the one thing here
+  // worth reading was the last thing you got to. Panel, question, cards, answer
+  // — in the order you deal with them.
   return h(
-    'div.screen.screen--scroll.screen--centre.sh-sort',
+    'div.screen.screen--scroll.sh-sort.sh-confirm',
     topbar(state, { title: 'Ready?', ctx }),
-    h('div.spacer'),
-    h('h2.lede.center', { text: 'Are your three best cards down?' }),
-    h('p.muted.center', {
-      text: 'You play these last, once the deck has gone and your hand is empty. Good cards here win you the game.',
-    }),
     h(
-      'div.sh-piles',
-      you.up.map((stack, index) =>
-        h(
-          'div.sh-pile.sh-pile--still',
-          you.downLeft[index] ? cardBack({ size: 'lg', className: 'sh-pile__down' }) : null,
-          stack.length ? cardFace(stack[0], { size: 'lg', className: 'sh-pile__up' }) : null
+      'div.sh-confirm__panel',
+      h('h2.sh-confirm__title', { text: 'Are your three best cards down?' }),
+      h('p.sh-confirm__note', {
+        text: 'You play these last, once the deck has gone and your hand is empty. Good cards here win you the game.',
+      }),
+      h(
+        'div.sh-piles',
+        you.up.map((stack, index) =>
+          h(
+            'div.sh-pile.sh-pile--still',
+            you.downLeft[index] ? cardBack({ size: 'lg', className: 'sh-pile__down' }) : null,
+            stack.length ? cardFace(stack[0], { size: 'lg', className: 'sh-pile__up' }) : null
+          )
         )
       )
     ),

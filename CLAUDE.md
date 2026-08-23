@@ -8,7 +8,7 @@ have actually been made here.
 
 ```bash
 node server.js     # http://localhost:4100 — no build step, no install needed
-npm test           # node --test, 277 tests
+npm test           # node --test, 283 tests
 node --check <f>   # quick syntax check on a single file
 ```
 
@@ -417,7 +417,7 @@ for that.
 
 ```
 player/join  player/remove  game/setQuick  game/start  game/end  game/rematchStarted
-sort/bin  sort/stack  sort/place  sort/take  sort/done
+sort/bin  sort/stack  sort/place  sort/take  sort/swap  sort/done
 play/cards  play/takePile  play/flip  play/stalled  play/skipTurns
 conn/set  conn/takeover
 election/start  election/vote  election/resolve

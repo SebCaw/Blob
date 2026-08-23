@@ -1,6 +1,7 @@
 import { h, initials } from '../../ui.js';
 import { cardFace, cardBack, sortByRank, parseCard, cardLabel } from '../../cards.js';
-import { topbar, action, ownName, fitFan } from '../common.js';
+import { topbar, action, ownName, fitFan, fitCards } from '../common.js';
+import { uiZoom } from '../../size.js';
 
 /**
  * The table.
@@ -35,37 +36,95 @@ const LAND_MS = 280;
 /** Where the ring stops being a table and becomes a list. Four families of four. */
 const ROWS_FROM = 9;
 
+/**
+ * And the width, in the app's own pixels, below which a ring of four or more
+ * stops being worth drawing.
+ *
+ * A ring has to hold a seat east and west of the two piles, and there is a
+ * width under which that cannot be done without one sitting on the other — the
+ * seats end up drawn at two thirds and their cards are unreadable, which is
+ * the thing this screen was supposed to fix. The compact rows already exist for
+ * sixteen players and are the better answer here too.
+ *
+ * In the app's pixels rather than the screen's, because turning the text size
+ * up narrows the app exactly as a smaller phone would: at Largest a 375px phone
+ * has 268 of them to spend. Two and three players are never in this position —
+ * nobody is sitting level with the pile.
+ */
+const RING_MIN_WIDTH = 340;
+
 /** How far out the ring sits, and where its middle is, in percent of the table. */
 const RING_X = 40;
-const RING_Y = 33;
+const RING_Y = 34;
 const RING_MID_Y = 45;
 
 /** Below this width there is no room for a name under the badge. */
 const NAME_MIN_PCT = 17;
 
+/**
+ * The widest a seat gets, and it depends on how many of you there are.
+ *
+ * Wider than Blob's 23.5% either way, because a Silly Head seat carries three
+ * face-up cards as well as a name, and those cards are how you read everybody
+ * else's endgame — pinned at the smallest card the app draws, they were
+ * unreadable on a table with room going spare.
+ *
+ * Two or three players sit nowhere near the piles in the middle: everybody is
+ * above or below them, so a seat may be half the table wide. From four up there
+ * is somebody sitting east and west, level with the pile, and the wider the seat
+ * the closer their cards come to it.
+ */
+function seatLimits(total) {
+  return total <= 3 ? { maxPct: 46, capPx: 168 } : { maxPct: 30, capPx: 112 };
+}
+
+/** Is there room for a ring at all, at the size this player has asked for? */
+function tooTightForRing(total) {
+  if (total <= 3) return false;
+  const zoom = uiZoom() || 1;
+  return window.innerWidth / zoom < RING_MIN_WIDTH;
+}
+
 function seatAngle(index, total) {
   return -90 - (index * 360) / total;
 }
 
-/** A seat takes a shade under the gap to its closest neighbour. */
-function seatWidthPct(total) {
+/**
+ * How wide a seat is and how far out the ring sits, settled together.
+ *
+ * A seat takes a shade under the gap to its closest neighbour, and the ring
+ * comes in far enough that the outermost seat stays on the screen: pinned at
+ * 40% from the middle plus half a seat, the seats east and west of you hung off
+ * the right edge of a narrow phone.
+ *
+ * The two depend on each other — pulling the ring in shortens the arc, which
+ * narrows the seats, which lets the ring back out — so it is settled by running
+ * the pair round a few times rather than by one formula that cannot express it.
+ */
+function ringGeometry(total) {
   const step = 360 / total;
-  const gap = 2 * RING_X * Math.sin((step / 2) * (Math.PI / 180));
-  return Math.min(23.5, gap * 0.94);
+  const { maxPct, capPx } = seatLimits(total);
+  let ringX = RING_X;
+  let widthPct = maxPct;
+  for (let pass = 0; pass < 4; pass++) {
+    widthPct = Math.min(maxPct, 2 * ringX * Math.sin((step / 2) * (Math.PI / 180)) * 0.94);
+    ringX = Math.min(RING_X, 50 - widthPct / 2 - 1);
+  }
+  return { ringX, widthPct, capPx };
 }
 
 export function tableScreen(ctx) {
   const state = ctx.state;
   const you = state.you;
   const players = state.players.filter((p) => !p.left);
-  const rows = players.length >= ROWS_FROM;
+  const rows = players.length >= ROWS_FROM || tooTightForRing(players.length);
 
   // You at the bottom, everybody else round from you in seating order.
   const start = players.findIndex((p) => p.id === you.id);
   const ordered = start === -1 ? players : players.slice(start).concat(players.slice(0, start));
 
   const screen = h(
-    'div.screen.screen--fixed.sh-play',
+    'div.screen.screen--fixed.screen--fits.sh-play',
     topbar(state, { left: countsChip(state), ctx }),
     rows ? seatRows(ctx, ordered) : null,
     rows ? middle(ctx) : ring(ctx, ordered),
@@ -74,9 +133,21 @@ export function tableScreen(ctx) {
     actions(ctx)
   );
 
+  // In order, because each one measures what the one before it settled: the
+  // cards give way until the screen fits, the seat cards take their share of
+  // the seat, the ring opens until the seats clear the pile, the seats shrink
+  // until none of them touch, and the fan tightens until it is on the phone.
+  // Only once all of that has landed is it worth flying anything across it.
   requestAnimationFrame(() => {
-    if (!rows) fitSeats(screen);
+    fitCards(screen);
+    if (!rows) {
+      fitSeatCards(screen);
+      fitRing(screen);
+      fitMiddle(screen);
+      fitSeats(screen);
+    }
     fitFan(screen);
+    showLastMove(ctx, screen);
   });
   return screen;
 }
@@ -94,15 +165,18 @@ function countsChip(state) {
 
 function ring(ctx, ordered) {
   const total = ordered.length;
-  const widthPct = seatWidthPct(total);
+  const { ringX, widthPct, capPx } = ringGeometry(total);
   const crowded = widthPct < NAME_MIN_PCT;
 
   const seats = ordered.map((player, index) => {
     const radians = (seatAngle(index, total) * Math.PI) / 180;
+    // How far up or down a seat sits is left as a sum rather than a number, so
+    // the fit pass can push the whole ring open without this having to know how
+    // tall the table it landed on turned out to be.
     return seat(ctx, player, {
       style: {
-        left: `${50 + Math.cos(radians) * RING_X}%`,
-        top: `${RING_MID_Y - Math.sin(radians) * RING_Y}%`,
+        left: `${50 + Math.cos(radians) * ringX}%`,
+        top: `calc(${RING_MID_Y}% - var(--ring-y, ${RING_Y}) * ${Math.sin(radians).toFixed(4)} * 1%)`,
       },
     });
   });
@@ -111,7 +185,7 @@ function ring(ctx, ordered) {
     'div',
     {
       className: `table${crowded ? ' table--crowded' : ''}`,
-      style: { '--seat-pct': String(widthPct), '--seat-scale': '1' },
+      style: { '--seat-pct': String(widthPct), '--seat-cap': `${capPx}px`, '--seat-scale': '1' },
     },
     h('div.table__ring', h('div.table__felt'), seats, middle(ctx))
   );
@@ -339,9 +413,31 @@ function yourCards(ctx) {
       })
     ),
     // Your last hand card may go down with matching face-up cards, so they have
-    // to be on screen for you to see the move is there.
-    you.hand.length === 1 ? faceUpRow(ctx, { quiet: true }) : null
+    // to be on screen for you to see the move is there — but ONLY then.
+    //
+    // Your three cards are already on the table in your own seat, and a second
+    // copy of them under your hand for the whole game read as a bug and cost
+    // about 150px of a screen that has none spare. It is drawn when the move
+    // it exists for is actually available, and not otherwise.
+    crossoverRank(you) ? faceUpRow(ctx, { quiet: true }) : null
   );
+}
+
+/**
+ * The number your last hand card could go down with, if there is one.
+ *
+ * The one crossover in the game: your genuinely LAST hand card may be played
+ * together with matching face-up cards. Holding a 5 and a 6 you cannot — play
+ * the 6, and then the 5 goes down with three 5s showing, which is four of a
+ * number, which sacks the pile and gives you another go.
+ */
+function crossoverRank(you) {
+  if (!you.hand || you.hand.length !== 1) return null;
+  const rank = parseCard(you.hand[0]).rank;
+  const showing = (you.up || []).some(
+    (stack) => stack.length && parseCard(stack[stack.length - 1]).rank === rank
+  );
+  return showing ? rank : null;
 }
 
 function faceUpRow(ctx, { quiet } = {}) {
@@ -361,10 +457,8 @@ function faceUpRow(ctx, { quiet } = {}) {
     h('span.eyebrow.center', {
       text: giving
         ? 'Tap the card you will pick up with the pile'
-        : crossover
-        ? 'Your last card can go down with these'
         : quiet
-        ? 'On the table'
+        ? `Your last ${crossoverRank(you) || 'card'} can go down with these`
         : 'Your face-up cards',
     }),
     h(
@@ -509,19 +603,54 @@ function actions(ctx) {
 }
 
 /**
- * Pick a card up, or put it back.
+ * Pick cards up, or put them back.
  *
- * Tapping pulls the card out of your hand and leaves it lifted. Tap another of
- * the same number and it comes too; tap a lifted one to drop it back. One
- * button then plays whatever you are holding out — so one card is a tap and a
- * tap, and three is one tap more, rather than a different mechanism entirely.
+ * A tap takes every one of that number, because that is what you meant: holding
+ * three 8s you are not choosing WHICH 8. Tapping a lifted card drops that one
+ * back, which is how you deliberately put down two of the three — worth having,
+ * because the fourth of a number sacks the pile.
+ *
+ * And a single card with nothing to add to it is not a decision, so it simply
+ * goes. Confirming a move you have already made is a tap nobody asked for; the
+ * button underneath is for a pair or more, where the count is worth reading
+ * before you commit to it.
  */
 function toggle(ctx, cardId) {
+  const state = ctx.state;
+  const you = state.you;
   const chosen = (ctx.ui.shChosen || []).slice();
+
   const at = chosen.indexOf(cardId);
-  if (at !== -1) chosen.splice(at, 1);
-  else chosen.push(cardId);
-  ctx.ui.shChosen = chosen.length ? chosen : null;
+  if (at !== -1) {
+    chosen.splice(at, 1);
+    ctx.ui.shChosen = chosen.length ? chosen : null;
+    ctx.render();
+    return;
+  }
+  // Already holding some out: this is one more of the same number.
+  if (chosen.length) {
+    chosen.push(cardId);
+    ctx.ui.shChosen = chosen;
+    ctx.render();
+    return;
+  }
+
+  const rank = parseCard(cardId).rank;
+  const playable = new Set(you.playable);
+  // A run never goes past four, and a play that would push it there is refused
+  // rather than truncated — so "all of them" has to stop where the pile does.
+  const room = roomInRun(state, rank);
+  const all = [cardId]
+    .concat(sortByRank(you.hand).filter((id) => id !== cardId && parseCard(id).rank === rank && playable.has(id)))
+    .slice(0, Math.max(1, room));
+
+  // The exception: your last hand card can go down with matching face-up cards,
+  // and that move is only reachable while the card is lifted rather than played.
+  if (all.length === 1 && !crossoverRank(you)) {
+    play(ctx, all);
+    return;
+  }
+  ctx.ui.shChosen = all;
   ctx.render();
 }
 
@@ -587,12 +716,19 @@ function fitSeats(screen) {
   if (!table) return;
   const seats = [...screen.querySelectorAll('.seat')];
   if (seats.length < 3) return;
+  // The piles count as something to bump into, but only here, at the end: the
+  // ring has already been opened and the middle already shrunk, so anything
+  // still touching is a genuinely tight table rather than the first thing to
+  // try. Shrinking is the last lever precisely because it costs the most.
+  const middle = screen.querySelector('.sh-middle');
 
   for (let scale = 1; scale >= 0.6; scale -= 0.06) {
     table.style.setProperty('--seat-scale', String(scale));
     const boxes = seats.map((el) => el.getBoundingClientRect());
+    const middleBox = middle ? middle.getBoundingClientRect() : null;
     let clash = false;
     for (let i = 0; i < boxes.length && !clash; i++) {
+      if (middleBox && overlaps(boxes[i], middleBox)) clash = true;
       for (let j = i + 1; j < boxes.length && !clash; j++) {
         clash = overlaps(boxes[i], boxes[j]);
       }
@@ -601,6 +737,275 @@ function fitSeats(screen) {
   }
 }
 
+/** How far the ring may be pushed open before a seat leaves the table. */
+const RING_Y_MAX = 48;
+
+/** The smallest the two piles in the middle are allowed to get. */
+const MID_CARD_MIN = 44;
+
+/**
+ * Shrink the middle until the seats beside it are clear of it.
+ *
+ * The seats are placed as a percentage of the ring and the piles were drawn at
+ * a fixed size, so the two came apart the moment the ring did not have the size
+ * the numbers were chosen against: at the largest text setting the ring is two
+ * thirds the width it is at Normal while the piles were still the same 84px,
+ * and everybody east and west sat on top of them. This is the same complaint as
+ * a seat hanging off the right edge, one ring further in.
+ *
+ * The middle gives way rather than the seats, because the seats are already as
+ * small as they are useful at — and it gives way only as far as it has to, so
+ * the two or three player table, which has room for all of it, keeps all of it.
+ */
+function fitMiddle(screen) {
+  const middle = screen.querySelector('.sh-middle');
+  const seats = [...screen.querySelectorAll('.seat')];
+  if (!middle || !seats.length) return;
+  const start = parseFloat(getComputedStyle(screen).getPropertyValue('--sh-card')) || 84;
+  for (let size = Math.round(start); size >= MID_CARD_MIN; size -= 6) {
+    screen.style.setProperty('--mid-card', `${size}px`);
+    const box = middle.getBoundingClientRect();
+    if (seats.every((seat) => !overlaps(seat.getBoundingClientRect(), box))) return;
+  }
+}
+
+/**
+ * Open the ring up until the seats clear the two piles in the middle.
+ *
+ * The ring fills the height it is given rather than claiming a fixed share of
+ * its own width, which is what took the dead band out of the middle of this
+ * screen — and it means how far a seat sits from the pile is a pixel question
+ * that no percentage in this file can answer in advance. Three players sit
+ * closer to it than eight do, because three of them are spread round the same
+ * circle.
+ *
+ * Pushed outward rather than shrunk. Shrinking was tried first and it is the
+ * wrong lever: the seats hit their floor still touching the pile, and the whole
+ * table ended up drawn at 60% to solve a 12px corner.
+ */
+function fitRing(screen) {
+  const table = screen.querySelector('.table');
+  const ring = screen.querySelector('.table__ring');
+  const middle = screen.querySelector('.sh-middle');
+  if (!table || !ring || !middle) return;
+  const seats = [...screen.querySelectorAll('.seat')];
+  if (!seats.length) return;
+
+  const ringBox = ring.getBoundingClientRect();
+  let best = RING_Y;
+  for (let y = RING_Y; y <= RING_Y_MAX; y += 2) {
+    table.style.setProperty('--ring-y', String(y));
+    const boxes = seats.map((el) => el.getBoundingClientRect());
+    // Past the edge of the table is worse than close to the pile.
+    if (!boxes.every((box) => box.top >= ringBox.top - 4 && box.bottom <= ringBox.bottom + 4)) break;
+    best = y;
+    const middleBox = middle.getBoundingClientRect();
+    if (boxes.every((box) => !overlaps(box, middleBox))) break;
+  }
+  table.style.setProperty('--ring-y', String(best));
+}
+
 function overlaps(a, b) {
   return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+/**
+ * Size the face-up cards in a seat to the seat they are sitting in.
+ *
+ * They were pinned at the smallest card the app draws whatever was going on,
+ * which with three players left them tiny on a table with room going spare —
+ * and those cards are how you read everybody else's endgame. So they are a
+ * share of the seat, the same arithmetic that sizes the seat itself.
+ *
+ * Turned into pixels by measuring, because the percentage is of the ring and
+ * how wide the ring ends up is the stylesheet's business, not this file's.
+ */
+function fitSeatCards(screen) {
+  const table = screen.querySelector('.table');
+  const seat = screen.querySelector('.seat');
+  if (!table || !seat) return;
+  // The seat's own width, before the fit pass scales it — `offsetWidth` ignores
+  // transforms, which is exactly what is wanted here.
+  //
+  // Measured off the seat rather than worked out from the ring, because three
+  // cards wider than the seat they sit in do not widen the seat: they hang out
+  // of both sides of it, over whoever is next to it, and every box this file
+  // measures afterwards says they are nowhere near each other.
+  const card = Math.max(20, Math.min(56, (seat.offsetWidth - 10) / 3));
+  table.style.setProperty('--seat-card', `${Math.round(card)}px`);
+}
+
+// ── The move, travelling ─────────────────────────────────────────────────────
+
+/**
+ * Cards that fly: out of a seat onto the pile, off the pile into whoever took
+ * it, and off the table altogether when a pile is sacked.
+ *
+ * Without them the middle of the table simply changes — you cannot tell who
+ * played, and a pile of eleven cards being picked up is a blink. The server
+ * writes down what just happened (`lastEvent`, all of it public), and this is
+ * the only thing that reads it.
+ *
+ * Three things this has to get right, and all three have bitten this codebase
+ * before:
+ *
+ * Every state the server pushes rebuilds the whole screen, so "this render
+ * differs from the last" replays on every repaint. The event carries a sequence
+ * number and a move is flown once, for the seq that has not been seen.
+ *
+ * The flying cards live on the body rather than in the screen, because a
+ * repaint mid-flight would take them with it — the same reason the confetti
+ * lives there. That also puts them outside the zoomed subtree, so what is
+ * measured and what is moved are in the same pixels for once, and there is
+ * nothing to divide back out.
+ *
+ * And nothing waits on an animation. The state is already correct before a card
+ * takes off; the flight is a picture of what has happened, so a browser with no
+ * Web Animations, a phone asking for reduced motion or a seat that has since
+ * left all end up in the same place, quietly.
+ */
+const FLY_MS = 320;
+const SWEEP_MS = 300;
+
+/** The last move this screen has shown, and the game it belonged to. */
+let shownSeq = 0;
+let shownGame = null;
+
+function reducedMotion() {
+  return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+/** The layer the flying cards live on. Made once, and kept. */
+function flyLayer() {
+  let layer = document.querySelector('.fly-layer');
+  if (!layer) {
+    layer = h('div.fly-layer', { 'aria-hidden': 'true' });
+    document.body.appendChild(layer);
+  }
+  return layer;
+}
+
+function centreOf(el) {
+  const box = el.getBoundingClientRect();
+  return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, height: box.height };
+}
+
+/** Send one card-shaped thing from one point on the screen to another. */
+function fly(node, from, to, options = {}) {
+  const { delay = 0, ms = FLY_MS, turn = 0, fade = false, width = 0 } = options;
+  if (width) node.style.setProperty('--w', `${Math.round(width)}px`);
+  node.style.left = `${from.x}px`;
+  node.style.top = `${from.y}px`;
+  flyLayer().appendChild(node);
+
+  if (!node.animate) {
+    node.remove();
+    return;
+  }
+  const anim = node.animate(
+    [
+      { transform: `translate(-50%, -50%) rotate(${-turn}deg) scale(0.94)`, opacity: 1 },
+      {
+        transform: `translate(-50%, -50%) translate(${to.x - from.x}px, ${to.y - from.y}px) rotate(${turn}deg) scale(1)`,
+        opacity: fade ? 0 : 1,
+      },
+    ],
+    { duration: ms, delay, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' }
+  );
+  const clear = () => node.remove();
+  anim.onfinish = clear;
+  anim.oncancel = clear;
+}
+
+/** Where the pile is, whether or not there is anything on it. */
+function pileSpot(screen) {
+  const pile = screen.querySelector('.sh-discard');
+  if (!pile) return null;
+  const card = screen.querySelector('.sh-discard__top') || screen.querySelector('.sh-discard__slot');
+  return centreOf(card || pile);
+}
+
+/** Show the last thing that happened in the middle. Once. */
+function showLastMove(ctx, screen) {
+  const state = ctx.state;
+  const event = state.lastEvent;
+  if (!event || !event.seq) return;
+
+  // A different game keeps its own count, or a rematch would look like a
+  // repaint of the game before it.
+  if (shownGame !== state.id) {
+    shownGame = state.id;
+    shownSeq = 0;
+  }
+  if (event.seq <= shownSeq) return;
+  const seenOne = shownSeq > 0;
+  shownSeq = event.seq;
+  // Arriving mid-game, or coming back to a tab that was in the background, must
+  // not replay whatever happened while you were not looking.
+  if (!seenOne || reducedMotion()) return;
+
+  if (event.type === 'play') flyPlay(screen, event);
+  else if (event.type === 'pickup') flyPickup(screen, event);
+}
+
+/** A card out of somebody's seat and onto the pile. */
+function flyPlay(screen, event) {
+  const seat = screen.querySelector(`.seat[data-player-id="${event.playerId}"]`);
+  const spot = pileSpot(screen);
+  const cards = (event.cards || []).slice(0, 4);
+  if (!seat || !spot || !cards.length) {
+    if (event.sacked) flySack(screen, event, 0);
+    return;
+  }
+
+  const from = centreOf(seat);
+  const width = spot.width || 62;
+  const last = FLY_MS + (cards.length - 1) * 60;
+  // While the card is in the air the pile does not also show it arrived.
+  document.body.classList.add('sh-flying');
+  window.setTimeout(() => document.body.classList.remove('sh-flying'), last + 40);
+
+  cards.forEach((cardId, index) => {
+    fly(cardFace(cardId, { size: 'lg' }), from, { x: spot.x + index * 5, y: spot.y + index * 4 }, {
+      delay: index * 60,
+      turn: 6 - index * 3,
+      width,
+    });
+  });
+  if (event.sacked) flySack(screen, event, last);
+}
+
+/** The whole pile, to whoever picked it up. */
+function flyPickup(screen, event) {
+  const seat = screen.querySelector(`.seat[data-player-id="${event.playerId}"]`);
+  const spot = pileSpot(screen);
+  if (!seat || !spot) return;
+  const to = centreOf(seat);
+  const many = Math.min(4, Math.max(2, event.count || 2));
+  for (let i = 0; i < many; i++) {
+    fly(cardBack({ size: 'lg' }), { x: spot.x + i * 4, y: spot.y - i * 4 }, to, {
+      delay: i * 45,
+      turn: -10 + i * 5,
+      fade: true,
+      width: spot.width || 62,
+    });
+  }
+}
+
+/** And the whole pile again, off the table for good. */
+function flySack(screen, event, delay) {
+  const spot = pileSpot(screen);
+  if (!spot) return;
+  const chip = screen.querySelector('.sh-counts .chip--quiet');
+  const to = chip ? centreOf(chip) : { x: spot.x, y: -spot.height };
+  const many = Math.min(4, Math.max(2, event.sacked || 2));
+  for (let i = 0; i < many; i++) {
+    fly(cardBack({ size: 'lg' }), { x: spot.x + i * 4, y: spot.y - i * 4 }, to, {
+      delay: delay + i * 40,
+      ms: SWEEP_MS,
+      turn: 16,
+      fade: true,
+      width: spot.width || 62,
+    });
+  }
 }

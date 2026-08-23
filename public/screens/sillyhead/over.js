@@ -43,15 +43,23 @@ export function overScreen(ctx) {
         );
       })
     ),
+    // The last row of the same list, not a warning notice.
+    //
+    // It carries the place after everybody who got out and the same initials
+    // badge as the rows above, because it IS the next row: without them it read
+    // as an error message that had landed under a leaderboard. The spoon goes
+    // on the end, where it has room to be the size of the joke.
     loser
       ? h(
           'div.sh-loser',
-          woodenSpoon(),
+          h('span.sh-order__place', { text: String(finished.length + 1) }),
+          h('div.player__badge', { text: initials(loser.name) }),
           h(
-            'div',
+            'div.sh-loser__who',
             h('div.sh-loser__name', { text: ownName(loser.name, loser.id === you.id) }),
             h('div.sh-loser__label', { text: 'Silly Head' })
-          )
+          ),
+          woodenSpoon()
         )
       : null,
     h('div.spacer'),

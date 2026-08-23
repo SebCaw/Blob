@@ -113,6 +113,38 @@ export function fitFan(screen, selector = '.hand') {
   hand.style.setProperty('--fan-overlap', `${Math.floor(Math.min(overlap, -14))}px`);
 }
 
+/** How big a Silly Head card is drawn before anything has to give. */
+const SH_CARD = 84;
+
+/**
+ * Shrink the cards until the screen fits the phone it is on.
+ *
+ * Silly Head's screens are told to fit rather than left hoping to: a ring, a
+ * middle, a status line, a hand and sometimes a row of table cards all want
+ * height at once, and at the larger size settings they want more of it than
+ * there is. Something has to give, and the cards are the piece with room to
+ * spare — a card at 80% is still bigger than Blob has ever drawn one.
+ *
+ * The alternative was letting the screen scroll, which is what it did at Large
+ * and Largest and only at Large and Largest: a table you have to scroll is not
+ * a table, and a screen that silently changes kind when you turn the text up is
+ * worse than either size on its own.
+ *
+ * Measured rather than calculated, for the usual reason — how tall this ends up
+ * depends on the size setting, the number of seats, and whether the status line
+ * has one thing to say or three.
+ *
+ * @param {HTMLElement} screen
+ */
+export function fitCards(screen) {
+  const room = screen.clientHeight;
+  if (!room) return;
+  for (let scale = 1; scale >= 0.62; scale -= 0.06) {
+    screen.style.setProperty('--sh-card', `${Math.round(SH_CARD * scale)}px`);
+    if (screen.scrollHeight <= room) return;
+  }
+}
+
 /** Pieces that turn up on more than one screen. */
 
 /**

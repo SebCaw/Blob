@@ -310,6 +310,33 @@ test('you can only stack matching numbers, and only on a pile that has one', () 
   refused(g.state, { type: 'sort/stack', cardId: C('7C'), pileIndex: 2 }, me, g.ctxf);
 });
 
+test('swapping trades a hand card for the one showing, and fishes nothing out of the deck', () => {
+  const g = sorting(['A', 'B']);
+  const me = g.ids[0];
+  g.state.up[me] = [[C('5S')], [C('KH')], [C('7C')]];
+  g.state.hands[me] = [C('AS'), C('8C'), C('9C')];
+  g.state.stock = [C('2D')];
+
+  const state = ok(g.state, { type: 'sort/swap', cardId: C('AS'), pileIndex: 1 }, me, g.ctxf).state;
+  assert.deepEqual(state.up[me][1], [C('AS')], 'the hand card is now face up');
+  assert.ok(state.hands[me].includes(C('KH')), 'and the one that was showing is in the hand');
+  assert.equal(state.hands[me].length, 3, 'a swap is card-neutral');
+  assert.deepEqual(state.stock, [C('2D')], 'so it earns no draw — stacking a pair is what does that');
+});
+
+test('a swap needs a card in your hand and a pile with exactly one on it', () => {
+  const g = sorting(['A', 'B']);
+  const me = g.ids[0];
+  g.state.up[me] = [[C('5S'), C('5H')], [C('KH')], []];
+  g.state.hands[me] = [C('AS'), C('8C')];
+
+  assert.equal(refused(g.state, { type: 'sort/swap', cardId: C('AS'), pileIndex: 2 }, me, g.ctxf).code, 'pile-empty');
+  assert.equal(refused(g.state, { type: 'sort/swap', cardId: C('AS'), pileIndex: 0 }, me, g.ctxf).code, 'pile-stacked');
+  // The card has to come from your hand: two piles cannot swap with each other.
+  refused(g.state, { type: 'sort/swap', cardId: C('5H'), pileIndex: 1 }, me, g.ctxf);
+  refused(g.state, { type: 'sort/swap', cardId: C('AS'), pileIndex: 9 }, me, g.ctxf);
+});
+
 test('you cannot start with an empty pile while you still hold cards', () => {
   const g = sorting(['A', 'B']);
   const me = g.ids[0];
@@ -643,6 +670,34 @@ test('stuck is what the screen reads to offer the pile', () => {
 });
 
 // ── Absent players ───────────────────────────────────────────────────────────
+
+test('the middle says who played what, so a screen can show the card travelling', () => {
+  const g = playing(['A', 'B'], { hands: { 0: [C('9S'), D('9S')] }, pile: [C('4D')] });
+  const state = ok(g.state, { type: 'play/cards', cardIds: [C('9S'), D('9S')] }, g.ids[0], g.ctxf).state;
+
+  const event = viewFor(state, g.ids[1]).lastEvent;
+  assert.equal(event.type, 'play');
+  assert.equal(event.playerId, g.ids[0], 'which seat the cards flew out of');
+  assert.deepEqual(event.cards, [C('9S'), D('9S')]);
+  assert.equal(event.sacked, 0);
+});
+
+test('a sacked pile and a taken pile are both written down, with how big they were', () => {
+  const sack = playing(['A', 'B'], { hands: { 0: [C('10S')] }, pile: [C('4D'), C('5D')] });
+  const sacked = ok(sack.state, { type: 'play/cards', cardIds: [C('10S')] }, sack.ids[0], sack.ctxf).state;
+  const sackEvent = viewFor(sacked, sack.ids[1]).lastEvent;
+  assert.equal(sackEvent.type, 'play');
+  assert.equal(sackEvent.sacked, 3, 'two on the pile and the 10 that sacked it');
+
+  const take = playing(['A', 'B'], { hands: { 0: [C('4S')] }, pile: [C('KD'), C('QD')] });
+  const first = viewFor(take.state, take.ids[1]).lastEvent;
+  const took = ok(take.state, { type: 'play/takePile' }, take.ids[0], take.ctxf).state;
+  const takeEvent = viewFor(took, take.ids[1]).lastEvent;
+  assert.equal(takeEvent.type, 'pickup');
+  assert.equal(takeEvent.playerId, take.ids[0]);
+  assert.equal(takeEvent.count, 2, 'the whole pile, which is what flies to their seat');
+  assert.ok(takeEvent.seq > ((first && first.seq) || 0), 'and it is a new event, not the last one repainted');
+});
 
 test('a phone that goes quiet can have its turns played, badly, by the server', () => {
   const g = playing(['A', 'B'], {

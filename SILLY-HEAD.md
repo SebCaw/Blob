@@ -84,6 +84,12 @@ rule and it is the most unusual part of the game.
     one more card drawn per pair — and doing it from the hand is the same move a
     person makes at a table when the pair spans their hand and their table.
   - It ends when nothing can be doubled any more. (Rare.)
+- You **swap** by tapping a card in your hand and then tapping one that is
+  already face up: the two trade places. It is one command on the server
+  (`sort/swap`) rather than a take followed by a place, so the pile is never
+  briefly empty, the screen never nags you to fill it, and a request that goes
+  missing cannot leave you a card short. A swap is card-neutral, so it earns no
+  draw — stacking a pair is what does that.
 - Then **every pair comes off** and goes to your hand, leaving exactly **three
   single face-up cards**. They do not have to be different ranks — two 10s and a
   king is a fine finish. You take them off yourself: the app refuses to start
@@ -205,6 +211,15 @@ person is left holding cards. That person is the Silly Head.
 - **The pile is the button.** On your turn it reads "Take the pile" and tapping it
   picks up. With no legal move it is the only thing on screen you can tap, so it
   stops being a decision — which is right, because then it is not one.
+- **Cards travel.** A played card flies out of the seat that played it, a pile
+  that somebody takes flies to them, and a sacked pile sweeps off to the count in
+  the corner. Without it the middle simply changes and you cannot tell who did
+  it. The server writes down what happened — who, which cards, how many — and all
+  of it is public, because the room watched every one of those cards go down.
+- **A tap takes all of a number.** Tap an 8 and every 8 in your hand comes up
+  together; tap a lifted one to drop it back. One card with nothing to add to it
+  simply goes, so the button underneath only appears for a pair or more, where
+  the count is worth reading before you commit.
 - **Sixteen seats.** Blob's ring maxes out at eight. Silly Head keeps the ring up
   to eight and switches to two compact rows above and below the pile beyond that,
   so four families of four can play.

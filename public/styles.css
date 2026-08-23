@@ -184,6 +184,17 @@ html[data-size] .screen--fixed {
   overflow-y: auto;
 }
 
+/* Except where a screen fits itself at every size.
+
+   The hatch above is Blob's bid pad: a Submit button that cannot be reached is
+   worse than a screen that is not perfectly still. Silly Head's table has no
+   such button — it is a thing you look at — and a screen that silently becomes
+   a scrolling one the moment the text size goes up is worse than either size on
+   its own. Those screens shrink their cards to fit instead (`fitCards`). */
+html[data-size] .screen--fixed.screen--fits {
+  overflow: hidden;
+}
+
 /* At the largest setting the pad sheds its labels.
  
    "How many tricks?" and the box showing your choice are both saying what the
@@ -3388,3 +3399,223 @@ button.card-face:active:not(:disabled) {
 .sh-play .card-face--lg .card-face__pip { font-size: 26px; }
 .sh-pile { width: 100px; height: 138px; }
 .sh-pile__down { left: 14px; top: 18px; }
+
+/* -- Silly Head, third pass -------------------------------------------------- */
+/* The complaint this time is height. A ring, a middle, a status line, a hand and
+   sometimes a row of table cards all want it at once, and the screen was a stack
+   that hoped to fit rather than one that was told to. Everything here is either
+   a piece giving up height it was not using, or a piece being told what it may
+   have. */
+
+/* One knob for how big Silly Head draws a card, turned after paint by
+   `fitCards` when the screen cannot take all of it. Everything card-shaped on
+   these two screens is a multiple of it, so the layout gives way together
+   rather than one piece at a time and out of proportion. */
+.sh-sort,
+.sh-play { --sh-card: 84px; }
+
+.sh-sort .card-face--lg,
+.sh-play .card-face--lg { --w: var(--sh-card); }
+.sh-sort .card-face--lg .card-face__rank,
+.sh-play .card-face--lg .card-face__rank { font-size: calc(var(--w) * 0.36); }
+.sh-sort .card-face--lg .card-face__pip,
+.sh-play .card-face--lg .card-face__pip { font-size: calc(var(--w) * 0.31); }
+
+.sh-pile { width: calc(var(--sh-card) * 1.19); height: calc(var(--sh-card) * 1.64); }
+
+/* The two piles in the middle have their own size, because they are the piece
+   that has to give when the seats round them cannot fit. It starts as the card
+   size and `fitMiddle` takes it down only as far as it must. */
+.sh-play { --mid-card: var(--sh-card); }
+.sh-play .sh-discard .card-face--lg { --w: var(--mid-card); }
+.sh-play .sh-stock__pile,
+.sh-play .sh-stock__empty { width: calc(var(--mid-card) * 0.64); height: calc(var(--mid-card) * 0.9); }
+.sh-play .sh-discard__mess,
+.sh-play .sh-discard__slot { width: calc(var(--mid-card) * 0.74); height: calc(var(--mid-card) * 1.05); }
+.sh-play .sh-middle { gap: clamp(10px, 4vw, 26px); }
+
+/* The labels under the two piles are not allowed to decide how wide the middle
+   is. "Take the pile" laid out on one line is wider than the pile it names, and
+   a flex item takes its content's width by default — so the widest thing in the
+   middle of the table was a caption, and the seats east and west were pushed
+   onto it. They wrap to the pile instead. */
+.sh-play .sh-middle__label {
+  max-width: calc(var(--mid-card) * 1.15);
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* The pile is a button and keeps its own padding, but not at the price of the
+   seats either side of it. */
+.sh-play .sh-discard { padding: 6px 5px 4px; }
+.sh-pile__down { left: calc(var(--sh-card) * 0.17); top: calc(var(--sh-card) * 0.21); }
+
+/* -- The table, told to fit -------------------------------------------------- */
+
+/* The ring's box used to claim nearly its own width in height whatever was in
+   it, while the felt filled 62% of that — so with three or four players the
+   band between the seats and the status line was mostly nothing at all. It
+   takes the height that is going instead, and the felt fills more of it. */
+.sh-play { gap: 6px; }
+.sh-play .table { flex: 1 1 auto; min-height: 124px; margin: 0; }
+/* Stretched rather than told `height: 100%`: the ring is a flex item inside a
+   flex item, and a percentage height against a box the flex algorithm is still
+   working out resolves to nothing at all — which collapsed the ring to zero and
+   stacked every seat on one line. */
+.sh-play .table__ring { aspect-ratio: auto; width: 100%; height: auto; align-self: stretch; }
+.sh-play .table__felt { width: 72%; height: 66%; }
+
+/* Everything below the ring is exactly as tall as it needs to be. The status
+   line reserved 46px for a sentence that is usually one line. */
+.sh-status { min-height: 0; padding: 2px 0 4px; }
+.sh-play .sh-yours { gap: 6px; }
+.sh-play .hand { min-height: 0; padding: 10px 4px 2px; }
+.sh-actions { padding-top: 4px; min-height: 0; }
+
+/* A Silly Head seat carries three face-up cards as well as a name, so it is
+   allowed to be wider than Blob's — and those cards are sized to the seat by
+   `fitSeatCards` rather than pinned at the smallest card the app draws. */
+.sh-play .seat { width: min(var(--seat-cap, 136px), calc(var(--seat-pct, 23.5) * 1%)); }
+
+/* How many face-down cards somebody has left, pinned to the corner of the seat
+   rather than sitting in the row. In the row it took a card's worth of width
+   away from the three cards the row is for. */
+.sh-play .seat:not(.seat--flat) .sh-seat__down {
+  position: absolute;
+  right: 0;
+  bottom: -2px;
+}
+.sh-play .sh-seat__table { gap: 3px; min-height: 0; margin-top: 4px; }
+.sh-play .sh-seat__table .card-face { --w: var(--seat-card, 30px); }
+
+/* -- Chosen, and unmistakably so --------------------------------------------- */
+/* A picked card used to sit LOWER than a merely playable one — -10px against the
+   fan's -18px — and both came out as a border in the same family. With two 8s up
+   you could not tell whether you had selected one or both, while the button
+   underneath was already saying. So a chosen card lifts clear of the fan, turns
+   its edge lime, and wears a tick: three things, none of which is a border. */
+.sh-play .card-face--picked,
+.sh-sort .card-face--picked {
+  transform: translateY(-30px) scale(1.04);
+  border-color: var(--lime);
+  box-shadow: var(--lift-sm) rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(200, 255, 61, 0.5);
+  z-index: 3;
+}
+
+/* Drawn rather than set in type, for the same reason the crown and the spoon
+   are: a font that lacks the glyph loses the tick silently. */
+.card-face--picked::after {
+  content: '';
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.card-face--picked::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -1px;
+  z-index: 2;
+  width: 6px;
+  height: 11px;
+  border: solid var(--ink-dark);
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+/* -- Cards in flight --------------------------------------------------------- */
+/* On the body rather than in the screen, because every state the server pushes
+   rebuilds the screen and would take the animation with it — the same reason the
+   confetti lives there. It is also outside the zoomed subtree, which means what
+   is measured and what is moved are in the same pixels for once.
+
+   Under the sheet and the toast: a card should never fly over a dialog. */
+.fly-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.fly-layer > .card-face {
+  position: fixed;
+  margin: 0;
+  will-change: transform;
+}
+
+.fly-layer .card-face__rank { font-size: calc(var(--w) * 0.36); }
+.fly-layer .card-face__pip { font-size: calc(var(--w) * 0.31); }
+
+/* While a played card is still in the air, the pile does not also show it
+   arrived. The class is on the body because a repaint mid-flight would take it
+   off anything inside the screen. */
+body.sh-flying .sh-discard__top { visibility: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fly-layer { display: none; }
+}
+
+/* -- The confirm screen ------------------------------------------------------ */
+/* The question first, and a panel to sit in. It used to be a stack of default
+   elements under a spacer, which on a tall phone centred the one line worth
+   reading and left it as the last thing you got to. */
+.sh-confirm { gap: 14px; }
+
+.sh-confirm__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 16px 22px;
+  border-radius: var(--radius);
+  background: var(--night-800);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.sh-confirm__title {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(20px, 5.5vw, 26px);
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.sh-confirm__note {
+  margin: 0;
+  max-width: 34ch;
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* -- The end of it ----------------------------------------------------------- */
+/* The spoon's auto margins belong to Blob's scoreboard, where it sits in a fixed
+   rank column. Dropped into a flex row they ate every spare pixel: the spoon
+   parked in the middle and the name was shoved against the right edge. */
+.sh-loser .spoon {
+  margin: 0;
+  width: 42px;
+  height: 52px;
+  flex: 0 0 auto;
+}
+
+/* And the row is tinted rather than alarmed, which is the call Blob's own
+   scoreboard already made (`.board-row--spoon`): a wooden spoon is a joke among
+   friends, and the error colour was saying something else entirely. */
+.sh-loser {
+  gap: 12px;
+  background: rgba(184, 129, 63, 0.14);
+  outline: 2px solid rgba(184, 129, 63, 0.45);
+}
+
+.sh-loser__who { flex: 1; min-width: 0; }
+.sh-loser__label { color: #dda75f; }

@@ -12,6 +12,30 @@ import { askBeforeStart, setAskBeforeStart } from '../prefs.js';
  * waiting on you. Nothing here touches the game: it is all about this device.
  */
 /**
+ * Which game this sheet is open over, if any.
+ *
+ * A state that names no game is Blob: that is what every game saved before the
+ * shelf existed looks like, and the default has to keep being right.
+ */
+function gameOf(ctx) {
+  return (ctx.state && ctx.state.game) || (ctx.ui && ctx.ui.game) || null;
+}
+
+/**
+ * What the sound actually is, here.
+ *
+ * This sheet is shared by every game on the shelf, and this line was written
+ * when Blob was the only one on it — so it promised tricks and bids to somebody
+ * playing a game that has neither. Anything in here that names a part of a game
+ * has to move with the game, or it is telling the player something untrue.
+ */
+function soundHint(game) {
+  if (game === 'sillyhead') return 'Cards going down, and when the table is waiting on you.';
+  if (game === 'blob') return 'Cards, tricks and your turn. Never during a bid.';
+  return 'Cards, and when a game is waiting on you.';
+}
+
+/**
  * Sound on or off, remembered on this device.
  *
  * A toggle rather than a slider: there is one volume, chosen to sit under a
@@ -42,7 +66,7 @@ function soundRow(ctx) {
         h('span.toggle__knob')
       )
     ),
-    h('p.sheet__hint', { text: 'Cards, tricks and your turn. Never during a bid.' })
+    h('p.sheet__hint', { text: soundHint(gameOf(ctx)) })
   );
 }
 
@@ -88,8 +112,7 @@ function toggleRow(ctx, { label, hint, on, onChange }) {
  * after that, which is exactly what a setting is for.
  */
 function gameRows(ctx) {
-  const game = (ctx.state && ctx.state.game) || (ctx.ui && ctx.ui.game);
-  if (game !== 'sillyhead') return null;
+  if (gameOf(ctx) !== 'sillyhead') return null;
   return toggleRow(ctx, {
     label: 'Check my three cards',
     hint: 'Before you are dealt in, Silly Head asks whether your best cards are face up. They are played last.',
