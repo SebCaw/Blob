@@ -89,6 +89,12 @@ game's colours, with no way from it to anything else.
 Adding a game is therefore one row in `games.js` and nothing else: it brings its own name,
 colour and icon with it, and appears on the shelf without `shelf.js` being touched at all.
 
+That sentence is about **the shelf tile**, and of the tile it is true. It is not true of
+adding a game to the app, which also costs an engine entry, a rules module, a view module,
+a screen folder, and a dozen shared files that still branch on a game id. **Read
+`ADDING-A-GAME.md` before starting one** — the ordered checklist, the traps that only show
+up on the glass, and the decisions still open. Keep it current as you go.
+
 **A game gets a hue, not a palette.** `--hue` in `:root` rotates the whole dark ground,
 and every step keeps its lightness and saturation — so a green game has exactly the
 contrast the purple one does, in the same dim pub, with no screen redesigned. Verified:
