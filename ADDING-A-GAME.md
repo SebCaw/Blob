@@ -23,6 +23,67 @@ everything else.
 
 ---
 
+## The planned games
+
+Seb is thinking about **Sevens, Cheat, Go Fish, Solitaire and Chase the Ace**.
+House rules for each still to come; do not start a reducer before they arrive.
+
+**This is five more games, not one, and that settles most of the open questions
+below.** At two games a hardcoded `if` is cheaper than a registry field. At seven
+it is not: the dozen branch points listed further down become roughly forty,
+spread across files whose owners have no reason to think about a new game. Do the
+generalisation first and add games into it, rather than adding five games and
+generalising afterwards.
+
+What each one demands that the platform does not already do:
+
+- **Sevens** (Fan Tan, Domino) — the cheapest. Lay outward from the sevens, pass
+  if you cannot play. No hidden state beyond hands, no scoring, shape closest to
+  Silly Head. Best first game to build, because it exercises the whole path
+  without the reducer being the hard part.
+- **Cheat** (Bullshit, I Doubt It) — the hardest test of invariant 2 in the repo.
+  A claim is public and the card is not, so the reducer must know the truth while
+  every view withholds it, and a challenge reveals it retrospectively. If the
+  cross-engine privacy harness exists before this one is written, it will catch
+  the mistakes; if it does not, this is the game that leaks.
+- **Go Fish** — asking a named player for a named rank is a public request about
+  private information, and the answer changes what everyone knows. Watch the
+  history record: "who asked whom for what" is the whole game and none of the
+  existing record shapes carry it.
+- **Solitaire** — **single player, and it breaks assumptions the other games
+  share.** No opponent, so nothing to broadcast; no bots; no Master election worth
+  holding; no `stallWatch`; and a lobby with one name in it. It fits mechanically
+  only once `minPlayers` is engine data — VERIFIED hardcoded at `lib/game.js:38`
+  and `lib/sillyhead/game.js:43`, refusing to start below two, and published to
+  the client at `lib/view.js:114`. So Solitaire forces the fix already listed
+  under "missing from the server registry", and is the game that proves whether
+  the lifecycle abstraction is real. **Build it after at least one multiplayer
+  game, not first** — it will not exercise the parts that break.
+- **Chase the Ace** (Ranter-Go-Round, Cuckoo) — pass or keep around the table,
+  lives lost, players eliminated. Simple reducer, but elimination mid-game is
+  something neither existing engine does; check it against the Master election and
+  the grace windows rather than assuming.
+
+### The hue budget
+
+Every game gets its own colour, and the colour is a hue. That is a **finite
+budget**, which nobody has had to think about at two games.
+
+`public/styles.css:19-32` derives eight tokens from `--hue` — five night grounds
+at 9-31% lightness and 53-65% saturation, plus three ink steps. Two consequences:
+
+- Hues roughly in the **60-110 band go muddy** at those lightness values. A dark
+  ground there reads as olive or brown rather than as a colour, and brown is
+  already spoken for by `.board-row--spoon`. That takes about fifty degrees of the
+  wheel out of play.
+- With that band excluded, **seven or eight games is the practical ceiling** at a
+  spacing anybody can tell apart. Blob has 265 and Silly Head has 148. Assign the
+  remaining five from the usable arc deliberately and in one pass, rather than
+  picking each one as its game is written — picked one at a time, the fourth and
+  fifth will collide with something.
+
+---
+
 ## Order of work
 
 Do these in order. The browser checkpoints are not optional and not at the end.
@@ -468,14 +529,16 @@ private. Two readings of the rest:
 The second is cleaner and survives a game with an unusual shape. The first is
 free.
 
-**2. How far to generalise.** One review pushed back on the rest, and the point
-stands: a registry field that will only ever hold three values is not obviously
-better than three `if`s, and pretending otherwise is how you get a plugin
-architecture nobody can read. Suggested split — fix the `'blob'` fallbacks and
-the `sw.js` manifest unconditionally; generalise the four `app.js` branches,
-because Blob's inlining is the actual defect; treat `soundHint`, `gameRows` and
-the help bundle as cheap now and worth converting at the moment they become
-three-way.
+**2. How far to generalise. — SETTLED: all of it, and before the next game.**
+
+One review argued that a registry field holding three values is not obviously
+better than three `if`s, and that pretending otherwise is how you get a plugin
+architecture nobody can read. That was correct at the time it was written, when
+the question was a third game.
+
+It is now five more (see The planned games). Every branch point below becomes a
+seven-way switch, and `soundHint`, `gameRows` and the help bundle stop being
+cheap at the third one. Generalise first, then add games into the seam.
 
 **3. The CLAUDE.md sentence.** `CLAUDE.md:89-90` — "Adding a game is therefore
 one row in `games.js` and nothing else." True about the shelf tile, false about
@@ -483,7 +546,19 @@ the app. The word doing the damage is **therefore**: it reasons from "the front
 page needs nothing" to "the app needs nothing". Narrow it to what it guarantees
 and point at this file. Not done yet — it is Seb's house document.
 
-**4. Hand-picked accents.** `public/games.js:33-34` and `:55-56` carry `accent`
-and `accentDeep` as hex literals, which is the thing `CLAUDE.md:101-102` forbids.
-Either the accent derives from the hue, or the rule is not the rule. Decide
-before writing a third row, because a third row is a third exception.
+**4. Hand-picked accents. — SETTLED in principle: derive them.**
+
+`public/games.js:33-34` and `:55-56` carry `accent` and `accentDeep` as hex
+literals, which is the thing `CLAUDE.md:101-102` forbids. At two games that is two
+exceptions and arguable. At seven it is seven, hand-tuned against seven grounds,
+and the rule has stopped being a rule.
+
+So the accent derives from the hue, and the two existing pairs get replaced by
+whatever the derivation produces. **Check the result on a real screen before
+committing to it** — Blob's `#c8ff3d` and Silly Head's `#ffd23d` are the accents
+everything else was contrast-checked against, and a derived value that reads
+worse on a dim phone is not an improvement. If the derivation cannot match them,
+that is a finding worth writing here rather than quietly keeping the literals.
+
+Still open: the exact derivation, and the five remaining hues. Assign those in one
+pass, not one game at a time — see The hue budget.
