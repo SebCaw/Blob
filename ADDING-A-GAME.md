@@ -50,19 +50,76 @@ What each one demands that the platform does not already do:
   private information, and the answer changes what everyone knows. Watch the
   history record: "who asked whom for what" is the whole game and none of the
   existing record shapes carry it.
-- **Solitaire** — **single player, and it breaks assumptions the other games
-  share.** No opponent, so nothing to broadcast; no bots; no Master election worth
-  holding; no `stallWatch`; and a lobby with one name in it. It fits mechanically
-  only once `minPlayers` is engine data — VERIFIED hardcoded at `lib/game.js:38`
-  and `lib/sillyhead/game.js:43`, refusing to start below two, and published to
-  the client at `lib/view.js:114`. So Solitaire forces the fix already listed
-  under "missing from the server registry", and is the game that proves whether
-  the lifecycle abstraction is real. **Build it after at least one multiplayer
-  game, not first** — it will not exercise the parts that break.
+- **Solitaire** — **single player, and two variants under one tile: traditional
+  (Klondike) and around the clock (Clock Patience).** See the section below; it
+  is the odd one out and needs its own treatment.
 - **Chase the Ace** (Ranter-Go-Round, Cuckoo) — pass or keep around the table,
   lives lost, players eliminated. Simple reducer, but elimination mid-game is
   something neither existing engine does; check it against the Master election and
   the grace windows rather than assuming.
+
+### Solitaire, which is the odd one out
+
+Single player, and **two variants under one shelf tile**: traditional (Klondike)
+and around the clock (Clock Patience).
+
+**Two variants, one engine, one tile.** The precedent already exists and works —
+Silly Head's `quick` is a variant flag set at create time and changeable in the
+lobby (`lib/sillyhead/game.js:71`, `:83`, `:394`). Klondike and Clock are that
+same shape, not two shelf rows. Note Klondike then has a *second* variant axis on
+top, draw-one versus draw-three, so whatever carries the flag should not assume
+one boolean.
+
+**What it does not need:** no opponent, so nothing to broadcast; no bots; no
+Master election worth holding; no `stallWatch`. The lobby is a screen with one
+name on it and a Start button, so consider going straight from the tile to the
+deal — meaning the lobby slot work must tolerate a game with **no lobby at all**,
+not merely different options.
+
+**What it forces:** `minPlayers` as engine data. VERIFIED hardcoded at
+`lib/game.js:38` and `lib/sillyhead/game.js:43`, refusing to start below two, and
+published to the client at `lib/view.js:114`. This was already on the
+missing-from-the-server-registry list; Solitaire promotes it from tidy-up to
+blocking.
+
+**The privacy boundary is already solved, and it still matters.** Face-down cards
+must be absent from the only player's own payload, which sounds odd for a game
+with one viewer but is exactly the existing case — see the test at
+`test/sillyhead.test.js:644`, "your own face-down cards are absent from your own
+payload". That test is the pattern to copy for the stock and the tableau.
+
+This is also the argument for keeping Solitaire **server-side** rather than
+running it locally, which will be tempting since nothing needs broadcasting: if
+the deck lives in the browser, the face-down boundary is a lie and anyone can read
+the deal out of the payload or memory. Invariant 2 decides this, not convenience.
+
+**Clock Patience has no decisions in it at all.** Deal thirteen piles of four,
+turn the top of the centre pile, place it under the pile of its rank, turn that
+pile's next card, repeat until the fourth king appears. Every step is forced. The
+player never chooses anything, and the outcome is fixed by the shuffle before the
+first card turns (it comes out around one in thirteen). Three consequences, and
+they invert the usual effort split:
+
+- The reducer is nearly nothing — one `next` command, or an autoplay tick. Do not
+  budget reducer time for it.
+- **All of the value is on the glass.** For every other game the tests protect the
+  rules and the browser protects the presentation; here there are barely any rules
+  to protect. The animation *is* the game. Weight the work accordingly.
+- **Do not compute the whole sequence at deal time and send it.** It is the
+  obvious implementation, since the outcome is already determined, but the payload
+  would then contain the ending and the player could read their own result out of
+  it before it plays. Reveal card by card, same as any other hidden state.
+
+**Klondike is the largest state shape of the five** — stock, waste, four
+foundations, seven tableau piles — though the rules are simple. It is also the
+only game on the list where **players expect undo**, and nothing in the platform
+supports it today. Pure reducers over a command list make it feasible, but decide
+the mechanism deliberately rather than discovering the expectation late.
+
+**Build order: after at least one multiplayer game, not first.** Solitaire
+exercises almost none of the machinery that breaks — no broadcast, no second
+phone, no turn order, no reconnect-mid-turn — so it will not shake out the
+platform work the way Sevens or Cheat will.
 
 ### The hue budget
 
