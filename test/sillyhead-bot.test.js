@@ -170,6 +170,58 @@ test('bots sort themselves and the game starts without anybody being asked twice
   }
 });
 
+/**
+ * A pair goes down as a pair, deck or no deck.
+ *
+ * There was a rule that put one card down at a time once the stock was empty,
+ * and it made a bot look like it could not count: one 5, a wait, then the other
+ * 5. It was written against a deadlock that measurement no longer finds — what
+ * actually stops that is a bot playing its lowest legal card — so the pair goes
+ * down together. This is here so it does not quietly come back.
+ */
+test('a bot puts a whole set down, with no deck left to replace it', () => {
+  for (const level of ['easy', 'medium', 'hard', 'impossible']) {
+    const g = playing2(['A', 'B'], {
+      // The opponent holds a normal hand on purpose: one card in front of them
+      // trips the "somebody is nearly out" rule, which is a different question.
+      hands: { 0: ['5S#1', '5H#1', 'KD#1'], 1: ['7C#2', '8D#2', 'QH#2'] },
+      pile: ['3C#1'],
+      stock: [],
+    });
+    const view = viewFor(g.state, g.ids[0]);
+
+    // Several seeds, because every level below Impossible misplays on purpose
+    // and taking a small pile is a real tactic. The claim is not WHICH card it
+    // picks — it is that when it picks the 5, both 5s go down.
+    let sawTheFive = 0;
+    for (let seed = 0; seed < 40; seed++) {
+      const move = bot.chooseMove(view, { seed: `pair:${level}:${seed}`, level });
+      if (move.type !== 'play/cards') continue;
+      if (!move.cardIds.some((id) => id.startsWith('5'))) continue;
+      sawTheFive++;
+      assert.deepEqual(
+        move.cardIds.slice().sort(),
+        ['5H#1', '5S#1'],
+        `${level} put down ${move.cardIds.length} of a pair it could have shed entirely`
+      );
+    }
+    assert.ok(sawTheFive > 0, `${level} never played the 5 at all, so this proves nothing`);
+  }
+});
+
+/**
+ * And it still finishes.
+ *
+ * The clamp that came out was a termination guard, so the thing it guarded gets
+ * checked directly: heads-up, which is where the old ace-trading loop lived.
+ */
+test('two bots holding sets still play a game out', () => {
+  for (const level of ['medium', 'hard', 'impossible']) {
+    const { state } = playOut([level, level], { maxMoves: 2000 });
+    assert.equal(state.phase, 'complete', `${level} heads-up did not finish`);
+  }
+});
+
 test('a bot never drains the deck during the sort', () => {
   const g = botLobby(['impossible', 'impossible', 'impossible']);
   const engine = engineFor(g.state);

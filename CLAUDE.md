@@ -188,11 +188,19 @@ game. Everything about how freely a bot spends hangs off `beingRefilled(view)`,
 not off `view.stock`. Getting this wrong livelocked games with a nearly full
 deck: both bots thought their cards were free and traded whole sets for ever.
 
-**A set of unbeatable cards must go down one at a time.** Dumping all three of
-your aces sheds nothing — the next player cannot beat them, takes the pile, and
-now THEY have all three to hand back. One at a time, the pile returns a card
-lighter each time. The exception is a rank that matches the top, which is
-building the run towards the four that sacks.
+**A set goes down as a set.** There was a rule here that put one card down at a
+time once the deck was dead, written against a real deadlock: dumping all three
+of your aces sheds nothing if the next player cannot beat them, takes the pile
+and hands all three back. Measured again, it is not what holds that up — 2000
+games with it gone, heads-up and four-handed at every level, none failed to
+finish, and they came out about a quarter shorter. What actually prevents the
+ace trade is that a bot plays its LOWEST legal card, so it never leads with an
+ace while it holds anything else. What the rule cost was a bot that put one 5
+down, waited, and put the other 5 down next turn, which nobody watching reads as
+caution.
+
+The clamp that stays is the legal one: never more of a number than the pile will
+take, since four in a row sacks it and a fifth is not a legal play.
 
 **There is a deliberate breakout, and it is load-bearing.** Once a bot is not
 being refilled it has a small chance of taking a pile it could have beaten. The
