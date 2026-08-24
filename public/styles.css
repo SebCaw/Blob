@@ -3679,7 +3679,7 @@ button.card-face:active:not(:disabled) {
    cheaper than watching the cards breathe all game. */
 .sh-status { min-height: 3.4em; padding: 2px 0 4px; }
 .sh-play .sh-yours { gap: 6px; }
-.sh-play .hand { min-height: 0; padding: 10px 4px 2px; }
+.sh-play .hand { min-height: 0; padding: 10px 14px 2px; }
 
 /* A hand is as wide as the screen it is on, never as wide as its cards.
 

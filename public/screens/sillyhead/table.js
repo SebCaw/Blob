@@ -122,7 +122,10 @@ function ringGeometry(total) {
   let widthPct = maxPct;
   for (let pass = 0; pass < 4; pass++) {
     widthPct = Math.min(maxPct, 2 * ringX * Math.sin((step / 2) * (Math.PI / 180)) * 0.94);
-    ringX = Math.min(RING_X, 50 - widthPct / 2 - 1);
+    // 3% rather than 1%: a seat parked a hair inside the ring is a card a hair
+    // inside the phone, which is not a margin. This is the ring's half of the
+    // same gutter the fan keeps.
+    ringX = Math.min(RING_X, 50 - widthPct / 2 - 3);
   }
   return { ringX, widthPct, capPx };
 }

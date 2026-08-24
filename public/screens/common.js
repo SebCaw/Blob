@@ -110,13 +110,19 @@ export function fitFan(screen, selector = '.hand') {
  */
 const FAN_MIN_SHOW = 0.34;
 
+/** How much clear space is kept either side of a fan, in the app's pixels. */
+const HAND_GUTTER = 14;
+
 function fitOneFan(hand) {
   const cards = [...hand.querySelectorAll('.hand__card')];
   if (cards.length < 2) return;
 
   hand.style.removeProperty('--fan-overlap');
   const zoom = uiZoom();
-  const available = hand.clientWidth * zoom - 8 * zoom;
+  // A gutter either side, so the outermost card of a fan stops short of the
+  // phone rather than running to the edge of it. Cards flush with the edge of
+  // the glass read as cut off, and on a phone with a curved edge they are.
+  const available = hand.clientWidth * zoom - HAND_GUTTER * 2 * zoom;
   const cardWidth = cards[0].getBoundingClientRect().width;
   const spread = cards[cards.length - 1].getBoundingClientRect().right - cards[0].getBoundingClientRect().left;
   if (spread <= available) return;
@@ -317,7 +323,7 @@ function tooWide(screen) {
     if (count < 2 || !card) continue;
     const width = card.getBoundingClientRect().width;
     if (!width) continue;
-    if (width + (count - 1) * width * FAN_MIN_SHOW > hand.clientWidth) return true;
+    if (width + (count - 1) * width * FAN_MIN_SHOW > hand.clientWidth - HAND_GUTTER * 2) return true;
   }
   return false;
 }
