@@ -36,6 +36,8 @@ const SHELL = [
   '/screens/election.js',
   '/prefs.js',
   '/screens/help-sillyhead.js',
+  '/screens/help-sevens.js',
+  '/screens/help-chase.js',
   '/screens/sillyhead/index.js',
   '/screens/sillyhead/home.js',
   '/screens/sillyhead/lobby.js',

@@ -4485,3 +4485,114 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
     animation: none;
   }
 }
+
+
+/* == Chase the Ace: the middle, the pairs, and a laptop ======================
+ *
+ * The throw-away pile, binning by hand, and a layout that does not leave half a
+ * desktop window empty. On a phone the seats stack and the pile sits under
+ * them; given real width the two sit side by side instead, which is where all
+ * that dead space was going.
+ */
+.ca-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.ca-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 0;
+}
+.ca-middle__label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* The pile itself: the last few, face up, overlapping. Forty binned cards is
+   not something anybody reads, so the count says the rest. */
+.ca-pile { display: flex; align-items: flex-end; }
+.ca-pile__card { margin-left: -22px; }
+.ca-pile__card:first-child { margin-left: 0; }
+.ca-pile__slot {
+  width: 42px;
+  height: 60px;
+  border-radius: 8px;
+  border: 2px dashed var(--night-500);
+}
+
+/* A pair landing in the middle. */
+@keyframes ca-binned {
+  0% { transform: translateY(-14px) scale(1.06); opacity: 0.4; }
+  100% { transform: none; opacity: 1; }
+}
+.ca-pile__card--new { animation: ca-binned 300ms var(--ease-pop) both; }
+.ca-middle--landing .ca-middle__label { color: var(--lime); }
+
+/* Lift a card and its partners say so, before you commit to the second tap. */
+.ca-partner .card-face { border-color: var(--lime); box-shadow: 0 0 0 2px var(--lime-deep); }
+
+.ca-status--pair { color: var(--lime); font-weight: 900; }
+
+/* The nudge, after five seconds of sitting on a pair. Late on purpose: told
+   instantly it would be doing the looking for you, which is the part of this
+   game people actually enjoy. */
+.ca-hint--nudge { color: var(--lime); font-weight: 900; animation: ca-nudge 1.6s ease-in-out infinite; }
+@keyframes ca-nudge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* -- A laptop is not a tall phone -------------------------------------------
+ *
+ * Given width, the seats go two-up and the pile moves alongside them instead of
+ * under. Same content, half the height, and the window is filled rather than
+ * padded out with nothing.
+ */
+/* The dead space on a laptop was VERTICAL, not horizontal.
+ *
+ * Every screen in this app is a 560px column by design, so widening this one
+ * would make it the odd one out. The gap was the body being the only thing that
+ * grows: on a tall window it swallowed the slack and pushed the hand to the
+ * very bottom, leaving several hundred pixels of nothing in the middle. Given
+ * height to spare, the stack simply centres itself instead. */
+@media (min-height: 780px) {
+  .ca-play { justify-content: center; gap: 10px; }
+  .ca-body { flex: 0 1 auto; }
+}
+
+@media (min-width: 700px) {
+  .ca-body { flex-direction: row; align-items: stretch; gap: 12px; }
+  .ca-seats {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    align-content: start;
+  }
+  .ca-middle {
+    flex: 0 0 190px;
+    align-self: center;
+    border-radius: 14px;
+    background: var(--night-800);
+    padding: 14px 10px;
+  }
+  .ca-pile__card { margin-left: -18px; }
+}
+
+
+
+@media (prefers-reduced-motion: reduce) {
+  .ca-pile__card--new,
+  .ca-hint--nudge {
+    animation: none;
+  }
+}

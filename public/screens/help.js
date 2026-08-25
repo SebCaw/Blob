@@ -7,6 +7,8 @@ import {
   ANSWERS as SILLYHEAD_ANSWERS,
   SUGGESTED as SILLYHEAD_SUGGESTED,
 } from './help-sillyhead.js';
+import { STEPS as SEVENS_STEPS, ANSWERS as SEVENS_ANSWERS, SUGGESTED as SEVENS_SUGGESTED } from './help-sevens.js';
+import { STEPS as CHASE_STEPS, ANSWERS as CHASE_ANSWERS, SUGGESTED as CHASE_SUGGESTED } from './help-chase.js';
 
 /**
  * How to play — shown, and asked about.
@@ -226,6 +228,30 @@ const BLOB_SUGGESTED = [0, 1, 2, 4];
  */
 function lessonFor(ctx) {
   const id = (ctx.state && ctx.state.game) || (ctx.ui && ctx.ui.game) || 'blob';
+  if (id === 'sevens') {
+    return {
+      name: 'Sevens',
+      steps: SEVENS_STEPS,
+      answers: SEVENS_ANSWERS,
+      suggested: SEVENS_SUGGESTED,
+      greeting: 'Ask me anything about Sevens. Tap one below if you like.',
+      shrug:
+        'I do not know that one, sorry. Try asking about the sevens, why you cannot play, or whether the ace is ' +
+        'high — or have a look at Show me.',
+    };
+  }
+  if (id === 'chase') {
+    return {
+      name: 'Chase the Ace',
+      steps: CHASE_STEPS,
+      answers: CHASE_ANSWERS,
+      suggested: CHASE_SUGGESTED,
+      greeting: 'Ask me anything about Chase the Ace. Tap one below if you like.',
+      shrug:
+        'I do not know that one, sorry. Try asking about pairs, the shuffle button, or whether people can see you ' +
+        'moving your cards — or have a look at Show me.',
+    };
+  }
   if (id === 'sillyhead') {
     return {
       name: 'Silly Head',

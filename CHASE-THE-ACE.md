@@ -48,11 +48,28 @@ of not being caught holding it.
 
 **Deal the lot.** Every card goes out, hands are uneven, and that is fine.
 
-**Pairs go in the middle.** Two cards of the same rank are a pair, whatever their
-suit or colour. Hold three of a rank and you bin two and keep one; hold four and
-you bin two pairs. This happens **on the deal, automatically** — with rank-only
-pairs there is never a choice about what to discard, so it is not something to
-tap through. Animate it; do not make it a phase.
+**You throw your own pairs away.** Two cards of the same rank are a pair,
+whatever their suit or colour. Hold three of a rank and you bin two and keep one;
+hold four and you bin two pairs. They go face up in a pile in the middle, where
+everybody can see what has gone.
+
+The app used to do this for you on the deal, on the grounds that with rank-only
+pairs there is no decision in it. There is no decision, but there IS an act:
+finding your pairs and throwing them away is most of what playing this game
+feels like, and doing it for people took the first minute of the game off them.
+
+**Binning is compulsory and can never be blocked.** You cannot take a card from
+anybody while you are still holding a pair — the reducer refuses it. That is not
+tidiness: a pair held back is two extra cards, and extra cards is somewhere extra
+for the ace to hide, so left unenforced it would be the strongest play in the
+game and the least interesting. It also means binning must be allowed at ANY
+moment, including while somebody is choosing from your hand. The first version
+locked it along with the arranging, and the very first hand of a game could not
+be cleared, because everybody is holding pairs at once.
+
+**A nudge after five seconds.** Sit on a pair without binning it and the hand
+says so. Late on purpose: told instantly, the app would be doing the looking for
+you, and the looking is the part people enjoy.
 
 **Then it goes round.** The player to your left takes one card from your hand.
 They cannot see it — they pick a POSITION, not a card. If it pairs with something
@@ -123,10 +140,22 @@ were the only option the better tracker would always win. Both, and it is a game
 
 ### The rules that make it fair
 
-**Your fan locks the moment it becomes the drawer's turn.** You arrange in the
-window before that, not during. Without this there is a race between your reorder
-and their tap that the command queue settles arbitrarily, and whichever way it
-lands somebody feels cheated.
+**Your fan locks for ARRANGING the moment it becomes the drawer's turn** — but
+never for binning, see above. You rearrange in the window before that, not
+during. Without the lock there is a race between your reorder and their tap that
+the command queue settles arbitrarily, and whichever way it lands somebody feels
+cheated.
+
+**A draw names the hand it was aimed at.** `draw/take` carries the number of
+slots the screen was looking at, and the reducer refuses if that has changed.
+This is what makes it safe to let people bin while somebody is mid-choice: the
+tap is refused with "their hand just changed, pick again" rather than quietly
+landing on whatever slid into that position.
+
+**The lifted card is remembered by its CARD, not its position.** Three bots move
+about once a second and every one of those states rebuilds the screen; keyed on a
+position, a lift was cancelled by anybody's move and arranging became effectively
+impossible to finish. Seb hit this within a minute of playing.
 
 **A shuffle must be randomised on the SERVER.** `lib/` is pure, so the randomness
 arrives through `ctx` like every other shuffle in this repo. A client-side
