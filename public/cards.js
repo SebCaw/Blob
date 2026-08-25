@@ -116,19 +116,28 @@ export function cardFace(cardId, options = {}) {
   );
 }
 
-/** A card face down — somebody else's, or your own in the forehead round. */
+/**
+ * A card face down — somebody else's, or your own in the forehead round.
+ *
+ * With an `onClick` it becomes a button instead, which Chase the Ace needs: that
+ * whole game is choosing a face-down card out of somebody else's fan, so the
+ * back IS the control. Everywhere else it stays the image it always was.
+ */
 export function cardBack(options = {}) {
-  return h(
-    'div',
-    {
-      className: ['card-face', 'card-face--back', `card-face--${options.size || 'md'}`, options.className || '']
-        .filter(Boolean)
-        .join(' '),
-      'aria-label': options.label || 'a face-down card',
-      role: 'img',
-    },
-    h('span.card-face__lattice', { 'aria-hidden': 'true' })
-  );
+  const className = ['card-face', 'card-face--back', `card-face--${options.size || 'md'}`, options.className || '']
+    .filter(Boolean)
+    .join(' ');
+  const lattice = h('span.card-face__lattice', { 'aria-hidden': 'true' });
+
+  if (options.onClick) {
+    return h(
+      'button',
+      { className, type: 'button', 'aria-label': options.label || 'a face-down card', onClick: options.onClick },
+      lattice
+    );
+  }
+
+  return h('div', { className, 'aria-label': options.label || 'a face-down card', role: 'img' }, lattice);
 }
 
 /** A little pile of card backs: the tricks you have taken. */

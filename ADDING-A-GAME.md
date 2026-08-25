@@ -56,7 +56,7 @@ What each one demands that the platform does not already do:
 - **Solitaire** — **single player, and two variants under one tile: traditional
   (Klondike) and around the clock (Clock Patience).** See the section below; it
   is the odd one out and needs its own treatment.
-- **Chase the Ace** — **rules agreed, see `CHASE-THE-ACE.md`.** Note the name:
+- **Chase the Ace** — **BUILT and on the shelf. See `CHASE-THE-ACE.md`.** Note the name:
   the house calls it this, but it is the game usually published as **Old Maid**,
   with an odd ace rather than an odd queen. This entry previously described
   Ranter-Go-Round — pass or keep, lives lost — which is a different game and would

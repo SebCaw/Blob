@@ -8,7 +8,16 @@ Sevens actually cost", which is the part written from scars — and `CLAUDE.md`
 for the house conventions. **Keep this file current.** It is the only place the
 house rules are written down.
 
-Nothing here is built yet.
+**Built.** Engine, privacy boundary, bots and four screens. Games of every shape
+- one deck and two, four seats and twelve - run end to end through the reducer
+and always finish with exactly one player holding exactly the one ace. Checked
+in a browser at 375x812: lifting a card, moving it, shuffling and drawing from
+the hand on your right all work, the screen fits with no horizontal overflow,
+and 108 payloads audited across a full game contained no card belonging to
+anybody else.
+
+Not yet seen on a real phone, so everything below about how it FEELS is a claim
+about the code rather than about the glass.
 
 ---
 

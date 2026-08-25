@@ -86,6 +86,33 @@ export const GAMES = [
       '<rect x="15.8" y="8" width="4.6" height="8" rx="1.4"/></svg>',
     ready: true,
   },
+  {
+    id: 'chase',
+    name: 'Chase the Ace',
+    tagline: 'Bin your pairs. Do not be left with the ace.',
+    // The house name is on the tile; the published ones go here, so anybody who
+    // already knows the game recognises it. Worth saying plainly, because the
+    // game usually SOLD as Chase the Ace is a different one - see
+    // CHASE-THE-ACE.md.
+    blurb: 'Old Maid, played with an odd ace. Also Pass the Lady or Black Peter.',
+    players: '4 to 12',
+    hue: 345,
+    // The complement of the hue at S100 L62, and its deep at S83 L46 - the rule
+    // the other three were already following without anybody writing it down.
+    accent: '#3dffcf',
+    accentDeep: '#14d7a6',
+    // A card lifted out of a fan, which is the only gesture in the game. Silly
+    // Head's arrow points down into a pile; this one points up out of a hand,
+    // which is the two games in a line each.
+    icon:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M11.8 11.4 V3.2"/>' +
+      '<path d="M9.2 5.8 L11.8 3.2 L14.4 5.8"/>' +
+      '<rect x="2.6" y="13" width="6" height="8.4" rx="1.4"/>' +
+      '<rect x="8.8" y="13" width="6" height="8.4" rx="1.4"/>' +
+      '<rect x="15" y="13" width="6" height="8.4" rx="1.4"/></svg>',
+    ready: true,
+  },
 ];
 
 /** @param {string} id */

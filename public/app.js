@@ -8,6 +8,7 @@ import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { shelfScreen } from './screens/shelf.js';
 import { sillyheadScreen, sillyheadWelcome } from './screens/sillyhead/index.js';
 import { sevensScreen, sevensWelcome, sevensScreenKey } from './screens/sevens/index.js';
+import { chaseScreen, chaseWelcome, chaseScreenKey } from './screens/chase/index.js';
 import { applyGameTheme } from './games.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -196,6 +197,7 @@ const ctx = {
    * bots in it is still a game, so a wobbly connection costs a seat you can add
    * back by hand rather than the whole thing.
    */
+
   /** A Sevens game. Nothing to choose: the whole deck goes out to whoever turned up. */
   async createSevens(name) {
     try {
@@ -216,6 +218,44 @@ const ctx = {
    * rather than dealing straight away, because that is where the difficulty
    * already lives — no new screen, and none wanted.
    */
+  /** A Chase the Ace game. One deck or two, chosen on the way in. */
+  async createChase(name, twoDecks) {
+    try {
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'chase', decks: twoDecks ? 2 : 1 });
+      ui.route = 'game';
+      net.connect();
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /**
+   * Chase the Ace against three bots, in one tap.
+   *
+   * Three is not a shortcut here, it is the minimum: this game needs four round
+   * the table, so a solo game is exactly you and three.
+   */
+  async playChaseSolo() {
+    try {
+      const name = (ui.name || '').trim() || lastName() || 'You';
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'chase' });
+      ui.route = 'game';
+      net.connect();
+      render();
+      for (let i = 0; i < SOLO_BOTS; i += 1) {
+        try {
+          await net.send({ type: 'player/addBot', level: SOLO_LEVEL });
+        } catch {
+          /* the lobby has its own way to add one */
+        }
+      }
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
   async playSevensSolo() {
     try {
       const name = (ui.name || '').trim() || lastName() || 'You';
@@ -466,6 +506,7 @@ net.on('state', (next) => {
   }
   if (next.game === 'sillyhead') return onSillyHeadState(next);
   if (next.game === 'sevens') return onSevensState(next);
+  if (next.game === 'chase') return onChaseState(next);
 
   const roundChanged = next.roundIndex !== lastRoundIndex;
   const phaseChanged = next.phase !== lastPhase;
@@ -548,6 +589,52 @@ net.on('state', (next) => {
  * What it shares is the part that matters — the state lands, the screen is
  * redrawn, and nothing is decided on this phone.
  */
+/**
+ * A Chase the Ace state landing.
+ *
+ * The one thing worth clearing is the lifted card: it is an index into a hand
+ * that may no longer be the same hand. Somebody drawing from you shifts every
+ * position after the one they took, so a selection kept across that would move
+ * the wrong card - and it would do it silently, which is the worst kind.
+ */
+function onChaseState(next) {
+  const phaseChanged = next.phase !== lastPhase;
+  const wasYourTurn = Boolean(state && state.you && state.you.isTurn);
+  const handChanged =
+    state && state.you && next.you && (state.you.hand || []).length !== (next.you.hand || []).length;
+
+  if (phaseChanged || handChanged) ui.chasePick = null;
+  if (phaseChanged) ui.confirmLeave = false;
+
+  if (phaseChanged && next.phase === 'playing') {
+    buzz([14, 70, 14]);
+    sound('deal');
+  }
+  if (next.you && next.you.isTurn && !wasYourTurn) {
+    buzz(12);
+    sound('turn');
+  }
+  // A card changing hands, by anybody. The one sound the table makes while it is
+  // somebody else's go, so you can hear the game moving without watching it.
+  if (state && next.lastEvent && next.lastEvent.kind === 'draw') {
+    const before = state.lastEvent ? state.lastEvent.at : null;
+    if (next.lastEvent.at !== before) sound('card');
+  }
+  if (phaseChanged && next.phase === 'complete') {
+    const lost = next.you && next.loserId === next.you.id;
+    buzz(lost ? 30 : [14, 50, 14]);
+    sound(lost ? 'lose' : 'win');
+  }
+
+  state = next;
+  lastPhase = next.phase;
+  lastRoundIndex = -1;
+  arrived(next);
+  if (next.phase === 'complete') releaseWake();
+  else keepAwake();
+  render();
+}
+
 /**
  * A Sevens state landing.
  *
@@ -687,10 +774,12 @@ function pickScreen() {
     const shared = ui.route === 'join' || ui.route === 'nudge';
     if (ui.game === 'sillyhead' && !shared) return sillyheadWelcome(ctx);
     if (ui.game === 'sevens' && !shared) return sevensWelcome(ctx);
+    if (ui.game === 'chase' && !shared) return chaseWelcome(ctx);
     return welcomeScreen(ctx);
   }
   if (state.game === 'sillyhead') return sillyheadScreen(ctx);
   if (state.game === 'sevens') return sevensScreen(ctx);
+  if (state.game === 'chase') return chaseScreen(ctx);
   // Handing the phone to someone else outranks the phase. Their bid is often
   // the one that locks the round, and without this the phone would jump
   // straight to the revealed bids while they were still holding it - losing
@@ -720,6 +809,7 @@ function screenKey() {
   if (!state || ui.route !== 'game') return `welcome:${ui.game}:${ui.route}`;
   if (state.game === 'sillyhead') return `sillyhead:${state.phase}:${ui.shConfirmReady ? 'ready' : ''}`;
   if (state.game === 'sevens') return sevensScreenKey(state);
+  if (state.game === 'chase') return chaseScreenKey(state, ui);
   if (ui.takeover) return 'takeover';
   return `game:${state.phase}:${ui.correcting ? 'fix' : ''}`;
 }

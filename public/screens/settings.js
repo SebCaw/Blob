@@ -32,6 +32,7 @@ function gameOf(ctx) {
 function soundHint(game) {
   if (game === 'sillyhead') return 'Cards going down, and when the table is waiting on you.';
   if (game === 'sevens') return 'Cards going down, and when it comes round to you.';
+  if (game === 'chase') return 'Cards changing hands, and when it comes round to you.';
   if (game === 'blob') return 'Cards, tricks and your turn. Never during a bid.';
   return 'Cards, and when a game is waiting on you.';
 }

@@ -47,6 +47,11 @@ const SHELL = [
   '/screens/sevens/lobby.js',
   '/screens/sevens/table.js',
   '/screens/sevens/over.js',
+  '/screens/chase/index.js',
+  '/screens/chase/home.js',
+  '/screens/chase/lobby.js',
+  '/screens/chase/table.js',
+  '/screens/chase/over.js',
   '/manifest.webmanifest',
   '/icons/blob.svg',
 ];

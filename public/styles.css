@@ -4337,3 +4337,151 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 @media (prefers-reduced-motion: reduce) {
   .sv-stranded__card { animation: none; }
 }
+
+
+/* == Chase the Ace ==========================================================
+ *
+ * Everybody's hand is on the screen, face down, because a rearrange is public
+ * by design and a public move nobody can watch is not a bluff. The hand on your
+ * right grows when it is your turn, so there is something big enough to pick a
+ * card out of on a phone.
+ */
+.ca-play {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ca-chip {
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--night-700);
+  color: var(--ink-soft);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ca-chip--code { color: var(--lime); letter-spacing: 0.1em; text-transform: none; }
+
+.ca-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+}
+.ca-meta__count { display: flex; align-items: baseline; gap: 5px; color: var(--ink-soft); font-size: 13px; }
+.ca-meta__count strong { color: var(--lime); font-size: 24px; font-weight: 900; }
+
+.ca-status { margin: 0; text-align: center; font-size: 14px; color: var(--ink-soft); }
+.ca-status--you { color: var(--lime); font-weight: 900; }
+.ca-status--locked { color: var(--gold); font-weight: 900; }
+
+/* The other players, a row each. Twelve of them is more than a phone holds, so
+   this is the part that gives — the screen asks for the scrolling hatch once it
+   has measured itself and found it does not fit. */
+.ca-seats { display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-height: 0; }
+
+.ca-seat {
+  border-radius: 12px;
+  padding: 6px 8px;
+  background: var(--night-800);
+  /* Keep a fan's own stacking to itself: the slots inside it must never be able
+     to reach the app's layers and paint over the settings sheet. */
+  isolation: isolate;
+}
+.ca-seat--turn { background: var(--night-700); }
+.ca-seat--out { opacity: 0.5; }
+.ca-seat__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ca-seat__name { font-size: 13px; color: var(--ink-soft); }
+.ca-seat__n { font-size: 14px; font-weight: 900; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.ca-seat__badge { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); }
+
+/* The hand you are drawing from: bigger, lit, and the only one you can touch. */
+.ca-seat--source { background: var(--night-700); box-shadow: inset 0 0 0 2px var(--lime); }
+.ca-seat--source .ca-seat__name { color: var(--lime); }
+
+.ca-fan { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0; padding-top: 4px; }
+.ca-fan .ca-slot + .ca-slot { margin-left: -14px; }
+.ca-fan--live { justify-content: center; padding: 6px 0 2px; }
+.ca-fan--live .ca-slot + .ca-slot { margin-left: -20px; }
+.ca-fan--live .card-face { cursor: pointer; }
+.ca-fan--live .card-face:active { transform: translateY(-6px); }
+.ca-slot { position: relative; }
+
+/* Your own cards. The lift is the raise: tap one and it comes out of the fan,
+   tap where it should go and it moves — in full view of everybody. */
+.ca-yours { display: flex; flex-direction: column; gap: 4px; }
+.ca-hands { display: flex; flex-direction: column; gap: 2px; }
+.ca-yours .hand { display: flex; align-items: flex-end; justify-content: center; }
+.ca-picked .card-face { transform: translateY(-18px); border-color: var(--lime); z-index: 2; }
+.ca-yours--locked { opacity: 0.72; }
+.ca-hint { margin: 0; text-align: center; font-size: 12px; color: var(--ink-faint); }
+
+.ca-tools { display: flex; justify-content: center; padding-top: 2px; }
+.ca-shuffle { min-height: 40px; }
+
+/* -- The moving parts -------------------------------------------------------
+ *
+ * Gated in `screens/chase/table.js` on the event's own identity plus a time
+ * window, never on "this render differs from the last": one action paints three
+ * times, so anything keyed on difference alone replays on each of them.
+ */
+
+/* A card slid to a new slot, which everybody is meant to see. This is the half
+   of the game the shuffle button exists to defeat. */
+@keyframes ca-moved {
+  0% { transform: translateY(-10px); }
+  60% { transform: translateY(2px); }
+  100% { transform: none; }
+}
+.ca-slot--moved, .hand__card.ca-slot--moved { animation: ca-moved 300ms var(--ease-pop) both; }
+
+/* The slot a card was just taken out of. */
+@keyframes ca-taken {
+  0% { opacity: 1; }
+  50% { opacity: 0.25; }
+  100% { opacity: 1; }
+}
+.ca-slot--taken { animation: ca-taken 320ms ease-out both; }
+
+/* A hand being scrambled. Deliberately NOT a card-by-card mapping — a
+   permutation you can follow frame by frame would undo the only thing the
+   shuffle button is for. It reads as a shudder, and where anything ended up is
+   nobody's business. */
+@keyframes ca-shuffle {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px) rotate(-0.6deg); }
+  45% { transform: translateX(4px) rotate(0.6deg); }
+  70% { transform: translateX(-2px); }
+}
+.ca-seat--shuffling .ca-fan, .ca-yours--shuffling .ca-hands { animation: ca-shuffle 380ms ease-in-out both; }
+
+/* A card landing in your hand. Where it landed is the one thing about this move
+   that is nobody's business, so the whole hand acknowledges it and no single
+   card is pointed at. */
+@keyframes ca-gained {
+  0% { transform: translateY(6px); }
+  100% { transform: none; }
+}
+.ca-yours--gained .ca-hands { animation: ca-gained 260ms var(--ease-pop) both; }
+
+/* The end screen: the ace, turned over. */
+.ca-reveal { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 20px 0 24px; }
+.ca-reveal__card { animation: ca-reveal-in 420ms var(--ease-pop) both; }
+@keyframes ca-reveal-in {
+  from { opacity: 0; transform: rotate(-8deg) scale(0.86); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ca-slot--moved,
+  .hand__card.ca-slot--moved,
+  .ca-slot--taken,
+  .ca-seat--shuffling .ca-fan,
+  .ca-yours--shuffling .ca-hands,
+  .ca-yours--gained .ca-hands,
+  .ca-reveal__card {
+    animation: none;
+  }
+}
