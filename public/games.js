@@ -84,7 +84,7 @@ export const GAMES = [
       '<rect x="3.6" y="6" width="4.6" height="12" rx="1.4"/>' +
       '<rect x="9.7" y="3" width="4.6" height="18" rx="1.4"/>' +
       '<rect x="15.8" y="8" width="4.6" height="8" rx="1.4"/></svg>',
-    ready: false,
+    ready: true,
   },
 ];
 

@@ -3,6 +3,7 @@
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
+const { engineById, DEFAULT_ENGINE } = require('../lib/engines');
 
 /**
  * Persistence for Blob.
@@ -120,18 +121,30 @@ class Store {
       if (!name.endsWith('.json')) continue;
       try {
         const record = JSON.parse(await fsp.readFile(path.join(this.historyDir, name), 'utf8'));
+        // Ask the game that wrote the record what its own line should say. Only
+        // it knows its shape, and reaching into a record for fields that belong
+        // to a different game is how Silly Head's finished games disappeared
+        // from this list: `record.rounds.length` threw, the catch below logged
+        // "unreadable history file", and the game was never seen again. A game
+        // with no summariser still lists — it just lists thinly.
+        const engine = engineById(record.game || DEFAULT_ENGINE);
+        const summary = typeof engine.historySummary === 'function' ? engine.historySummary(record) : null;
         records.push({
           id: record.id,
           code: record.code,
+          game: record.game || DEFAULT_ENGINE,
           playedAt: record.playedAt,
           completedAt: record.completedAt,
           startHandSize: record.startHandSize,
           // Games played before online mode existed have no mode recorded, and
           // every one of them was round a table.
           mode: record.mode || 'table',
-          rounds: record.rounds.length,
-          players: record.players.map((p) => ({ id: p.id, name: p.name, total: p.total })),
-          winners: record.winners,
+          rounds: Array.isArray(record.rounds) ? record.rounds.length : 0,
+          players: summary
+            ? summary.players
+            : (record.players || []).map((p) => ({ id: p.id, name: p.name, total: p.total })),
+          winners: summary ? summary.winners : record.winners || [],
+          detail: summary ? summary.detail : null,
         });
       } catch (err) {
         console.warn('[blob] skipping unreadable history file', name, err.message);

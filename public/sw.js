@@ -42,6 +42,11 @@ const SHELL = [
   '/screens/sillyhead/sort.js',
   '/screens/sillyhead/table.js',
   '/screens/sillyhead/over.js',
+  '/screens/sevens/index.js',
+  '/screens/sevens/home.js',
+  '/screens/sevens/lobby.js',
+  '/screens/sevens/table.js',
+  '/screens/sevens/over.js',
   '/manifest.webmanifest',
   '/icons/blob.svg',
 ];

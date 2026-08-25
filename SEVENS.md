@@ -7,7 +7,12 @@ any code existed. Read `ADDING-A-GAME.md` for the platform checklist and
 `CLAUDE.md` for the house conventions. **Keep this file current** — it is the
 only place the house rules are written down.
 
-Nothing here is built yet.
+**Built, not yet looked at.** The engine, the privacy boundary, the bots and all
+four screens exist and a whole game runs end to end through the reducer. What has
+NOT happened is `npm test` and a browser — Seb asked to hold off, so every claim
+below about how it looks on a phone is a claim about the code, not about the
+glass. The first thing anybody picking this up should do is the two browser
+checkpoints in `ADDING-A-GAME.md`.
 
 ---
 

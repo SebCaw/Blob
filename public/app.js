@@ -7,6 +7,7 @@ import { play as sound } from './sound.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { shelfScreen } from './screens/shelf.js';
 import { sillyheadScreen, sillyheadWelcome } from './screens/sillyhead/index.js';
+import { sevensScreen, sevensWelcome, sevensScreenKey } from './screens/sevens/index.js';
 import { applyGameTheme } from './games.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -195,6 +196,46 @@ const ctx = {
    * bots in it is still a game, so a wobbly connection costs a seat you can add
    * back by hand rather than the whole thing.
    */
+  /** A Sevens game. Nothing to choose: the whole deck goes out to whoever turned up. */
+  async createSevens(name) {
+    try {
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'sevens' });
+      ui.route = 'game';
+      net.connect();
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /**
+   * Sevens against three bots, in one tap.
+   *
+   * Three opponents makes four round the table, which is the smallest number
+   * Sevens is worth playing at above its minimum. It lands in the ordinary lobby
+   * rather than dealing straight away, because that is where the difficulty
+   * already lives — no new screen, and none wanted.
+   */
+  async playSevensSolo() {
+    try {
+      const name = (ui.name || '').trim() || lastName() || 'You';
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'sevens' });
+      ui.route = 'game';
+      net.connect();
+      render();
+      for (let i = 0; i < SOLO_BOTS; i += 1) {
+        try {
+          await net.send({ type: 'player/addBot', level: SOLO_LEVEL });
+        } catch {
+          /* the lobby's own "+ Add a bot" is right there */
+        }
+      }
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
   async playSillyHeadSolo() {
     try {
       const name = (ui.name || '').trim() || lastName() || 'You';
@@ -424,6 +465,7 @@ net.on('state', (next) => {
     applyGameTheme(next.game);
   }
   if (next.game === 'sillyhead') return onSillyHeadState(next);
+  if (next.game === 'sevens') return onSevensState(next);
 
   const roundChanged = next.roundIndex !== lastRoundIndex;
   const phaseChanged = next.phase !== lastPhase;
@@ -506,6 +548,52 @@ net.on('state', (next) => {
  * What it shares is the part that matters — the state lands, the screen is
  * redrawn, and nothing is decided on this phone.
  */
+/**
+ * A Sevens state landing.
+ *
+ * The same job as Silly Head's: clear anything this phone was holding that
+ * belongs to the phase just left, make a noise at the two or three moments the
+ * game is actually waiting on you, and then hand over to `render()`. Nothing is
+ * decided here.
+ *
+ * Sevens has almost nothing to clear, because it has almost no local UI state —
+ * you tap a card and it goes, so there is no selection to strand.
+ */
+function onSevensState(next) {
+  const phaseChanged = next.phase !== lastPhase;
+  const wasYourTurn = Boolean(state && state.you && state.you.isTurn);
+
+  if (phaseChanged) ui.confirmLeave = false;
+
+  if (phaseChanged && next.phase === 'playing') {
+    buzz([14, 70, 14]);
+    sound('deal');
+  }
+  if (next.you && next.you.isTurn && !wasYourTurn) {
+    buzz(12);
+    sound('turn');
+  }
+  // A card going down, played by anybody. The one sound the table makes while it
+  // is somebody else's go, so you can tell the game is moving without watching.
+  if (state && next.lastEvent && next.lastEvent.kind === 'play') {
+    const before = state.lastEvent ? state.lastEvent.at : null;
+    if (next.lastEvent.at !== before) sound('card');
+  }
+  if (phaseChanged && next.phase === 'complete') {
+    const won = next.finished && next.finished.length && next.you && next.finished[0].id === next.you.id;
+    buzz(won ? [14, 50, 14] : 30);
+    sound(won ? 'win' : 'lose');
+  }
+
+  state = next;
+  lastPhase = next.phase;
+  lastRoundIndex = -1;
+  arrived(next);
+  if (next.phase === 'complete') releaseWake();
+  else keepAwake();
+  render();
+}
+
 function onSillyHeadState(next) {
   const phaseChanged = next.phase !== lastPhase;
   const wasYourTurn = Boolean(state && state.you && state.you.isTurn);
@@ -598,9 +686,11 @@ function pickScreen() {
     // front page wearing Silly Head's green, with no Silly Head anywhere on it.
     const shared = ui.route === 'join' || ui.route === 'nudge';
     if (ui.game === 'sillyhead' && !shared) return sillyheadWelcome(ctx);
+    if (ui.game === 'sevens' && !shared) return sevensWelcome(ctx);
     return welcomeScreen(ctx);
   }
   if (state.game === 'sillyhead') return sillyheadScreen(ctx);
+  if (state.game === 'sevens') return sevensScreen(ctx);
   // Handing the phone to someone else outranks the phase. Their bid is often
   // the one that locks the round, and without this the phone would jump
   // straight to the revealed bids while they were still holding it - losing
@@ -629,6 +719,7 @@ function screenKey() {
   if (!state && ui.route === 'shelf') return 'shelf';
   if (!state || ui.route !== 'game') return `welcome:${ui.game}:${ui.route}`;
   if (state.game === 'sillyhead') return `sillyhead:${state.phase}:${ui.shConfirmReady ? 'ready' : ''}`;
+  if (state.game === 'sevens') return sevensScreenKey(state);
   if (ui.takeover) return 'takeover';
   return `game:${state.phase}:${ui.correcting ? 'fix' : ''}`;
 }

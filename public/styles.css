@@ -3974,3 +3974,212 @@ body.sh-flying .sh-discard__top { visibility: hidden; }
 
 .sh-loser__who { flex: 1; min-width: 0; }
 .sh-loser__label { color: #dda75f; }
+
+/* ── Sevens ─────────────────────────────────────────────────────────────────
+ *
+ * Four suits stood on end, every seven on one line. The metrics are three
+ * numbers and everything else falls out of them: how wide a card is, how tall,
+ * and how far apart two cards in a column sit. A column is always the full
+ * thirteen deep whatever is actually down, so the sevens stay on their line and
+ * a column does not jump when a card lands at one end.
+ */
+.sv-play {
+  --sv-card-w: 62px;
+  --sv-card-h: 88px;
+  --sv-step: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The suit pips: which suits are open, read before you look at the table. */
+.sv-pips { display: flex; justify-content: center; gap: 6px; }
+.sv-pip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--night-700);
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1;
+  transition: background 220ms var(--ease-pop), color 220ms var(--ease-pop);
+}
+.sv-pip--on { background: var(--lime); color: var(--ink-dark); }
+.sv-pip--on.sv-pip--red { background: var(--lime); }
+.sv-pip--done { box-shadow: inset 0 0 0 2px var(--night-900); }
+
+.sv-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+}
+.sv-meta__count { display: flex; align-items: baseline; gap: 5px; color: var(--ink-soft); font-size: 13px; }
+.sv-meta__count strong { color: var(--lime); font-size: 24px; font-weight: 900; }
+
+.sv-chip {
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--night-700);
+  color: var(--ink-soft);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.sv-chip--code { color: var(--lime); letter-spacing: 0.1em; text-transform: none; }
+
+.sv-status { margin: 0; text-align: center; font-size: 14px; color: var(--ink-soft); }
+.sv-status--you { color: var(--lime); font-weight: 900; }
+.sv-status--stuck { color: var(--ink-faint); }
+
+/* The felt takes the slack: leftover height becomes space round the cards
+   rather than a hole above the hand. */
+.sv-felt {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  border-radius: 16px;
+  background: var(--night-800);
+}
+.sv-cols { display: flex; justify-content: space-around; align-items: flex-start; width: 100%; }
+
+.sv-col {
+  position: relative;
+  width: var(--sv-card-w);
+  height: calc(12 * var(--sv-step) + var(--sv-card-h));
+}
+.sv-slot { position: absolute; left: 0; width: var(--sv-card-w); }
+
+/* The unopened suit: its seven, greyed in. Teaches the rule without a screen. */
+.sv-slot--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: var(--sv-card-h);
+  border: 2px dashed var(--night-500);
+  border-radius: 9px;
+  color: var(--ink-faint);
+}
+.sv-slot__rank { font-size: 20px; font-weight: 900; line-height: 1; }
+.sv-slot__suit { font-size: 15px; line-height: 1; }
+
+.sv-hand {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: calc(var(--sv-card-h) * 0.92);
+}
+.sv-hand--empty { min-height: 0; }
+
+.sv-actions { min-height: 56px; }
+.sv-actions--quiet { min-height: 0; }
+
+/* Card counts along the bottom. No seat ring: there is no trick to win and
+   nothing for a seat to hold, so the only thing worth knowing about the others
+   is how close they are to going out. */
+.sv-counts { display: flex; justify-content: space-around; gap: 4px; padding-top: 4px; }
+.sv-count {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+.sv-count--you { color: var(--lime); }
+.sv-count--turn { background: var(--night-700); color: var(--ink-soft); }
+.sv-count--out { opacity: 0.55; }
+.sv-count__n { font-weight: 900; }
+.sv-count__flag {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ── Sevens: the moving parts ───────────────────────────────────────────────
+ *
+ * Every one of these is gated in `screens/sevens/table.js` on the event's own
+ * identity plus a time window, never on "this render differs from the last".
+ * One action paints three times — the tap, the state landing, the request
+ * settling — so anything keyed on difference alone replays on each of them.
+ */
+
+/* The card has arrived. A short settle, so the eye lands where the card did. */
+@keyframes sv-land {
+  0% { transform: scale(1.06); }
+  60% { transform: scale(0.985); }
+  100% { transform: scale(1); }
+}
+.sv-slot--landed { animation: sv-land 200ms var(--ease-pop) both; }
+
+/* A suit going all the way out. Small and once: four of these happen a game. */
+@keyframes sv-complete {
+  0% { box-shadow: 0 0 0 0 var(--lime); }
+  40% { box-shadow: 0 0 0 4px var(--lime); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.sv-col--completing .sv-slot { border-radius: 9px; }
+.sv-col--completing { animation: sv-complete 620ms ease-out both; border-radius: 12px; }
+.sv-col--done { opacity: 0.92; }
+
+/* Somebody had nothing. Without this a passed turn looks like nothing happened,
+   which is exactly what it is and exactly why it needs saying. */
+@keyframes sv-pass {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  25% { opacity: 1; transform: translate(-50%, 0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.sv-count--passing .sv-count__flag { animation: sv-pass 900ms ease-out both; }
+
+/* Somebody laid their last card down. */
+@keyframes sv-wentout {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.sv-count--wentout { animation: sv-wentout 420ms var(--ease-pop) both; color: var(--lime); }
+
+/* The finishing order, a row at a time, so it reads as an order rather than as
+   a block of text that was already there. */
+@keyframes sv-row-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.sh-order__row, .sh-loser { animation: sv-row-in 260ms var(--ease-pop) both; animation-delay: calc(var(--i, 0) * 70ms); }
+.sh-order__note { margin-left: auto; font-size: 12px; color: var(--ink-faint); }
+
+/* Bigger text means a taller column, and the column is the tallest thing on the
+   screen. Tighten the step rather than shrinking the cards: the rank in the
+   corner is what has to stay readable, and it is the corner that overlaps. */
+html[data-size] .sv-play { --sv-step: 16px; }
+
+@media (max-height: 720px) {
+  .sv-play { --sv-step: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-slot--landed,
+  .sv-col--completing,
+  .sv-count--wentout,
+  .sv-count--passing .sv-count__flag,
+  .sh-order__row,
+  .sh-loser {
+    animation: none;
+  }
+}
