@@ -1,6 +1,6 @@
 import { h } from '../../ui.js';
 import { cardFace, suitGlyph, suitName, isRed } from '../../cards.js';
-import { topbar, action, fitFan } from '../common.js';
+import { topbar, action, fitFan, splitHand } from '../common.js';
 
 /**
  * The Sevens table.
@@ -31,6 +31,16 @@ const LAND_MS = 620;
 const FLY_MS = 380;
 
 /**
+ * The most cards that may share a row of the fan.
+ *
+ * Nine rather than `splitHand`'s default eleven, because a Sevens hand is fanned
+ * AND rotated: a tilted card's box is wider than the card, so a row that just
+ * fits flat overhangs once it is turned. Nine keeps two rows for the eighteen a
+ * three-player game deals, and one row for anything four players or more get.
+ */
+const ROW_MAX = 9;
+
+/**
  * The event we have already animated, and when this phone first saw it.
  *
  * Module scope, and gated on a time window rather than on "this render differs
@@ -58,7 +68,13 @@ export function tableScreen(ctx) {
   const event = freshEvent(state.lastEvent);
 
   const screen = h(
-    'div.screen.screen--fixed.screen--fits.sv-play',
+    // `--fixed` so the table does not wander under your thumb, but deliberately
+    // NOT `--fits`: Sevens has a Pass button that must be pressable, and the
+    // rule in styles.css is that a screen with a control to reach takes the
+    // escape hatch while a surface you only look at shrinks instead. Two rows of
+    // fan plus a column thirteen deep is more than the largest text size leaves
+    // room for, and an unreachable Pass is worse than a screen that moves.
+    'div.screen.screen--fixed.sv-play',
     topbar(state, { left: codeChip(state), ctx }),
     suitPips(state),
     metaRow(state),
@@ -262,23 +278,35 @@ function hand(ctx) {
   const state = ctx.state;
   const you = state.you || {};
   const cards = you.hand || [];
-  if (!cards.length) return h('div.sv-hand.sv-hand--empty');
+  if (!cards.length) return h('div.sv-hands.sv-hands--empty');
 
   const playable = new Set(you.playable || []);
-  const middle = (cards.length - 1) / 2;
+
+  // Sevens deals the biggest hands in this app by a distance: three players is
+  // eighteen cards each and four is thirteen, against Blob's thirteen at most
+  // and Silly Head's nine. Eighteen cannot be fanned into one row on a phone at
+  // any spacing that still shows the corner you read a card by — so it goes into
+  // rows, evenly, and each one is fanned to fit on its own.
+  const rows = splitHand(cards, ROW_MAX);
 
   return h(
-    'div.hand.hand--fanned.sv-hand',
-    cards.map((card, i) => {
-      const legal = playable.has(card);
+    'div.sv-hands',
+    rows.map((row) => {
+      const middle = (row.length - 1) / 2;
       return h(
-        'div.hand__card',
-        { style: { '--fan-i': String(i - middle) } },
-        cardFace(card, {
-          size: 'md',
-          corner: true,
-          state: legal ? 'playable' : 'blocked',
-          onClick: legal ? () => ctx.send({ type: 'play/card', cardId: card }) : undefined,
+        'div.hand.hand--fanned.sv-hand',
+        row.map((card, i) => {
+          const legal = playable.has(card);
+          return h(
+            'div.hand__card',
+            { style: { '--fan-i': String(i - middle) } },
+            cardFace(card, {
+              size: 'md',
+              corner: true,
+              state: legal ? 'playable' : 'blocked',
+              onClick: legal ? () => ctx.send({ type: 'play/card', cardId: card }) : undefined,
+            })
+          );
         })
       );
     })
