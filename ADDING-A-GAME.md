@@ -567,8 +567,25 @@ new `historySummary(record)`, so a game that cannot be read thinly still lists
 rather than vanishing. **That is the first thing added to the engine contract by
 a game other than Blob**, and the shape to copy: only the game knows its record.
 
-**2. No cross-engine privacy test.** See Privacy above. This is the one to fix
-first.
+**2. ~~No cross-engine privacy test.~~ FIXED — `test/privacy.test.js`.** It walks
+`ENGINES` rather than naming a game, plays a hand of each with every seat driven
+by that game's own bots, and audits every payload at every state along the way.
+
+Two things about it matter more than the check itself:
+
+- **A game with no fixture FAILS**, by name, with a message saying what to add.
+  Verified by registering a pretend fifth game and watching it go red. That is
+  the whole design: it turns "somebody has to remember" into "you cannot forget".
+- **There is a negative control.** One test deliberately plants another player's
+  hand in a payload and asserts the audit catches it. A test that can never fail
+  is worse than no test, and this one proves it can.
+
+Each game declares `hiddenFrom(state, viewerId)` — the cards THIS viewer must not
+be told about. Both directions, because Blob's forehead round inverts it: there
+the one card you may not see is your own. It found a real mistake on its first
+run, in the fixture rather than the code — Silly Head's `publicHand` is a
+legitimate exception, since the room watched those cards get picked up, and
+writing the rule down was what forced the distinction into the open.
 
 **3. `engineById` returns `BLOB` for an unknown id** (`lib/engines.js:223`)
 instead of refusing, so a typo in a game id silently plays Blob.
