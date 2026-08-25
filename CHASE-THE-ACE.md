@@ -69,7 +69,7 @@ rather than Blob's leaderboard.
 
 | | Cards | Aces removed | Players |
 |---|---|---|---|
-| **One deck** | 49 | 3 of 4 | 3 to 8 |
+| **One deck** | 49 | 3 of 4 | 4 to 8 |
 | **Two decks** | 97 | 7 of 8 | 4 to 12 |
 
 Both leave exactly one ace, which is the only thing that matters: 49 is 24 pairs
@@ -80,10 +80,11 @@ A Master's choice in the lobby, the same shape as Silly Head's standard-or-quick
 card came from — `10H#2`, stripped in `public/cards.js:parseCard` — so the
 two-deck version needs no new id format.
 
-**Open: the minimum for the one-deck version.** Seb specified four for two decks
-and did not say for one. Three is written above because two-player Old Maid is
-nearly deterministic once the hands are small — you can work out most of what the
-other person holds — but this needs confirming.
+**Four players minimum, both variants.** One rule rather than two, which is
+worth more than the three-player game it costs — a minimum you have to look up is
+a minimum somebody will get wrong. It also keeps the app well clear of two-player
+Old Maid, which goes nearly deterministic once the hands are small because you
+can work out most of what the other person is holding.
 
 ---
 
@@ -182,19 +183,25 @@ hand* — and here that is a genuinely strong strategy rather than a consolation
 
 ---
 
-## What still needs deciding
+## Settled, and why
 
-- The one-deck minimum: three players, or two.
-- Whether a bot's shuffle should be visible as a shuffle in the same way a
-  player's is. It should, or watching a bot tells you less than watching a
-  person, which reads as the bot cheating even when it is not.
-- Whether to show a small marker on the slot a card was just added to. It is
-  public information either way — the question is whether making it easy is
-  making it too easy.
-- Whether the arranging window needs a visible countdown, or whether "locks when
-  they start drawing" is enough on its own.
+**No marker on the slot a card was just put into.** The move is visible while it
+happens, so paying attention is rewarded and looking away costs you. A marker
+afterwards does the remembering on your behalf, and once tracking is free there
+is no reason to ever arrange rather than shuffle — which would take out half the
+game. Watch it yourself.
 
----
+**No countdown on the arranging window.** The fan simply locks when the drawer
+starts. A locked fan is its own signal, and a timer would turn a game played half
+watching the telly into one that hurries you. Nothing here should ever make
+somebody feel late.
+
+**A bot shuffles exactly the way a person does** — same animation, same cue, no
+label. A bot that shuffled invisibly would tell you less than a human opponent
+does, and a bot that appears to hide something reads as a bot that cheats, even
+when it does not. The same reasoning as the bots elsewhere in this app: the
+honest thing and the thing that FEELS honest have to match, or "impossible" stops
+meaning *thinks well*.
 
 ## Before the code
 
