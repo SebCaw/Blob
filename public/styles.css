@@ -4086,6 +4086,43 @@ body.sh-flying .sh-discard__top { visibility: hidden; }
    three players, which no single row on a phone can hold at a spacing that
    still shows the corner you read a card by. */
 .sv-hands { display: flex; flex-direction: column; gap: 2px; }
+
+/* You press the card, not the box it was laid out in.
+ *
+ * A fanned card is ROTATED, so it no longer sits where its wrapper does — but
+ * the wrapper keeps its original box, and a wrapper later in the row paints
+ * above the ones before it. The result is that the visible top-left corner of a
+ * card, which is the only part of it you can see and so the only place anybody
+ * would aim, is covered by the next card's empty wrapper. The press lands on a
+ * div with no handler and nothing happens.
+ *
+ * Making the wrappers transparent to the pointer puts hit-testing back on the
+ * cards themselves, which follow their own transforms. Sevens only: Blob and
+ * Silly Head do not rotate, so their wrappers and cards coincide and there is
+ * nothing to fix. */
+.sv-hands .hand__card { pointer-events: none; }
+.sv-hands .hand__card .card-face { pointer-events: auto; }
+
+/* A card you cannot play yet.
+ *
+ * A whisper, not the full `--blocked` dim: in Sevens most of your hand is
+ * unplayable on most turns, so shading it properly leaves you unable to read
+ * your own cards. This is just enough that the lifted ones read as the live
+ * ones, while every rank stays legible. */
+.sv-hands .card-face--idle { filter: saturate(0.86) brightness(0.94); }
+
+/* The press landed, the card cannot go down. Said out loud by the toast; this
+   is the half-second that confirms the tap registered at all. */
+@keyframes sv-refuse {
+  0%, 100% { margin-left: 0; }
+  25% { margin-left: -5px; }
+  75% { margin-left: 5px; }
+}
+.sv-hands .card-face--refused { animation: sv-refuse 220ms ease-in-out 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-hands .card-face--refused { animation: none; }
+}
 .sv-hands--empty { min-height: 0; }
 .sv-hand {
   display: flex;

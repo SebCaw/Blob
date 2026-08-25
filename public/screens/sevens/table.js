@@ -314,17 +314,57 @@ function hand(ctx) {
               // because most of your hand usually is playable. Sevens is the
               // other way round: two or three legal cards out of fifteen is an
               // ordinary turn, so dimming the remainder greys out almost your
-              // whole hand and you can no longer read your own cards. The lift
-              // and the accent border carry the distinction on their own — they
-              // mark the few, instead of shading the many.
+              // whole hand and you can no longer read your own cards.
               state: legal ? 'playable' : null,
-              onClick: legal ? () => ctx.send({ type: 'play/card', cardId: card }) : undefined,
+              className: legal ? '' : 'card-face--idle',
+              // Every card answers, even the ones that cannot be played.
+              //
+              // Seb pressed cards and nothing happened, and read it as the
+              // corner not being tappable — it is tappable, and was all along.
+              // The real fault was silence: an inert card that looks exactly
+              // like a live one and gives nothing back when you press it. So an
+              // unplayable card says what its suit is actually waiting for,
+              // which answers the press and teaches the rule in the same breath.
+              onClick: legal
+                ? () => ctx.send({ type: 'play/card', cardId: card })
+                : () => refuse(ctx, card),
             })
           );
         })
       );
     })
   );
+}
+
+/**
+ * Why that card will not go down.
+ *
+ * Read off the ends the server already sends, so this is explaining rather than
+ * deciding — the reducer remains the only thing that says what is legal, and it
+ * would refuse this card anyway if the screen were wrong about it.
+ */
+function refuse(ctx, card) {
+  const suit = card.slice(-1);
+  const entry = (ctx.state.suits || []).find((s) => s.suit === suit);
+  const where = suitName(suit);
+  let why;
+  if (!entry || !entry.open) why = `Nobody has played the seven of ${where} yet.`;
+  else if (!entry.ends.length) why = `${cap(where)} is finished.`;
+  else why = `${cap(where)} will take the ${entry.ends.map((v) => RANKS[v - 1]).join(' or the ')}.`;
+  ctx.toast(why);
+
+  // A nudge as well as a sentence: the toast explains, the movement confirms
+  // that the press landed at all, which is the thing that was missing.
+  const el = document.querySelector(`.sv-hand [data-card="${card}"]`);
+  if (el && !reducedMotion()) {
+    el.classList.remove('card-face--refused');
+    void el.offsetWidth;
+    el.classList.add('card-face--refused');
+  }
+}
+
+function cap(word) {
+  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 /**
