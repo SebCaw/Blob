@@ -711,5 +711,21 @@ everything else was contrast-checked against, and a derived value that reads
 worse on a dim phone is not an improvement. If the derivation cannot match them,
 that is a finding worth writing here rather than quietly keeping the literals.
 
-Still open: the exact derivation, and the five remaining hues. Assign those in one
-pass, not one game at a time — see The hue budget.
+**The derivation, found by measuring the three that exist rather than invented:**
+every accent in this app is exactly `S100 L62` and every deep is `S83 L46`. On
+hue, Sevens' accent is the EXACT complement of its ground, Blob's is eight
+degrees off, and Silly Head is the only real outlier at seventy-eight — amber on
+green, where the true complement is pink and would have been loud. So the rule is
+**accent = complement of the hue at S100 L62; deep = the same hue at S83 L46**,
+departed from only when the complement is genuinely unpleasant.
+
+Two of the three games already obey a rule nobody had written down, which is why
+this reads as recording a convention rather than imposing one. It also means new
+games can follow it without repainting Blob and Silly Head — worth avoiding,
+since those accents are what every other colour in the app was contrast-checked
+against.
+
+**The hues, placed as a set** so the last ones do not get whatever is left:
+Blob 265, Silly Head 148, Sevens 205, Chase the Ace 345, Go Fish 176 (a sea
+game), Cheat 305, Solitaire 20. The three cool ones at 148/176/205 are the
+tightest cluster and the pair most likely to need separating once seen.

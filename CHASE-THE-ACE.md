@@ -218,6 +218,27 @@ meaning *thinks well*.
 - **Termination is guaranteed** — every draw either moves a card or removes a
   pair, and the deck only shrinks — but a guard on the loop is still worth
   having, the way `advanceAutoPlays` has one.
-- **Hue: not yet chosen.** See the hue budget in `ADDING-A-GAME.md`; Blob has
-  265, Silly Head 148, Sevens 205. Pick from the usable arc, and pick the
-  remaining ones in a single pass rather than one game at a time.
+- **Hue: 345, a deep wine.** Ground comes out `#26080f` — properly red, near
+  black, nothing like Blob's violet. It sits eighty degrees from the nearest
+  taken hue in a completely unused stretch of the wheel, which matters because
+  the remaining games have to share what is left. See the hue budget in
+  `ADDING-A-GAME.md`; taken so far are Blob 265, Silly Head 148, Sevens 205.
+
+  Provisional for the rest, so they are placed as a set rather than one at a
+  time: **Go Fish 176** (a teal, and it is a sea game), **Cheat 305** (plum),
+  **Solitaire 20** (crimson).
+
+- **Accent: `#3dffcf` and `#14d7a6`,** a mint, which is the complement of 345.
+
+  This follows a rule that turned out to already exist and had never been
+  written down. Every accent in the app is exactly `S100 L62` and every deep is
+  `S83 L46` — and on hue, Sevens' accent is the exact complement of its ground,
+  Blob's is eight degrees off, and only Silly Head is a genuine outlier at
+  seventy-eight (amber on green, presumably because the true complement is pink
+  and pink on green would have been loud). So: **accent = the complement of the
+  hue at S100 L62, deep = the same hue at S83 L46**, and depart from it only when
+  the complement is actually unpleasant, as Silly Head did.
+
+  Unverified on a screen. Mint on near-black wine should be high contrast, but it
+  is the pairing most likely to read as festive rather than striking, and that is
+  a thing you can only find out by looking.
