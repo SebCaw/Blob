@@ -1,8 +1,9 @@
 # Adding a game
 
-The checklist for putting a new game on this app. Written after four reviews of
-what adding Silly Head as game two actually cost, so game three does not pay it
-again.
+The checklist for putting a new game on this app. Written from four reviews of
+what adding Silly Head as game two cost, then corrected against what adding
+Sevens as game three actually cost — see "What building Sevens actually cost",
+which is the part written from scars rather than from reading.
 
 Read `CLAUDE.md` for the house conventions first. This file is the ordered work,
 the traps, and the decisions that are still open.
@@ -37,10 +38,12 @@ generalising afterwards.
 
 What each one demands that the platform does not already do:
 
-- **Sevens** (Fan Tan, Domino) — the cheapest. Lay outward from the sevens, pass
-  if you cannot play. No hidden state beyond hands, no scoring, shape closest to
-  Silly Head. Best first game to build, because it exercises the whole path
-  without the reducer being the hard part.
+- **Sevens** (Fan Tan, Domino) — **BUILT and on the shelf.** Rules and screen
+  design in `SEVENS.md`. It was the right one to go first: no hidden state beyond
+  hands, so it exercised the whole path — room, join, turn order, SSE, reconnect —
+  while putting the lightest possible load on the privacy boundary. The reducer
+  took an afternoon; every real problem was on the glass, which is the ratio to
+  expect. Still has **no tests of its own**.
 - **Cheat** (Bullshit, I Doubt It) — the hardest test of invariant 2 in the repo.
   A claim is public and the card is not, so the reducer must know the truth while
   every view withholds it, and a challenge reveals it retrospectively. If the
@@ -549,13 +552,14 @@ behind one.
 
 ## Verified bugs a third game inherits
 
-**1. Silly Head games are silently missing from history, right now.**
-`server/store.js:132` reads `record.rounds.length` unguarded. Silly Head's
-`historyRecord` (`lib/sillyhead/view.js:195-215`) has no `rounds`, no `winners`
-and no `p.total`. It throws, the `catch` at `:136` logs "skipping unreadable
-history file", and the game never appears in the list. Any third game with its
-own record shape gets the same treatment. Fix: `historySummary(record)` on the
-engine.
+**1. ~~Silly Head games are silently missing from history.~~ FIXED while
+building Sevens (`954275c`).** `server/store.js` read `record.rounds.length` and
+`players[].total` off every record — Blob's shape. It threw on a Silly Head
+record, the `catch` logged "unreadable history file", and the game never
+appeared in the list. The store now asks the engine for its own line through a
+new `historySummary(record)`, so a game that cannot be read thinly still lists
+rather than vanishing. **That is the first thing added to the engine contract by
+a game other than Blob**, and the shape to copy: only the game knows its record.
 
 **2. No cross-engine privacy test.** See Privacy above. This is the one to fix
 first.
@@ -570,6 +574,90 @@ There is no build step, so the practical fix is a test asserting every file unde
 fails the suite instead of silently shipping an uncacheable module.
 
 ---
+
+## What building Sevens actually cost
+
+Written after the fact, from the things that bit. Everything above was theory
+until a third game went in; this is the part that was wrong or missing.
+
+**The prediction in "How far to generalise" came true, and I did the thing it
+warned against.** Sevens went in as a third set of `if`s — four more in
+`public/app.js` (state arrival, welcome, screen, screen key), one in
+`settings.js`, five hand-written lines in `sw.js`. The branch count went UP. It
+works and it shipped, but game four now pays for it as well, and the honest
+label for that is debt rather than a decision. Generalising the four `app.js`
+branches is still the highest-value change available and it is still not done.
+
+**Work out the biggest hand your game can deal, before you draw one.** Sevens
+deals the whole deck, so three players is eighteen cards each. Blob tops out
+around thirteen and Silly Head at nine, so nothing in the shared code had ever
+had to cope, and the fan was written as a single row. Eighteen cards cannot be
+fanned into one row on a phone at any spacing that still shows the corner you
+read a card by. `splitHand` (`common.js:155`) exists for exactly this and was
+sitting there unused. Use nine to a row rather than its default eleven if the
+fan is also rotated — a tilted card's box is wider than the card.
+
+**A game's stacking order must not be able to reach the app's.** Column slots
+were numbered around 40, which is `.sheet` — so opening settings mid-game left
+three columns of cards painted on top of the panel. Give any game-local
+stacking its own context with `isolation: isolate` and keep the numbers small.
+`position: relative` alone does NOT create one, which is the part that is easy
+to assume.
+
+**Do not carry over a UI convention without checking the numbers behind it.**
+Blob and Silly Head dim what you cannot play, and it reads well there because
+most of a hand usually is playable. In Sevens two or three legal cards out of
+fifteen is an ordinary turn, so the same rule greyed out almost the whole hand
+and made it unreadable. The general form: a convention is a judgement about a
+distribution, and a new game changes the distribution.
+
+**Every control must answer, including the ones that do nothing.** Removing that
+dim took away the only signal separating a live card from an inert one, so
+eleven identical-looking cards gave nothing back when pressed. It was reported —
+reasonably — as a broken hitbox, and cost a wrong diagnosis and a browser
+session to disprove. An inert control that looks live is a bug report waiting to
+happen. Say why: an unplayable card now names what its suit is waiting for.
+
+**Gate on measurement, not on which setting somebody picked.** Blob's scrolling
+hatch keyed on `html[data-size]`, i.e. on a guess that a bigger text size is the
+only way a screen overruns. At the default size a long forehead round clipped
+its own top with no way to reach it. Measure after paint and set `screen--spill`
+from what you find. And never put a second scroller inside a screen that does
+not scroll — the half in the scroller moves, the half outside it freezes.
+
+**Pick `--fixed` against `--fits` by asking whether there is a control to
+reach.** Sevens has a Pass button and I gave it `--fits` anyway, which would
+have made that button unreachable at the largest text size. The rule is already
+written in `styles.css`; read it rather than copying whichever screen you had
+open.
+
+**A cap sized for a phone breaks a desktop.** Capping the one element that grows
+stopped the hand being pushed off a small screen and left the whole table in the
+top half of a large window. Put the cap behind the media query it was written
+for.
+
+**Anything that flies should live outside the zoomed subtree.** The flying card
+is `position: fixed` on `document.body` on purpose: coordinates and size are
+then both plain screen pixels and there is no `uiZoom()` to divide back out.
+Staying in one coordinate space is cheaper than converting between two.
+
+**Check whether your game needs its own rank order.** `lib/deck.js` puts the ace
+high, because that is what a trick and a pile need. Sevens builds down to the
+ace, so it keeps its own. Borrowing the shared one would have made the upward
+run thirteen long and the downward run five, and nothing would have complained.
+
+**Verifying in a browser, two traps.** `requestAnimationFrame` does not fire in
+a hidden tab, so no fitter has run and any overflow you measure is a phantom —
+call the fit pass by hand first, then measure. And `getBoundingClientRect` on a
+rotated card returns its axis-aligned box, so probe the thing you actually mean:
+for "can I press the rank", take the rank element's own rect.
+
+**Never start the dev server on the default port or data directory.** `CLAUDE.md`
+says this and I did it anyway: it collided with `npm test` (a clean suite
+reported a failure) and swept `data/live/`. Use `BLOB_PORT=4200
+BLOB_DATA_DIR=/tmp/blob-scratch`. Note `.claude/launch.json` points at the
+defaults, so `preview_start` by name walks straight into it — open a browser at
+the scratch URL instead.
 
 ## Open decisions
 
