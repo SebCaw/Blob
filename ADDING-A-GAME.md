@@ -56,10 +56,16 @@ What each one demands that the platform does not already do:
 - **Solitaire** — **single player, and two variants under one tile: traditional
   (Klondike) and around the clock (Clock Patience).** See the section below; it
   is the odd one out and needs its own treatment.
-- **Chase the Ace** (Ranter-Go-Round, Cuckoo) — pass or keep around the table,
-  lives lost, players eliminated. Simple reducer, but elimination mid-game is
-  something neither existing engine does; check it against the Master election and
-  the grace windows rather than assuming.
+- **Chase the Ace** — **rules agreed, see `CHASE-THE-ACE.md`.** Note the name:
+  the house calls it this, but it is the game usually published as **Old Maid**,
+  with an odd ace rather than an odd queen. This entry previously described
+  Ranter-Go-Round — pass or keep, lives lost — which is a different game and would
+  have been built by mistake. Two things it needs that nothing here has yet: hand
+  ORDER as authoritative server state rather than presentation, because
+  rearranging your fan is the game; and a command that acts on somebody else's
+  hand, which every existing command avoids. Elimination mid-game is also new —
+  check it against the Master election and the grace windows rather than
+  assuming.
 
 ### Solitaire, which is the odd one out
 
