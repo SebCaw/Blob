@@ -256,11 +256,16 @@ function slotTop(value) {
 /**
  * Stacking, and the asymmetry the comment on `column` describes.
  *
- * The seven is the frontmost card in the middle at 40; everything above it steps
- * back, everything below it steps forward.
+ * The seven is the frontmost card in the middle; everything above it steps back,
+ * everything below it steps forward.
+ *
+ * Kept low, and the column isolates its own stacking context in the stylesheet.
+ * These numbers used to sit around 40, which is the settings sheet's z-index —
+ * so opening settings mid-game left three columns of cards floating on top of
+ * it. A local ordering must never be able to reach a global one.
  */
 function zFor(value) {
-  return value > 7 ? 40 - (value - 7) : 40 + (7 - value);
+  return value > 7 ? 10 - (value - 7) : 10 + (7 - value);
 }
 
 // ── Your hand ────────────────────────────────────────────────────────────────
@@ -303,7 +308,16 @@ function hand(ctx) {
             cardFace(card, {
               size: 'md',
               corner: true,
-              state: legal ? 'playable' : 'blocked',
+              // Deliberately NOT `blocked` for the rest.
+              //
+              // Blob and Silly Head dim what you cannot play, and it works there
+              // because most of your hand usually is playable. Sevens is the
+              // other way round: two or three legal cards out of fifteen is an
+              // ordinary turn, so dimming the remainder greys out almost your
+              // whole hand and you can no longer read your own cards. The lift
+              // and the accent border carry the distinction on their own — they
+              // mark the few, instead of shading the many.
+              state: legal ? 'playable' : null,
               onClick: legal ? () => ctx.send({ type: 'play/card', cardId: card }) : undefined,
             })
           );

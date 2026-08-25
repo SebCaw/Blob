@@ -4053,6 +4053,12 @@ body.sh-flying .sh-discard__top { visibility: hidden; }
   position: relative;
   width: var(--sv-card-w);
   height: calc(12 * var(--sv-step) + var(--sv-card-h));
+  /* Keep the column's own stacking to itself. Without this the slots inside it
+     compete with the whole app: they sat around 40, which is `.sheet`, so
+     opening settings mid-game left three columns of cards painted on top of the
+     panel. `position: relative` alone does not do it — a stacking context needs
+     `isolation` (or a z-index of its own). */
+  isolation: isolate;
 }
 .sv-slot { position: absolute; left: 0; width: var(--sv-card-w); }
 
