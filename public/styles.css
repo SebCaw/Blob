@@ -4094,9 +4094,27 @@ body.sh-flying .sh-discard__top { visibility: hidden; }
   min-height: calc(var(--sv-card-h) * 0.86);
 }
 
-/* Two rows of cards plus a column thirteen deep is more than a tall phone has
-   to give, so the felt stops growing before the hand is pushed off. */
-.sv-felt { max-height: calc(12 * var(--sv-step) + var(--sv-card-h) + 24px); }
+/* The cap belongs to a phone, and only to a phone.
+ *
+ * Two rows of fan under a column thirteen deep is more than a short screen has
+ * to give, so there the felt stops growing before the hand is pushed off the
+ * bottom. Applied to every screen it did something much worse: on a desktop
+ * window the felt is the only thing that grows, so capping it left the whole
+ * table in the top half with several hundred pixels of nothing underneath.
+ * With the cap lifted the felt takes the slack again and the hand, the action
+ * row and the counts sit where they belong — on the bottom edge. */
+@media (max-height: 860px) {
+  .sv-felt { max-height: calc(12 * var(--sv-step) + var(--sv-card-h) + 24px); }
+}
+
+/* A window with room to spare draws a BIGGER table rather than the same small
+ * one adrift in a large empty felt. One knob, as everywhere else here: the card
+ * metric, with the step and the column height following from it. */
+@media (min-height: 900px) and (min-width: 560px) {
+  .sv-play { --sv-card-w: 84px; --sv-card-h: 119px; --sv-step: 27px; }
+  .sv-play .hand__card .card-face { --w: 72px; }
+  .sv-hand { min-height: calc(var(--sv-card-h) * 0.78); }
+}
 
 .sv-actions { min-height: 56px; }
 .sv-actions--quiet { min-height: 0; }
