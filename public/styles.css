@@ -206,6 +206,20 @@ html .screen--fixed.screen--fits.screen--spill {
   overscroll-behavior-y: contain;
 }
 
+/* And a fixed screen with no `--fits` about it, which has measured itself and
+   found it does not fit.
+ *
+ * The bidding screen is the one that needs this. It has no `--fits` because it
+ * has a Submit button rather than being a thing you look at, and until now it
+ * could only scroll once the text size went UP — so at the default size a long
+ * forehead round clipped its own top and there was no way to reach it. Equal
+ * specificity to the `html[data-size]` hatch above and later in the file, which
+ * is what lets it win; `overflow-x` stays hidden either way. */
+html .screen--fixed.screen--spill {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
 /* And it does not stretch to its own content either.
 
    `.screen` is `flex: 1`, which grows a screen to whatever is inside it — so a
@@ -786,6 +800,15 @@ html[data-size='huge'] .bid__current {
   gap: 8px;
   min-height: 0;
 }
+
+/* Once your bid is in, your cards stop being the thing you are reading.
+ *
+ * `.peek` takes three shares of the height against the pad's one, which is right
+ * while you are deciding — they are what you are deciding FROM. Afterwards it
+ * left four cards floating in the middle of a tall empty box with the tally and
+ * the list of who is still thinking squeezed underneath. Same total height, put
+ * where there is something to look at. */
+.bid--submitted .peek { flex: 1 1 auto; }
 
 .bid__head {
   display: flex;

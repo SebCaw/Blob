@@ -32,15 +32,39 @@ export function biddingScreen(ctx) {
     'div.screen.screen--fixed',
     topbar(state, { ctx }),
     h(
-      'div.bid',
+      you.hasSubmitted ? 'div.bid.bid--submitted' : 'div.bid',
       head(state),
       yourCards(ctx),
       you.hasSubmitted ? submitted(ctx) : pad(ctx),
       you.hasSubmitted ? null : h('div.bid__foot', submitBar(ctx), handoverBar(ctx))
     )
   );
-  requestAnimationFrame(() => fitPeek(screen));
+  requestAnimationFrame(() => {
+    fitPeek(screen);
+    spillIfNeeded(screen);
+  });
   return screen;
+}
+
+/**
+ * Let the screen scroll, but only when it truly has to.
+ *
+ * `.screen--fixed` does not scroll at the default size, and that is right nearly
+ * always: a bid pad that slides under your thumb is worse than one that is a
+ * little tight. But a forehead round stacks a row of cards, a note, the tally,
+ * a list of who is still thinking and the mascot — and when that overruns, the
+ * top of it was simply unreachable.
+ *
+ * `scrollHeight` is the honest measure HERE because the bidding screen is an
+ * ordinary column in normal flow. It would not be on Silly Head's table, where
+ * seats lean out of the ring on purpose and `scrollHeight` counts the lean —
+ * which is why `common.js` warns against it there and not here.
+ *
+ * Cleared before measuring, or the answer is read back from the last pass.
+ */
+function spillIfNeeded(screen) {
+  screen.classList.remove('screen--spill');
+  if (screen.scrollHeight > screen.clientHeight + 1) screen.classList.add('screen--spill');
 }
 
 /**
@@ -296,9 +320,16 @@ function submitted(ctx) {
   const round = state.round;
   const waiting = state.players.filter((p) => !p.hasBid);
 
+  // Not its own scroller any more.
+  //
+  // This used to be `overflow-y: auto` inside a screen that is `overflow:
+  // hidden`, which meant the bottom half of the bidding screen scrolled and the
+  // top half — your cards, the trump, the round — was frozen and clipped with no
+  // way to reach it. Two scrollers on one screen is one too many; the screen
+  // itself now takes the job when it needs to. See `spillIfNeeded`.
   return h(
     'div.stack',
-    { style: { flex: '1', 'min-height': '0', 'overflow-y': 'auto' } },
+    { style: { flex: '1', 'min-height': '0' } },
     h(
       'div.done',
       h('span.done__tick', { text: '✓ Bid submitted' }),
