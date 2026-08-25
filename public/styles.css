@@ -1981,6 +1981,30 @@ html[data-size='huge'] .bid__current {
   cursor: default;
 }
 
+/* A hand held rather than filed — Sevens only, for now.
+ *
+ * Each card sits a degree or two off its neighbour, which reads as cards
+ * somebody is holding and, less obviously, lifts every top-left rank clear of
+ * the card beside it instead of leaving it directly behind one.
+ *
+ * `--fan-i` is the card's offset from the middle of the fan, set by the screen,
+ * so the angle spreads with the hand instead of being picked per card. The
+ * origin sits below the cards, which is where a real fan pivots.
+ *
+ * Scoped to `data-game` deliberately, not just to the class: `.hand` is shared
+ * with Blob and Silly Head, Blob's forehead round uses it, and most of Silly
+ * Head's UI list came from shared CSS written for one game. Seb wants to see it
+ * on Sevens before deciding whether the other two get it — when they do, the
+ * `html[data-game=...]` prefix comes off and nothing else changes. */
+html[data-game='sevens'] .hand--fanned .card-face {
+  transform: rotate(calc(var(--fan-i, 0) * 2.6deg));
+  transform-origin: 50% 130%;
+}
+
+html[data-game='sevens'] .hand--fanned .card-face--playable {
+  transform: translateY(-18px) rotate(calc(var(--fan-i, 0) * 2.6deg));
+}
+
 .hand--forehead {
   flex-direction: column;
   align-items: center;

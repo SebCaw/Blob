@@ -63,6 +63,29 @@ export const GAMES = [
       '<rect x="3.8" y="12.6" width="16.4" height="7.8" rx="1.8"/></svg>',
     ready: true,
   },
+  {
+    id: 'sevens',
+    name: 'Sevens',
+    tagline: 'Build every suit out from its seven.',
+    blurb: 'Also played as Fan Tan, Domino or Parliament. No score — first to shed everything wins.',
+    players: '3 to 8',
+    hue: 205,
+    // Warm against a cold ground, and clear of the other two: Blob's accent is a
+    // lime and Silly Head's an amber, so a third yellow would have been a third
+    // of the same thing. Still hand-picked, which CLAUDE.md says it should not
+    // be — see the open decision in ADDING-A-GAME.md.
+    accent: '#ff8e3d',
+    accentDeep: '#d76514',
+    // Three suits stood on end on one line: the whole game is a seven going down
+    // and its suit growing away from it in both directions at once.
+    icon:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 12 H21.4"/>' +
+      '<rect x="3.6" y="6" width="4.6" height="12" rx="1.4"/>' +
+      '<rect x="9.7" y="3" width="4.6" height="18" rx="1.4"/>' +
+      '<rect x="15.8" y="8" width="4.6" height="8" rx="1.4"/></svg>',
+    ready: false,
+  },
 ];
 
 /** @param {string} id */
