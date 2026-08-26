@@ -40,6 +40,17 @@ const STALL_MS = 10_000;
  * while the previous state is still going out — ends up here.
  */
 const MIN_BOT_GAP_MS = 550;
+
+/**
+ * How many times a bot may have the same move refused before it stops trying.
+ *
+ * A refusal changes nothing, so the same position produces the same command and
+ * a retry with no cap is an infinite loop. Three is enough to ride out a race —
+ * somebody else's command landing between the decision and the dispatch — and
+ * few enough that a genuinely broken brain shows up in the log rather than
+ * filling it. See `_runBotMove`.
+ */
+const BOT_RETRY_LIMIT = 3;
 /** How many command ids to remember for duplicate suppression. */
 const SEEN_LIMIT = 300;
 
@@ -375,6 +386,26 @@ class Room {
    * Everything is wrapped, and a brain that throws falls back to a legal card
    * (or a bid of nothing). A bot that cannot decide must never be able to leave
    * a table sat waiting — that is worse than a bad play.
+   *
+   * **A REFUSED bot move used to be the quietest way to kill a table**, and it
+   * killed real ones. `_afterChange` — and with it `_scheduleBotMove` — only
+   * runs when a command SUCCEEDS, and by the time the command is sent this
+   * function has already cleared both the timer and `botFor`. So a bot that
+   * asked for something the reducer would not allow left no timer pending, no
+   * key to re-arm from, and nothing to say so: the seat simply thought for ever
+   * and the game stopped. `ADDING-A-GAME.md` warned that a refusal strands a
+   * table exactly as a throw does; nothing enforced it, and Go Fish found out.
+   *
+   * So a refusal is now loud and it re-arms. Loud because the real fix is always
+   * in the engine that produced the illegal move and somebody has to be able to
+   * find it; re-armed because a bot retrying is survivable and a dead table is
+   * not.
+   *
+   * The retry is bounded, and that is not optional. Nothing about a refusal
+   * changes the state, so the same position produces the same command — without
+   * a cap this is an infinite loop at whatever pace `thinkMs` returns. After
+   * `BOT_RETRY_LIMIT` the seat gives up on that one obligation and waits for the
+   * table to move underneath it, which is the least bad of three bad endings.
    */
   _runBotMove(owed) {
     const player = this.engine.findPlayer(this.state, owed.playerId);
@@ -388,7 +419,23 @@ class Room {
     const view = this.viewFor(player.id);
     this.lastBotMoveAt = Date.now();
     const command = this.engine.bots.move(view, this._botSecret(player), owed);
-    if (command) this.dispatch(command, { actorId: player.id });
+    if (!command) return;
+
+    const key = `${owed.kind}:${owed.playerId}:${owed.at}`;
+    this.dispatch(command, { actorId: player.id }).then((outcome) => {
+      if (!outcome || outcome.ok !== false) {
+        this.botRefusals = null;
+        return;
+      }
+      const tries = this.botRefusals && this.botRefusals.key === key ? this.botRefusals.tries + 1 : 1;
+      this.botRefusals = { key, tries };
+      console.error(
+        `[blob] ${this.state.game || 'blob'}: a bot's ${owed.kind} was refused ` +
+          `(${command.type}: ${outcome.error && outcome.error.message}) — try ${tries}`
+      );
+      if (tries < BOT_RETRY_LIMIT) this._scheduleBotMove();
+      else console.error(`[blob] giving up on ${player.name}'s ${owed.kind}; the table is waiting on somebody else now`);
+    });
   }
 
   // ── Subscribers ────────────────────────────────────────────────────────────

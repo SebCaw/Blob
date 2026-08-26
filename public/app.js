@@ -3,7 +3,8 @@ import { mascot } from './mascot.js';
 import { Net, LIVE, RETRYING, LOST, lastName } from './net.js';
 import { keepAwake, releaseWake } from './wake.js';
 import { applySize, currentSize, pinViewport } from './size.js';
-import { play as sound } from './sound.js';
+import { play as sound, soundOn } from './sound.js';
+import { askBeforeStart } from './prefs.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { shelfScreen } from './screens/shelf.js';
 import { sillyheadScreen, sillyheadWelcome } from './screens/sillyhead/index.js';
@@ -34,6 +35,32 @@ import { helpOverlay } from './screens/help.js';
  */
 
 const root = document.getElementById('app');
+
+/**
+ * Two hosts inside `#app`, and the second one is why.
+ *
+ * `render()` rebuilds everything it owns on every state the server pushes, which
+ * is correct for a screen and wrong for a panel you are standing in. The
+ * settings sheet has a 160ms slide-in on it, so a card being played anywhere at
+ * the table re-ran the animation, threw away the scroll position and blinked the
+ * whole thing — Seb reported it as the settings page refreshing every time a
+ * card was played, which is exactly what it was doing.
+ *
+ * So the screen goes in one host and the standing overlays go in another, and
+ * only the first is rebuilt on a push. The overlays are rebuilt when THEIR own
+ * state changes and at no other time — see `overlayKey`.
+ *
+ * Both are `display: contents`, so neither shows up in `#app`'s flex layout and
+ * `.screen` is still a direct flex child as far as the stylesheet is concerned.
+ * They live inside `#app` rather than on `document.body` — which is where the
+ * confetti goes — because `#app` carries the `zoom` that the size setting works
+ * through, and a settings panel drawn at 1x over an app at 1.4x is worse than
+ * the bug being fixed.
+ */
+const screenHost = h('div.app-screen');
+const overlayHost = h('div.app-overlays');
+root.append(screenHost, overlayHost);
+
 const net = new Net();
 
 /** Local, throwaway view state — never anything the game depends on. */
@@ -1050,6 +1077,47 @@ let enteredAt = 0;
 /** How long an arrival stays an arrival, in ms — the entry animation's length. */
 const ENTER_MS = 280;
 
+/**
+ * Everything the standing overlays are drawn from, and nothing else.
+ *
+ * The whole point is what is ABSENT: no version, no turn, no hand, nothing that
+ * moves when somebody plays a card. If the settings sheet ever starts showing
+ * something live, it goes in here — and if it shows something live that changes
+ * every second, it does not belong in a sheet.
+ *
+ * The help draft is in here because typing has to repaint the field, which is
+ * how it already worked; `render()` puts the caret back afterwards.
+ */
+function overlayKey() {
+  if (!ui.settingsOpen && !ui.helpOpen) return 'none';
+  return [
+    ui.settingsOpen ? 'settings' : '',
+    ui.confirmShelf ? 'confirm' : '',
+    ui.helpOpen ? 'help' : '',
+    ui.helpTab || '',
+    ui.helpStep || 0,
+    ui.helpThinking ? 'thinking' : '',
+    (ui.helpChat || []).length,
+    ui.helpDraft || '',
+    ui.game,
+    (state && state.game) || '',
+    state ? 'in-game' : 'no-game',
+    currentSize(),
+    soundOn() ? 'sound' : 'quiet',
+    askBeforeStart() ? 'ask' : 'no-ask',
+  ].join('|');
+}
+
+let lastOverlayKey = null;
+
+/** Rebuild the standing overlays, but only when they have actually changed. */
+function renderOverlays() {
+  const key = overlayKey();
+  if (key === lastOverlayKey) return;
+  lastOverlayKey = key;
+  fill(overlayHost, settingsSheet(ctx), helpOverlay(ctx));
+}
+
 function render() {
   // Keep whatever the player was typing in, and where their cursor was.
   const active = document.activeElement;
@@ -1067,9 +1135,13 @@ function render() {
   // — and the second render would otherwise wipe the animation off a screen that
   // had only just started playing it.
   if (arriving || Date.now() - enteredAt < ENTER_MS) screen.classList.add('screen--enter');
+  // The election overlay stays with the screen on purpose: votes arriving IS
+  // the content of it, so it is the one overlay that has to repaint on a push.
   const overlay = state ? electionOverlay(ctx) : null;
-  fill(root, screen, overlay, settingsSheet(ctx), helpOverlay(ctx));
+  fill(screenHost, screen, overlay);
+  renderOverlays();
 
+  // Searches the whole of `#app`, so it covers the screen and the overlays alike.
   if (focusKey) {
     const restored = root.querySelector(`[data-focus-key="${focusKey}"]`);
     if (restored) {

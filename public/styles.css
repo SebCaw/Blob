@@ -142,6 +142,19 @@ ul {
 }
 
 /* -- App shell ------------------------------------------------------------- */
+/* The two hosts inside #app. See the note beside them in app.js.
+ *
+ * `display: contents` so neither of them exists as far as layout is concerned:
+ * `.screen` stays a direct flex child of `#app` and keeps its `flex: 1`, and the
+ * overlay host - whose children are all `position: fixed` - takes up no room at
+ * all. Without this, adding the wrapper would have quietly broken every screen
+ * in the app to fix a settings panel.
+ */
+.app-screen,
+.app-overlays {
+  display: contents;
+}
+
 #app {
   zoom: var(--ui-zoom);
   position: relative;
