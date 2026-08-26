@@ -44,7 +44,12 @@ function saying(rank, count) {
   return `${number} ${count === 1 ? RANK_ONE[rank] : RANK_MANY[rank]}`;
 }
 
-/** "Nines" — the label on a rank button. */
+/** "nines" or "nine" - the word after the count, sized to be read at a glance. */
+function rankWord(rank, count) {
+  return count === 1 ? RANK_ONE[rank] : RANK_MANY[rank];
+}
+
+/** "Nines" - the label on a rank button. */
 function rankLabel(rank) {
   const word = RANK_MANY[rank] || rank;
   return word.charAt(0).toUpperCase() + word.slice(1);
@@ -250,6 +255,17 @@ function claimView(ctx, claim, event) {
   return h(
     'div',
     { className: `ch-middle ch-middle--claim${fresh ? ' ch-middle--landed' : ''}` },
+    // Who, then WHAT, and the what is the biggest thing on the screen. This used
+    // to be a 24px line sitting under a row of card backs, and reading it was
+    // costing most of the window it was counting down.
+    h('p.ch-claim__who', {
+      text: claim.playerId === you.id ? 'You said' : `${claim.name} says`,
+    }),
+    h(
+      'p.ch-claim__saying',
+      h('span.ch-claim__count', { text: String(claim.count) }),
+      h('span.ch-claim__rank', { text: rankWord(claim.rank, claim.count) })
+    ),
     h(
       'div.ch-claim__cards',
       { 'aria-hidden': 'true' },
@@ -258,10 +274,6 @@ function claimView(ctx, claim, event) {
       ),
       claim.count > 5 ? h('span.ch-claim__more', { text: `+${claim.count - 5}` }) : null
     ),
-    h('p.ch-claim__saying', { text: saying(claim.rank, claim.count) }),
-    h('p.ch-claim__who', {
-      text: claim.playerId === you.id ? 'you said' : `${claim.name} said`,
-    }),
     claim.wentOut ? h('p.ch-claim__out', { text: 'Their last cards.' }) : null,
     // Drawn, never counted. See the note at the top of this file.
     h('div.ch-window', { 'aria-hidden': 'true' }, h('div.ch-window__bar', {
@@ -320,7 +332,6 @@ function seat(ctx, player, event) {
   if (player.out) classes.push('ch-seat--out');
   if (player.isTurn || claiming) classes.push('ch-seat--turn');
   if (picking) classes.push('ch-seat--picked');
-  if (player.deciding) classes.push('ch-seat--deciding');
 
   return h(
     'div',
@@ -331,7 +342,13 @@ function seat(ctx, player, event) {
       h('span.ch-seat__count', { text: player.out ? 'out' : String(player.cardsHeld) })
     ),
     known(player),
-    player.deciding && claim ? h('span.ch-seat__state', { text: 'deciding…' }) : null,
+    // Deliberately NOT showing who is mid-decision.
+    //
+    // It used to say "deciding" under each bot and clear as each one answered,
+    // which meant three seats changing under your eyes during the four seconds
+    // you are trying to read a claim. Seb described the screen as refreshing
+    // while the bots made their minds up, and this is what he was describing.
+    // Nothing about somebody else's deliberation is yours to act on anyway.
     !player.connected && !player.isBot ? h('span.ch-seat__state', { text: 'away' }) : null
   );
 }
@@ -421,9 +438,14 @@ function yourHand(ctx) {
 function tools(ctx) {
   const state = ctx.state;
   const you = state.you || {};
-  if (you.canCall) return callBar(ctx);
   if (you.canClaim) return claimBar(ctx);
-  return h('div.ch-tools.ch-tools--quiet');
+  // Everything else shows the call button, live or not.
+  //
+  // It used to appear only while a claim was open, which made the one control
+  // in this game that is on a clock also the one that moved. Now it is always
+  // in the same place at the same size and simply goes live, so by the time you
+  // need it your thumb already knows where it is.
+  return callBar(ctx, Boolean(you.canCall));
 }
 
 /**
@@ -434,17 +456,34 @@ function tools(ctx) {
  * same as at a table, and a second button next to this one would only be
  * something to hit by accident in the three seconds that count.
  */
-function callBar(ctx) {
-  const claim = ctx.state.claim;
+function callBar(ctx, live) {
+  const state = ctx.state;
+  const claim = state.claim;
+  const you = state.you || {};
+  const turn = state.players.find((p) => p.id === state.turnId);
+
   return h(
-    'div.ch-tools.ch-tools--call',
-    h('button.btn.btn--primary.ch-call', {
+    'div',
+    { className: `ch-tools ch-tools--call${live ? ' ch-tools--live' : ''}` },
+    h('button', {
+      className: `btn btn--primary ch-call${live ? '' : ' ch-call--idle'}`,
       type: 'button',
       text: 'Cheat!',
-      'aria-label': `Call ${claim ? claim.name : 'them'} on ${claim ? saying(claim.rank, claim.count) : 'that claim'}`,
+      disabled: !live,
+      'aria-label': live
+        ? `Call ${claim ? claim.name : 'them'} on ${claim ? saying(claim.rank, claim.count) : 'that claim'}`
+        : 'Nothing to call yet',
       onClick: () => ctx.send({ type: 'play/call' }),
     }),
-    h('span.ch-tools__hint', { text: 'Or say nothing and let it stand.' })
+    h('span.ch-tools__hint', {
+      text: live
+        ? 'Or say nothing and let it stand.'
+        : you.out
+          ? 'You are out, and safe.'
+          : claim
+            ? 'Your own claim - you cannot call it.'
+            : `Waiting on ${turn ? turn.name : 'the next player'}.`,
+    })
   );
 }
 

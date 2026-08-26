@@ -68,6 +68,24 @@ is immediately, so a solo game never sits through the silence.
 Three seconds is also the beat the animations need. Without it, a card would
 land and be gone before anybody registered whose it was.
 
+**Four seconds, and the claim is the biggest thing on the screen.** It began at
+three, with the claim set as a 24px line under a row of card backs - and Seb
+reported the bar running out while he was still working out what had been said.
+That is one second doing two jobs: reading and reacting. So the claim now gets
+the size of the only thing in this game anybody has to react to, the count is a
+numeral rather than a word because "3" is read at a glance and "three" has to be
+read, and the window is a second longer.
+
+**Nothing shows who is mid-decision.** Each seat used to say "deciding" and clear
+as each bot answered, which meant three seats changing under your eyes during the
+seconds you are trying to read a claim. Somebody else's deliberation is not
+yours to act on, and watching it churn made the screen look like it was
+reloading.
+
+**The call button is always on screen**, live or not. It used to appear only
+while a claim was open, which made the one control in this game that is on a
+clock also the one that moved.
+
 **The bar is drawn, not counted.** A CSS animation describes the whole window
 and a negative delay fast-forwards it to wherever the claim actually is. That
 means a repaint mid-window lands it back where it was rather than restarting it,

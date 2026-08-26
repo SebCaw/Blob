@@ -4751,10 +4751,6 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 .ch-seat__known { display: flex; align-items: center; gap: 2px; }
 .ch-seat__more { font-size: 11px; color: var(--ink-faint); margin-left: 2px; }
 
-/* Somebody is weighing up whether to call. */
-.ch-seat--deciding { border-color: var(--lime-deep); }
-.ch-seat--deciding .ch-seat__state { color: var(--lime); }
-
 /* They just picked the lot up. */
 @keyframes ch-picked {
   0% { transform: none; }
@@ -4811,19 +4807,43 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   font-weight: 800;
   color: var(--ink-faint);
 }
-.ch-claim__saying {
-  margin: 6px 0 0;
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: -0.01em;
-  text-transform: capitalize;
-}
+/* The claim, and it is the biggest thing on the screen on purpose.
+ *
+ * It was a 24px line under a row of card backs, and reading it cost most of the
+ * window it was counting down - Seb was still working out what had been claimed
+ * by the time the bar ran out. A claim is the only thing in this game anybody
+ * has to react to, so it gets the size of one.
+ *
+ * The count is a numeral rather than a word. "3" is read at a glance and
+ * "three" has to be read. */
 .ch-claim__who {
-  margin: 0;
-  font-size: 12px;
+  margin: 0 0 2px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
+  font-weight: 800;
+}
+.ch-claim__saying {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  line-height: 1;
+}
+.ch-claim__count {
+  font-size: clamp(40px, 13vw, 60px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--lime);
+  font-variant-numeric: tabular-nums;
+}
+.ch-claim__rank {
+  font-size: clamp(26px, 8vw, 38px);
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  text-transform: capitalize;
 }
 .ch-claim__out { margin: 2px 0 0; font-size: 13px; font-weight: 800; color: var(--lime); }
 
@@ -4889,18 +4909,32 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 .ch-tools--quiet { min-height: 96px; }
 .ch-tools__hint { font-size: 13px; color: var(--ink-faint); text-align: center; }
 
+/* One button, always in the same place.
+ *
+ * It used to appear only while a claim was open, which made the one control in
+ * this game that is on a clock also the one that moved. Now it sits there the
+ * whole time and simply goes live, so by the time it matters your thumb already
+ * knows where it is. Idle it is quiet enough to ignore and solid enough to aim
+ * at. */
 .ch-call {
   width: 100%;
   min-height: 60px;
   font-size: 24px;
   font-weight: 900;
   letter-spacing: 0.02em;
+  transition: opacity 140ms ease, transform 140ms var(--ease-pop);
 }
-@keyframes ch-call-in {
-  0% { transform: translateY(10px) scale(0.97); opacity: 0; }
-  100% { transform: none; opacity: 1; }
+.ch-call--idle {
+  opacity: 0.32;
+  transform: scale(0.98);
 }
-.ch-tools--call .ch-call { animation: ch-call-in 200ms var(--ease-pop) both; }
+/* Going live is the animation, rather than arriving. */
+@keyframes ch-call-wake {
+  0% { transform: scale(0.98); }
+  55% { transform: scale(1.03); }
+  100% { transform: none; }
+}
+.ch-tools--live .ch-call { animation: ch-call-wake 260ms var(--ease-pop) both; }
 
 .ch-ranks { display: flex; gap: 6px; width: 100%; }
 .ch-rank {
@@ -4947,7 +4981,7 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   .ch-middle--landed .ch-claim__cards,
   .ch-middle--flip .ch-reveal__card,
   .ch-seat--picked,
-  .ch-tools--call .ch-call {
+  .ch-tools--live .ch-call {
     animation: none;
   }
   .ch-window__bar { animation: none; }
