@@ -284,6 +284,21 @@ function yourHand(ctx, event) {
   const picked = ctx.ui.chasePick;
   const pickedAt = picked ? cards.indexOf(picked) : -1;
   const rows = splitHand(cards, ROW_MAX);
+  const due = nudgeDue(ctx, you);
+
+  /**
+   * The pairs, lit up — but only once the nudge has fired.
+   *
+   * The first five seconds are yours to look, which is what Seb asked for and
+   * is most of what playing this game feels like. After that the app should
+   * actually HELP rather than keep nagging. Saying "you have 2 pairs" while
+   * refusing to say which is the worst of both: it spoils that there are pairs
+   * and still makes you hunt for them.
+   *
+   * Off while a card is lifted, because then the fan is already answering a
+   * different question - which of these matches THIS one.
+   */
+  const showPairs = new Set(due && !picked ? (you.pairs || []).flat() : []);
   const shuffled = event && event.kind === 'shuffle' && event.playerId === you.id;
   const moved = event && event.kind === 'move' && event.playerId === you.id ? event : null;
   const gained = event && event.kind === 'draw' && event.playerId === you.id;
@@ -311,7 +326,7 @@ function yourHand(ctx, event) {
             index += 1;
             const at = index;
             const isPicked = card === picked;
-            const pairs = partners.has(card);
+            const pairs = partners.has(card) || showPairs.has(at);
             return h(
               'div',
               {
@@ -325,20 +340,28 @@ function yourHand(ctx, event) {
         )
       )
     ),
-    hint(ctx, you, picked)
+    hint(you, picked, due)
   );
 }
 
-/** What the hand is asking of you, in one line. */
-function hint(ctx, you, picked) {
-  const due = nudgeDue(ctx, you);
+/**
+ * What the hand is asking of you, in one line.
+ *
+ * Every line that asks for something says HOW. The nudge used to read "You have
+ * 2 pairs to throw away" and stop there, which told somebody the game was
+ * waiting on them without telling them what to do about it.
+ */
+function hint(you, picked, due) {
   const pairs = (you.pairs || []).length;
 
   if (you.locked && !pairs) return h('p.ca-hint', { text: 'Frozen while they choose' });
   if (picked) return h('p.ca-hint', { text: 'Now tap its pair to bin them, or anywhere else to move it' });
   if (pairs && due) {
     return h('p.ca-hint.ca-hint--nudge', {
-      text: pairs === 1 ? 'You have a pair — tap them both to throw them away' : `You have ${pairs} pairs to throw away`,
+      text:
+        pairs === 1
+          ? 'There is your pair — tap them both, or use the button'
+          : `There are your ${pairs} pairs — tap a matching two, or use the button`,
     });
   }
   if (pairs) return h('p.ca-hint', { text: 'Tap two matching cards to bin them' });
@@ -377,15 +400,48 @@ function tap(ctx, card) {
 }
 
 /**
- * The shuffle, in the corner where Seb asked for it.
+ * The one button under your hand, and WHICH button it is matters.
  *
- * The counterweight to arranging: it costs you every read anybody had on you,
- * and it costs you the chance to talk somebody into a mistake. Randomised on the
- * server — a shuffle done on this phone would put the permutation on the one
- * device that must not be trusted with it.
+ * While you are holding a pair the game will not let you do anything else - the
+ * reducer refuses a draw until it has gone - so binning is the only thing worth
+ * offering, and it gets the primary button.
+ *
+ * Shuffle is deliberately NOT offered in that state. It was, and it was the only
+ * button on the screen, which meant a player told "throw your pair away" was
+ * given exactly one action: scramble the hand and make the pair harder to find.
+ * Seb hit that in a real game. An app that blocks you should not hand you the
+ * one control that makes being blocked worse.
+ *
+ * Binning goes one pair at a time even when you hold several. Each press is a
+ * command against the hand as it stands, and the positions shift underneath
+ * every bin - firing two at once would send the second against a hand that no
+ * longer exists. It also keeps throwing cards away an ACT, which is the thing
+ * Seb asked for when he took the automatic version out.
  */
 function tools(ctx) {
   const you = ctx.state.you || {};
+  const pairs = you.pairs || [];
+
+  if (pairs.length) {
+    const [a, b] = pairs[0];
+    return h(
+      'div.ca-tools',
+      h('button.btn.btn--primary.btn--small.ca-bin', {
+        type: 'button',
+        text: pairs.length === 1 ? 'Throw the pair away' : `Throw a pair away (${pairs.length})`,
+        'aria-label': 'Throw a matching pair into the middle',
+        onClick: () => {
+          ctx.ui.chasePick = null;
+          ctx.send({ type: 'hand/bin', a, b });
+        },
+      })
+    );
+  }
+
+  // The counterweight to arranging: it costs you every read anybody had on you,
+  // and it costs you the chance to talk somebody into a mistake. Randomised on
+  // the server - a shuffle done on this phone would put the permutation on the
+  // one device that must not be trusted with it.
   if (!you.canArrange) return h('div.ca-tools');
   return h(
     'div.ca-tools',

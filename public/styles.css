@@ -4421,6 +4421,16 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 .ca-tools { display: flex; justify-content: center; padding-top: 2px; }
 .ca-shuffle { min-height: 40px; }
 
+/* Binning is the thing standing between you and your turn, so it is sized like
+   it - wider and taller than the shuffle it replaces, and it pulses while the
+   nudge is up rather than sitting there quietly next to a line of text asking
+   you to press it. */
+.ca-bin {
+  min-height: 52px;
+  min-width: min(280px, 80%);
+  font-weight: 900;
+}
+
 /* -- The moving parts -------------------------------------------------------
  *
  * Gated in `screens/chase/table.js` on the event's own identity plus a time
