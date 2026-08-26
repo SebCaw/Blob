@@ -57,10 +57,28 @@ What each one demands that the platform does not already do:
   pile, its own author included. And its bot ladder had to be **measured**, twice,
   because both intuitive versions came out perfectly inverted; the numbers are in
   `CHEAT.md` and the lesson generalises.
-- **Go Fish** — asking a named player for a named rank is a public request about
-  private information, and the answer changes what everyone knows. Watch the
-  history record: "who asked whom for what" is the whole game and none of the
-  existing record shapes carry it.
+- **Go Fish** — **NEXT, and the rules are settled bar one question.** Asking a
+  named player for a named rank is a public request about private information,
+  and the answer changes what everyone knows. Watch the history record: "who
+  asked whom for what" is the whole game and none of the existing record shapes
+  carry it.
+
+  Settled with Seb: books of **four**; you must already hold the rank you ask
+  for; a successful ask lets you **go again**; **you never show a card you
+  fished**, which means fishing always ends your turn (showing would give it
+  away, so the two rules cannot both stand); **empty your hand and you are out**,
+  keeping the books you have already laid down; play carries on until all sets
+  are made; three to six players. Colour: **hue 228**, deep ocean, with a surf
+  cyan accent `#3dd8ff` - a deliberate departure from the accent rule, because
+  every sea hue produces a warm accent and the warm end of the shelf is full
+  (see the hue note below).
+
+  **The one open question: is there a pool at all?** Either the normal game -
+  five cards each, the rest face down, draw one when told to fish - or no pool at
+  all, the whole deck dealt out, and "go fish" simply meaning no. The second is
+  the better game and fits everything else Seb has said, but it has not been
+  confirmed and it changes the hand size from five to thirteen. **Do not build
+  until this is answered.**
 - **Solitaire** — **single player, and two variants under one tile: traditional
   (Klondike) and around the clock (Clock Patience).** See the section below; it
   is the odd one out and needs its own treatment.
@@ -269,6 +287,11 @@ command should carry enough to no-op if it fires late; Cheat's `play/settle`
 carries the moment its window opened.
 
 Games without a clock of their own leave it off. The room asks before it calls.
+
+**Chase the Ace became the second user of it** and that is the argument for
+having made it general rather than special-casing Cheat: it needed a pause after
+the deal, during which nobody may draw while everybody reads the hand they were
+given. Same hook, completely different shape of wait.
 
 **Missing today and worth adding with game three**, because each is currently a
 hardcoded `if` somewhere it does not belong:
@@ -578,6 +601,26 @@ Check every screen at all three, **largest first**, because that is where things
 fall off. `--app-h` must be pinned by `pinViewport()` and consumed at
 `styles.css:182`, because `100dvh` inside a zoomed subtree is not the viewport.
 
+**A big screen is a phone with more room, not a different app.** `.screen` is a
+560px column that widens to 620 and then 700 as the glass grows, and that is the
+WHOLE responsive story. Do not give a game its own desktop layout. Chase the Ace
+and Cheat both got one - seats into a two-up grid, the middle lifted out beside
+them - and both had to be taken out again: the shelf stopped looking like one
+app, and moving from a phone to a laptop meant learning the screen twice.
+
+Worth knowing how it survived review. There were TWO media blocks doing it per
+game, and the older one sat directly underneath a comment explaining that
+widening this screen would make it the odd one out. It did exactly that,
+immediately below the sentence saying not to. **Grep for `min-width` in your
+game's block before you believe it is clean.**
+
+**Bump `CACHE` in `sw.js` for any change to a shell file.** The service worker
+precaches the whole client, so a stylesheet or screen change without a version
+bump reaches nobody who has opened the app before. This cost real time twice in
+one session: once believing a layout fix had failed when the browser was serving
+the old CSS, and once telling Seb a fix was live when his phone could not see it.
+It is one line and it is not optional.
+
 **Hidden tabs.** `requestAnimationFrame` does not fire in a hidden tab and every
 fitter is scheduled that way (`bidding.js:42`, `playing.js:167`,
 `sillyhead/sort.js:200`, `sillyhead/table.js:158`). Nothing load-bearing may sit
@@ -730,6 +773,36 @@ afternoon and needed almost no revision. Everything expensive was somewhere else
   its other three. That was the whole platform cost, which is the argument for
   the engine registry working.
 
+## Controls, and the four things playing it caught
+
+None of these came out of a test. All four came from Seb playing a real game and
+saying it felt wrong, which is the ratio to expect: the reducer is provable and
+the glass is not.
+
+**Never offer a blocked player the one control that makes it worse.** Chase the
+Ace refused to let you draw while holding a pair, told you so, and then offered a
+single button: SHUFFLE MY HAND - which scrambles the very cards you are hunting
+for. If the game is waiting on one action, that action gets the button, and the
+one that would undo your progress is not on the screen at all.
+
+**The thing the player must react to is the biggest thing on the screen.** Cheat
+put the claim - the only object in the game anybody has to answer - in a 24px
+line under a row of card backs, with a four second clock on it. Reading it cost
+most of the window. It is now a 60px numeral and a 38px word. Related: use a
+NUMERAL for a count somebody is racing, never a word. "3" is read at a glance;
+"three" has to be read.
+
+**A control that is on a clock must never also be the control that moves.**
+Cheat's call button used to appear only while a claim was open, so the one thing
+you had four seconds to hit was also the one thing whose position you could not
+learn. It is now always on screen and simply goes live.
+
+**Do not animate other people's deliberation.** Each seat in Cheat said
+"deciding" and cleared as each bot answered, so three seats changed under your
+eyes during the seconds you were trying to read a claim. Seb described the screen
+as reloading. Somebody else's thinking is not yours to act on - and anything that
+repaints during a moment the player is trying to read is noise, however true.
+
 ## The screen key, and the bug it caused twice
 
 `app.js` plays the whole entry animation whenever `screenKey()` CHANGES. So a
@@ -815,8 +888,8 @@ since those accents are what every other colour in the app was contrast-checked
 against.
 
 **The hues, placed as a set** so the last ones do not get whatever is left:
-Blob 265, Silly Head 148, Sevens 205, Chase the Ace 345, Go Fish 176 (a sea
-game), **Cheat 30**, Solitaire 20. The three cool ones at 148/176/205 are the
+Blob 265, Silly Head 148, Sevens 205, Chase the Ace 345, **Go Fish 228**,
+**Cheat 30**, Solitaire 20. The three cool ones at 148/176/205 are the
 tightest cluster and the pair most likely to need separating once seen.
 
 Cheat moved from 305 to 30 when Seb looked at the plan and said it was too close
@@ -832,3 +905,17 @@ confused with any other.
 
 Solitaire's pencilled 20 now sits next to Cheat's 30 and should move before it
 is built.
+
+**The warm end of the shelf is now full, and that is a real constraint.** Blob
+has lime, Silly Head amber, Sevens orange. Every BLUE ground produces a warm
+accent, because blue's complement is warm - so Go Fish, which had to be a sea
+blue, could not take a rule-derived accent without landing on top of one of
+those three. It takes a bright surf cyan instead: a documented departure, the
+second after Chase the Ace's.
+
+Sevens is also already a blue at 205, so Go Fish had to go deep - 228 - to be
+tellable apart from it on the shelf, where the tiles sit side by side each
+carrying its own hue AND its own accent (`screens/shelf.js:86`).
+
+**Solitaire is the seventh game and there is no obvious hue left for it.** Worth
+solving before it is started rather than after.
