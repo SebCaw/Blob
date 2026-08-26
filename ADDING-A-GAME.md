@@ -96,6 +96,22 @@ What each one demands that the platform does not already do:
 
 ### Solitaire, which is the odd one out
 
+**ON HOLD, and it may not happen. Do not start it.** Seb's reservation, and it
+is a good one: the world is already full of Solitaire. Every phone ships with a
+version and there are a thousand more, so this one would have to be better than
+all of them at a game where nobody is waiting on anybody — and being better than
+all of them is not what this app is for.
+
+The rest of this section already argues the same thing from the other end.
+Solitaire is the only game on the list with no group in it, and a group with
+phones is the entire premise: no second phone, no turn order, no reconnect
+mid-turn, no privacy boundary worth the name. It would exercise almost nothing
+that the other six exercise, which is why it was always going last.
+
+Left written down rather than deleted, because the shape of it is worked out and
+the reasoning is worth keeping if it is ever revived. What follows is that plan.
+
+
 Single player, and **two variants under one shelf tile**: traditional (Klondike)
 and around the clock (Clock Patience).
 
@@ -976,4 +992,7 @@ tellable apart from it on the shelf, where the tiles sit side by side each
 carrying its own hue AND its own accent (`screens/shelf.js:86`).
 
 **Solitaire is the seventh game and there is no obvious hue left for it.** Worth
-solving before it is started rather than after.
+solving before it is started rather than after - though see the section above,
+which is where the hue problem most likely goes away by the game not being
+built. Six games have used the usable arc almost exactly as planned, which is
+the budget working rather than running out.
