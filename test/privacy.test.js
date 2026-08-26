@@ -151,6 +151,34 @@ const FIXTURES = {
       return hidden;
     },
   },
+
+  gofish: {
+    create: {},
+    seats: 4,
+    hiddenFrom(state, viewerId) {
+      if (!state.hands || state.phase === 'complete') return [];
+      const hidden = [];
+
+      // Everybody else's hand, all of it. Unlike Cheat and Silly Head there is
+      // no standing public part: nothing in this game is revealed and then left
+      // revealed, so what the room knows it knows by remembering.
+      for (const [id, hand] of Object.entries(state.hands)) {
+        if (id === viewerId) continue;
+        hidden.push(...hand);
+      }
+
+      // The pool, from everybody. Nobody may read the next four draws.
+      hidden.push(...(state.pool || []));
+
+      // The one legitimate exception, and it is a beat rather than a state.
+      // Cards handed over are turned over in front of the table on their way
+      // across, so they ride in `lastEvent` for exactly one event and the screen
+      // flies them. By then they are in the asker's hand, which is why they have
+      // to come off this list rather than being left on it.
+      const crossing = new Set((state.lastEvent || {}).cards || []);
+      return hidden.filter((card) => !crossing.has(card));
+    },
+  },
 };
 
 /**
