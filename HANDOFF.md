@@ -62,7 +62,7 @@ ask and every answer to everybody and remember them — and that is also the bot
 ladder: the easy one forgets what was asked, the top one remembers every question
 anyone has asked all game.
 
-**Colour: hue 228, deep ocean, accent `#3dd8ff` (surf cyan), deep `#14a4d7`.**
+**Colour: hue 228, deep ocean, accent `#3dd8ff` (surf cyan), deep `#149fd7`.**
 Seb picked it from a rendered comparison of three sea blues. It **breaks the
 app's accent rule deliberately** — normally the accent is the complement of the
 hue at S100 L62. Every blue ground produces a *warm* complement, and the warm end
