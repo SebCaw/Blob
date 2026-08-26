@@ -44,11 +44,19 @@ What each one demands that the platform does not already do:
   while putting the lightest possible load on the privacy boundary. The reducer
   took an afternoon; every real problem was on the glass, which is the ratio to
   expect. Still has **no tests of its own**.
-- **Cheat** (Bullshit, I Doubt It) — the hardest test of invariant 2 in the repo.
-  A claim is public and the card is not, so the reducer must know the truth while
-  every view withholds it, and a challenge reveals it retrospectively. If the
-  cross-engine privacy harness exists before this one is written, it will catch
-  the mistakes; if it does not, this is the game that leaks.
+- **Cheat** (Bullshit, I Doubt It) — **BUILT and on the shelf. See `CHEAT.md`.**
+  It was the hardest test of invariant 2 in the repo and the prediction held: a
+  claim is public and its cards are not, the reducer knows the truth while every
+  view withholds it, and a challenge reveals it retrospectively. The privacy
+  harness existed first and passed on the first run, which is the whole argument
+  for having built it before this game rather than after.
+
+  Three things it added that no earlier game needed. It is the first engine with
+  a **clock of its own** (`deadline`, below). It is the first to hide an object
+  from EVERY viewer at once rather than redacting per player — the face-down
+  pile, its own author included. And its bot ladder had to be **measured**, twice,
+  because both intuitive versions came out perfectly inverted; the numbers are in
+  `CHEAT.md` and the lesson generalises.
 - **Go Fish** — asking a named player for a named rank is a public request about
   private information, and the answer changes what everyone knows. Watch the
   history record: "who asked whom for what" is the whole game and none of the
@@ -243,7 +251,24 @@ the page hidden cannot verify any of the above.
 ### Server — `lib/engines.js` (documented at `:24-32`)
 
 `id`, `name`, `createGame`, `applyCommand`, `findPlayer`, `viewFor`,
-`historyRecord`, `stallWatch`, `bots` (nullable).
+`historyRecord`, `historySummary`, `stallWatch`, `bots` (nullable), and
+`deadline` (optional).
+
+**`deadline(state, now)` arrived with Cheat** and is the only hook here that
+exists because a game needed a TIMER of its own. Every other clock the room runs
+is about somebody having gone missing — the grace window, the stall watch, an
+election timing out. Cheat's challenge window is different in kind: nothing has
+gone wrong, nobody is absent, and the game simply cannot move on until a few
+seconds have passed.
+
+Return `{key, afterMs, command}` or null. The room arms it exactly the way it
+arms the bot timer, so **the key must stay identical while it is waiting for the
+same thing** — otherwise the timer restarts on every broadcast, every reconnect
+and every name edit, and a three second window never closes on a busy table. The
+command should carry enough to no-op if it fires late; Cheat's `play/settle`
+carries the moment its window opened.
+
+Games without a clock of their own leave it off. The room asks before it calls.
 
 **Missing today and worth adding with game three**, because each is currently a
 hardcoded `if` somewhere it does not belong:
@@ -257,9 +282,13 @@ hardcoded `if` somewhere it does not belong:
   of its own (`public/screens/sillyhead/lobby.js:22`).
 - which lobby options the game takes. `http.js` accepts `handSize` and `mode`
   from every game and each engine quietly ignores what it does not want.
-- `historySummary(record)` — see the verified bugs below.
+- ~~`historySummary(record)`~~ — **added**, see the verified bugs below.
 - "the secrets in this state, by owner" — a function the room never calls and
-  only the cross-engine privacy test uses. See Privacy below.
+  only the cross-engine privacy test uses. See Privacy below. Still a fixture in
+  `test/privacy.test.js` rather than a hook, and after five games that looks like
+  the right place for it: the fixture is written from the ENGINE's point of view
+  and the test needles it from authoritative state, so a redaction bug cannot
+  hide behind a hook that is wrong in the same direction.
 
 ### Client — `public/games.js`
 
@@ -682,6 +711,25 @@ BLOB_DATA_DIR=/tmp/blob-scratch`. Note `.claude/launch.json` points at the
 defaults, so `preview_start` by name walks straight into it — open a browser at
 the scratch URL instead.
 
+## What building Cheat actually cost
+
+Sevens' ratio held and then some. The reducer, the view and the deck were an
+afternoon and needed almost no revision. Everything expensive was somewhere else:
+
+- **The bots took longer than the game did**, and three rewrites. Twice the
+  ladder came out perfectly inverted, and neither time was it visible without
+  measuring — the games all looked fine. See `CHEAT.md`. **If a game has a
+  judgement call in it, measure the ladder before believing it.** A 160-game
+  script is twenty lines and it is the only thing that tells you whether
+  "impossible" means anything.
+- **One bug was browser-only and thirty seconds to find there.** The countdown
+  drew as already spent on every claim after the first, because the view was
+  missing the one field the client used as an identity. No test would have caught
+  it and no amount of reading would have either.
+- **The platform grew one hook** (`deadline`) and the room grew one timer beside
+  its other three. That was the whole platform cost, which is the argument for
+  the engine registry working.
+
 ## Open decisions
 
 Settle these before or during game three, and record the answer here.
@@ -744,5 +792,19 @@ against.
 
 **The hues, placed as a set** so the last ones do not get whatever is left:
 Blob 265, Silly Head 148, Sevens 205, Chase the Ace 345, Go Fish 176 (a sea
-game), Cheat 305, Solitaire 20. The three cool ones at 148/176/205 are the
+game), **Cheat 30**, Solitaire 20. The three cool ones at 148/176/205 are the
 tightest cluster and the pair most likely to need separating once seen.
+
+Cheat moved from 305 to 30 when Seb looked at the plan and said it was too close
+to Blob's 265 — which it was, on a phone in a dim room, and that is the entire
+point of the exercise. **Two things worth taking from that.** A hue that is
+merely a different number can still be the same colour to a person, so the test
+is whether you can tell the two TILES apart, not whether the numbers differ. And
+moving it dissolved a problem that had been written down here as unavoidable: at
+305 the rule produced a green accent, wrong for a game about lying, and the plan
+was to break the rule. At 30 the complement is blue, so the rule holds and the
+app gets its first COOL accent — the one thing on the shelf that cannot be
+confused with any other.
+
+Solitaire's pencilled 20 now sits next to Cheat's 30 and should move before it
+is built.

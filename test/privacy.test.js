@@ -119,6 +119,38 @@ const FIXTURES = {
         .flatMap(([, hand]) => hand);
     },
   },
+
+  cheat: {
+    create: {},
+    seats: 4,
+    hiddenFrom(state, viewerId) {
+      if (!state.hands || state.phase === 'complete') return [];
+      const hidden = [];
+
+      // Everybody else's hand, MINUS the cards the whole room watched them pick
+      // up at a reveal. Those are public and are sent to every viewer on
+      // purpose - the same reasoning as Silly Head's `publicHand`. They stop
+      // being public the moment they are played again, which is why this reads
+      // the live `seen` rather than a running total.
+      for (const [id, hand] of Object.entries(state.hands)) {
+        if (id === viewerId) continue;
+        const watched = new Set((state.seen || {})[id] || []);
+        hidden.push(...hand.filter((card) => !watched.has(card)));
+      }
+
+      // The pile is hidden from EVERYBODY, including whoever put the top card
+      // on it. No other game in this app hides a shared object from the person
+      // who filled it, and it is the reason a claim can never be checked.
+      hidden.push(...(state.pile || []));
+
+      // The claim currently on the table, for the same reason and from the same
+      // people - its own author included. A payload showing the claimer their
+      // own played cards would leak the moment somebody opened two tabs.
+      if (state.claim) hidden.push(...state.claim.cards);
+
+      return hidden;
+    },
+  },
 };
 
 /**

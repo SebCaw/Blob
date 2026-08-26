@@ -4,8 +4,19 @@
     {
       "name": "blob",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["server.js"],
+      "runtimeArgs": [
+        "server.js"
+      ],
       "port": 4100
+    },
+    {
+      "name": "blob-scratch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "-e",
+        "process.env.BLOB_PORT='4200';process.env.BLOB_DATA_DIR='C:/Users/sebca/AppData/Local/Temp/claude/blob-scratch';require('./server.js')"
+      ],
+      "port": 4200
     }
   ]
 }

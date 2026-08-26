@@ -9,6 +9,7 @@ import { shelfScreen } from './screens/shelf.js';
 import { sillyheadScreen, sillyheadWelcome } from './screens/sillyhead/index.js';
 import { sevensScreen, sevensWelcome, sevensScreenKey } from './screens/sevens/index.js';
 import { chaseScreen, chaseWelcome, chaseScreenKey } from './screens/chase/index.js';
+import { cheatScreen, cheatWelcome, cheatScreenKey } from './screens/cheat/index.js';
 import { applyGameTheme } from './games.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -218,6 +219,50 @@ const ctx = {
    * rather than dealing straight away, because that is where the difficulty
    * already lives — no new screen, and none wanted.
    */
+  /**
+   * A Cheat game.
+   *
+   * Nothing to ask on the way in. How many decks depends on how many people
+   * turn up, and one deck stops being legal at eight of them, so that question
+   * belongs in the lobby where it can actually be answered.
+   */
+  async createCheat(name) {
+    try {
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'cheat' });
+      ui.route = 'game';
+      net.connect();
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /**
+   * Cheat against three bots, in one tap.
+   *
+   * Three is the minimum this game needs on top of you. It is a short game at
+   * four - it stops with two people still holding cards - but a real one.
+   */
+  async playCheatSolo() {
+    try {
+      const name = (ui.name || '').trim() || lastName() || 'You';
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'cheat' });
+      ui.route = 'game';
+      net.connect();
+      render();
+      for (let i = 0; i < SOLO_BOTS; i += 1) {
+        try {
+          await net.send({ type: 'player/addBot', level: SOLO_LEVEL });
+        } catch {
+          /* the lobby has its own way to add one */
+        }
+      }
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
   /** A Chase the Ace game. One deck or two, chosen on the way in. */
   async createChase(name, twoDecks) {
     try {
@@ -507,6 +552,7 @@ net.on('state', (next) => {
   if (next.game === 'sillyhead') return onSillyHeadState(next);
   if (next.game === 'sevens') return onSevensState(next);
   if (next.game === 'chase') return onChaseState(next);
+  if (next.game === 'cheat') return onCheatState(next);
 
   const roundChanged = next.roundIndex !== lastRoundIndex;
   const phaseChanged = next.phase !== lastPhase;
@@ -619,6 +665,71 @@ function onChaseState(next) {
   if (state && next.lastEvent && next.lastEvent.kind === 'draw') {
     const before = state.lastEvent ? state.lastEvent.at : null;
     if (next.lastEvent.at !== before) sound('card');
+  }
+  if (phaseChanged && next.phase === 'complete') {
+    const lost = next.you && next.loserId === next.you.id;
+    buzz(lost ? 30 : [14, 50, 14]);
+    sound(lost ? 'lose' : 'win');
+  }
+
+  state = next;
+  lastPhase = next.phase;
+  lastRoundIndex = -1;
+  arrived(next);
+  if (next.phase === 'complete') releaseWake();
+  else keepAwake();
+  render();
+}
+
+/**
+ * A Cheat state landing.
+ *
+ * The same job as the others: clear what this phone was holding that belongs to
+ * the moment just left, make a noise at the points the game is actually waiting
+ * on you, and hand over to `render()`.
+ *
+ * The thing worth clearing is the selection. Cards you had picked out to put
+ * down belong to one turn — carrying them into the next would leave a hand
+ * looking half-played, and carrying them across a pickup would show cards ticked
+ * that are no longer even the same hand.
+ *
+ * The claim opening is the one moment this game genuinely demands your
+ * attention, and it is on a clock, so it buzzes. A claim you cannot call — your
+ * own — does not.
+ */
+function onCheatState(next) {
+  const phaseChanged = next.phase !== lastPhase;
+  const wasYourTurn = Boolean(state && state.you && state.you.isTurn);
+  const hadClaim = Boolean(state && state.claim);
+  const handChanged =
+    state && state.you && next.you && (state.you.hand || []).length !== (next.you.hand || []).length;
+
+  if (phaseChanged || handChanged || !next.you || !next.you.canClaim) ui.cheatPick = [];
+  if (phaseChanged) ui.confirmLeave = false;
+
+  if (phaseChanged && next.phase === 'playing') {
+    buzz([14, 70, 14]);
+    sound('deal');
+  }
+  if (next.you && next.you.isTurn && !wasYourTurn && !next.claim) {
+    buzz(12);
+    sound('turn');
+  }
+  // A window opening on somebody else's claim. Short, because it is a nudge to
+  // look up rather than a summons — but it is on a clock, and a missed window is
+  // a decision made for you.
+  if (next.claim && !hadClaim) {
+    sound('card');
+    if (next.you && next.you.canCall) buzz(10);
+  }
+  // Cards turned over. The loudest moment in the game either way, and the only
+  // one where the table finds out something it could not work out.
+  if (next.lastEvent && next.lastEvent.kind === 'call') {
+    const before = state && state.lastEvent ? state.lastEvent.at : null;
+    if (next.lastEvent.at !== before) {
+      buzz(next.lastEvent.honest ? 12 : [10, 40, 10]);
+      sound(next.lastEvent.loserId === (next.you && next.you.id) ? 'lose' : 'card');
+    }
   }
   if (phaseChanged && next.phase === 'complete') {
     const lost = next.you && next.loserId === next.you.id;
@@ -775,11 +886,13 @@ function pickScreen() {
     if (ui.game === 'sillyhead' && !shared) return sillyheadWelcome(ctx);
     if (ui.game === 'sevens' && !shared) return sevensWelcome(ctx);
     if (ui.game === 'chase' && !shared) return chaseWelcome(ctx);
+    if (ui.game === 'cheat' && !shared) return cheatWelcome(ctx);
     return welcomeScreen(ctx);
   }
   if (state.game === 'sillyhead') return sillyheadScreen(ctx);
   if (state.game === 'sevens') return sevensScreen(ctx);
   if (state.game === 'chase') return chaseScreen(ctx);
+  if (state.game === 'cheat') return cheatScreen(ctx);
   // Handing the phone to someone else outranks the phase. Their bid is often
   // the one that locks the round, and without this the phone would jump
   // straight to the revealed bids while they were still holding it - losing
@@ -810,6 +923,7 @@ function screenKey() {
   if (state.game === 'sillyhead') return `sillyhead:${state.phase}:${ui.shConfirmReady ? 'ready' : ''}`;
   if (state.game === 'sevens') return sevensScreenKey(state);
   if (state.game === 'chase') return chaseScreenKey(state, ui);
+  if (state.game === 'cheat') return cheatScreenKey(state);
   if (ui.takeover) return 'takeover';
   return `game:${state.phase}:${ui.correcting ? 'fix' : ''}`;
 }

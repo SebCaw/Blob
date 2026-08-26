@@ -76,6 +76,16 @@ class Room {
     /** Timer for the bot whose turn it is, and what it is waiting to do. */
     this.botTimer = null;
     this.botFor = null;
+    /**
+     * Timer for something the GAME is waiting on a clock for, and what.
+     *
+     * Distinct from the stall watch, which is about a person having gone
+     * missing. This one is ordinary play: Cheat's challenge window sits open for
+     * a few seconds and then closes itself, with nothing wrong and nobody
+     * absent. Only engines that ask for it have one.
+     */
+    this.deadlineTimer = null;
+    this.deadlineFor = null;
     /** When a bot last moved, so the next one cannot land on top of it. */
     this.lastBotMoveAt = 0;
     /** playerId -> when we last heard from that phone */
@@ -105,9 +115,12 @@ class Room {
      */
     this.rematchSessions = null;
 
-    // A room restored from disk mid-hand may already be waiting on a bot, and
-    // nothing has changed to trigger `_afterChange`.
+    // A room restored from disk mid-hand may already be waiting on a bot or
+    // sitting on an open window, and nothing has changed to trigger
+    // `_afterChange`. A window whose moment has already passed simply closes on
+    // the next tick, which is the right answer for a server that was asleep.
     this._scheduleBotMove();
+    this._watchDeadline();
   }
 
   // ── Sessions ───────────────────────────────────────────────────────────────
@@ -231,6 +244,7 @@ class Room {
     }
 
     this._watchForStall();
+    this._watchDeadline();
     this._scheduleBotMove();
 
     // Re-saved on a correction too: the record is written once on completion,
@@ -269,6 +283,35 @@ class Room {
       this.dispatch(watch.command, { actorId: null });
     }, this.stallMs);
     if (this.stallTimer.unref) this.stallTimer.unref();
+  }
+
+  /**
+   * Watch a clock the GAME is running, rather than one a missing player is.
+   *
+   * Same shape as `_watchForStall` and `_scheduleBotMove`: the engine names what
+   * it is waiting for, and a key that stays identical while it is waiting for
+   * the same thing. Without that key the timer would restart on every broadcast
+   * — every reconnect, every name edit — and a three second window would never
+   * close on a busy table.
+   *
+   * Optional. Most games have no clock of their own and do not define the hook.
+   */
+  _watchDeadline() {
+    const due = this.engine.deadline ? this.engine.deadline(this.state, Date.now()) : null;
+    const key = due ? due.key : null;
+
+    if (this.deadlineFor === key) return;
+    if (this.deadlineTimer) clearTimeout(this.deadlineTimer);
+    this.deadlineTimer = null;
+    this.deadlineFor = key;
+    if (!due) return;
+
+    this.deadlineTimer = setTimeout(() => {
+      this.deadlineTimer = null;
+      this.deadlineFor = null;
+      this.dispatch(due.command, { actorId: null });
+    }, Math.max(0, due.afterMs));
+    if (this.deadlineTimer.unref) this.deadlineTimer.unref();
   }
 
   // ── Bots ────────────────────────────────────────────────────────────────
@@ -461,6 +504,7 @@ class Room {
 
   /** Stop every timer — called when the room is evicted. */
   dispose() {
+    if (this.deadlineTimer) clearTimeout(this.deadlineTimer);
     if (this.botTimer) clearTimeout(this.botTimer);
     this.botTimer = null;
     if (this.stallTimer) clearTimeout(this.stallTimer);

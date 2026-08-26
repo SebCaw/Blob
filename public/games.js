@@ -113,6 +113,34 @@ export const GAMES = [
       '<rect x="15" y="13" width="6" height="8.4" rx="1.4"/></svg>',
     ready: true,
   },
+  {
+    id: 'cheat',
+    name: 'Cheat',
+    tagline: 'Say what you like. Somebody has to believe you.',
+    blurb: 'Also played as Bullshit, I Doubt It or Bluff. Lie well, and call better.',
+    players: '3 to 12',
+    // A warm tobacco ground, and the only one in the app that is not a colour
+    // anybody would call bright. It started at 305, a purple-pink, and moved
+    // because that sat too close to Blob's 265 to tell apart on a phone in a
+    // dim room - which is the whole point of giving each game its own hue.
+    hue: 30,
+    // The complement at S100 L62 and its deep at S83 L46, straight off the rule.
+    // The first COOL accent in the app: Blob is lime, Silly Head amber, Sevens
+    // orange and Chase the Ace mint, so a blue is the one thing on the shelf
+    // nothing else can be mistaken for.
+    accent: '#3d9eff',
+    accentDeep: '#1475d7',
+    // Something said over a card nobody can see, which is the entire game. The
+    // other four icons are all cards doing something; this one is a card and a
+    // claim about it.
+    icon:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 2.6 H18.8 ' +
+      'a2.2 2.2 0 0 1 2.2 2.2 V8 a2.2 2.2 0 0 1 -2.2 2.2 H9.6 L6 13 V10.2 H5.2 ' +
+      'A2.2 2.2 0 0 1 3 8 V4.8 A2.2 2.2 0 0 1 5.2 2.6 Z"/>' +
+      '<rect x="11" y="13.6" width="9" height="7.8" rx="1.5"/></svg>',
+    ready: true,
+  },
 ];
 
 /** @param {string} id */
