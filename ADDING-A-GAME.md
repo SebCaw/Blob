@@ -730,6 +730,30 @@ afternoon and needed almost no revision. Everything expensive was somewhere else
   its other three. That was the whole platform cost, which is the argument for
   the engine registry working.
 
+## The screen key, and the bug it caused twice
+
+`app.js` plays the whole entry animation whenever `screenKey()` CHANGES. So a
+key is the answer to "which screen am I on", and nothing else may go in it.
+
+Both new games got this wrong in the same way, with comments confidently
+explaining the opposite. Chase the Ace put the lifted card in its key, on the
+stated grounds that this would stop the animation firing on every tap - it
+guaranteed it instead, and because binning clears the lifted card, **throwing a
+pair away replayed the entry animation every single time.** Cheat put the open
+claim in its key and re-entered twice a turn.
+
+Seb reported it as the screen reloading, which is exactly what it looks like.
+
+**The rule: a key names where you ARE, not what you are doing there.** Phase is
+almost always the whole of it. A within-screen state - a selection, an open
+window, a countdown, a hand that grew - never belongs. The legitimate exceptions
+are the ones that genuinely swap one screen for a different screen: Blob's
+`correcting` and Silly Head's `shConfirmReady` both do that, and both are fine.
+
+If you want an animation for something smaller, animate that thing. There is a
+worked example of the shape in `screens/cheat/table.js` (`freshEvent`): gate on
+the event's own identity plus a time window, never on "this render differs".
+
 ## Open decisions
 
 Settle these before or during game three, and record the answer here.

@@ -922,7 +922,7 @@ function screenKey() {
   if (!state || ui.route !== 'game') return `welcome:${ui.game}:${ui.route}`;
   if (state.game === 'sillyhead') return `sillyhead:${state.phase}:${ui.shConfirmReady ? 'ready' : ''}`;
   if (state.game === 'sevens') return sevensScreenKey(state);
-  if (state.game === 'chase') return chaseScreenKey(state, ui);
+  if (state.game === 'chase') return chaseScreenKey(state);
   if (state.game === 'cheat') return cheatScreenKey(state);
   if (ui.takeover) return 'takeover';
   return `game:${state.phase}:${ui.correcting ? 'fix' : ''}`;

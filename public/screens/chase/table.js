@@ -50,6 +50,34 @@ function reducedMotion() {
  */
 let nudge = { key: null, since: 0, timer: null };
 
+/**
+ * When this phone first saw the opening pause.
+ *
+ * Counted from here rather than from the server's clock, so a phone four
+ * minutes out of step still gets twelve seconds. The server only says how LONG
+ * the pause is, which is a rule; when it ends locally is this phone's business.
+ * One repaint is armed for the end of it so the screen does not sit on a stale
+ * countdown when nothing else happens to be pushing.
+ */
+let settle = { startedAt: null, localAt: 0, timer: null };
+
+function settleLeft(ctx, info) {
+  if (!info) {
+    if (settle.timer) clearTimeout(settle.timer);
+    settle = { startedAt: null, localAt: 0, timer: null };
+    return 0;
+  }
+  if (settle.startedAt !== info.startedAt) {
+    if (settle.timer) clearTimeout(settle.timer);
+    settle = {
+      startedAt: info.startedAt,
+      localAt: Date.now(),
+      timer: setTimeout(() => ctx.render(), info.ms + 120),
+    };
+  }
+  return Math.max(0, info.ms - (Date.now() - settle.localAt));
+}
+
 function nudgeDue(ctx, you) {
   const pairs = (you && you.pairs) || [];
   if (!pairs.length) {
@@ -137,14 +165,29 @@ function statusLine(ctx) {
   const turn = state.players.find((p) => p.id === state.turnId);
   const source = state.source;
 
+  // The opening pause outranks everything: until it is over, nothing else on
+  // this screen is true yet.
+  if (state.settle) {
+    const left = Math.ceil(settleLeft(ctx, state.settle) / 1000);
+    return h('p.ca-status.ca-status--settle', {
+      text: (you.pairs || []).length
+        ? `Throw your pairs away — everyone starts in ${left}s`
+        : `Ready. Everyone starts in ${left}s`,
+    });
+  }
   if (you.out) return h('p.ca-status', { text: 'You are out, and safe. Watching the rest of it.' });
   // Sitting on a pair outranks whose turn it is, because until it is gone
   // nothing else you might do will be allowed.
   if ((you.pairs || []).length && you.isTurn) {
     return h('p.ca-status.ca-status--pair', { text: 'Throw your pair away before you take one' });
   }
+  if (you.isTurn && source && source.holdingPair) {
+    return h('p.ca-status.ca-status--wait', {
+      text: `Waiting — ${source.name} has a pair to throw away first`,
+    });
+  }
   if (you.isTurn && source) {
-    return h('p.ca-status.ca-status--you', { text: `Your turn — take one from ${source.name}` });
+    return h('p.ca-status.ca-status--you', { text: `Your turn — tap a card in ${source.name}'s hand` });
   }
   if (you.locked) {
     return h('p.ca-status.ca-status--locked', { text: `${turn ? turn.name : 'Someone'} is choosing from your hand` });
@@ -200,7 +243,14 @@ function seat(ctx, player, event) {
   const state = ctx.state;
   const you = state.you || {};
   const isSource = state.source && state.source.id === player.id;
-  const canTake = Boolean(you.isTurn && isSource && !you.out && !(you.pairs || []).length);
+  const canTake = Boolean(
+    you.isTurn &&
+      isSource &&
+      !you.out &&
+      !you.settling &&
+      !player.holdingPair &&
+      !(you.pairs || []).length
+  );
 
   const moved = event && event.kind === 'move' && event.playerId === player.id ? event : null;
   const shuffled = event && event.kind === 'shuffle' && event.playerId === player.id;
@@ -209,6 +259,8 @@ function seat(ctx, player, event) {
   const classes = [
     'ca-seat',
     isSource ? 'ca-seat--source' : '',
+    canTake ? 'ca-seat--take' : '',
+    player.holdingPair ? 'ca-seat--pairing' : '',
     player.isTurn ? 'ca-seat--turn' : '',
     player.out ? 'ca-seat--out' : '',
     shuffled ? 'ca-seat--shuffling' : '',
@@ -226,6 +278,17 @@ function seat(ctx, player, event) {
         ? h('span.ca-seat__badge', { text: `out #${player.place}` })
         : h('span.ca-seat__n', { text: String(player.cardsHeld) })
     ),
+    // Say what this seat is for, right where the cards are. The instruction used
+    // to live only in the status line at the top of the screen, several inches
+    // from the thing it was talking about - which on a phone is how you end up
+    // unable to work out that the small row of card backs is a set of buttons.
+    canTake ? h('span.ca-seat__take', { text: `Tap one to take it — ${player.cardsHeld} to choose from` }) : null,
+    // Only once play has started. During the opening pause EVERYBODY is holding
+    // pairs, so saying it on every seat is three lines of noise explaining a
+    // block that is not the reason nothing is happening.
+    player.holdingPair && !player.out && !state.settle
+      ? h('span.ca-seat__pairing', { text: 'Throwing a pair away — nobody can take from them' })
+      : null,
     player.out
       ? null
       : h(

@@ -18,16 +18,19 @@ export function cheatScreen(ctx) {
 }
 
 /**
- * What makes this a different screen rather than the same one repainted.
+ * What makes this a different SCREEN, rather than the same screen repainted.
  *
- * A claim being on the table counts, because the whole bottom of the screen
- * changes when one is: the rank buttons go and the call button arrives. Without
- * it here the entry animation would either fire on every window or on none of
- * them.
+ * The phase, and nothing else.
  *
- * The picked cards deliberately do NOT count. Selecting a card is not arriving
- * somewhere new, and keying on it would replay the entry animation on every tap.
+ * The claim used to be in here, on the grounds that the bottom of the screen
+ * changes when one is open. It does - but changing the buttons is not arriving
+ * somewhere, and `app.js` plays the whole entry animation whenever this key
+ * moves. That meant the screen re-entered twice a turn, once when a claim opened
+ * and again when it closed. Chase the Ace had the identical bug with its lifted
+ * card and Seb reported it as the screen reloading.
+ *
+ * **The rule: a key names where you ARE, not what you are doing there.**
  */
 export function cheatScreenKey(state) {
-  return `cheat:${state.phase}:${state.claim ? 'claim' : ''}`;
+  return `cheat:${state.phase}`;
 }

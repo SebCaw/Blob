@@ -58,6 +58,27 @@ pairs there is no decision in it. There is no decision, but there IS an act:
 finding your pairs and throwing them away is most of what playing this game
 feels like, and doing it for people took the first minute of the game off them.
 
+**A moment to read your hand before anybody can touch it.** The game used to
+start the instant it dealt, so a bot could reach into your hand about a second
+after you first laid eyes on thirteen cards. Everybody holds pairs at the deal -
+that is the shape of the game - and a real table pauses while the room sorts
+itself out. There was no equivalent, so there is now: twelve seconds during which
+nobody may draw, ending EARLY the moment everybody still in has cleared their
+pairs. On most tables it never runs out.
+
+**A hand with an unbinned pair in it is closed in BOTH directions.** You cannot
+draw while holding one, and nobody can draw from you while you are holding one
+either. The second half came after Seb was raided in the gap: drawing a card
+that pairs is the good outcome in this game, and the reward for it was being the
+only player at the table who could not act while everybody else could act on
+you. There is no cooldown anywhere else in this game to lean on, so the freeze
+has to be explicit - and the table is told whose pair it is waiting on, because
+"nobody can take from Fern" is unusable without the reason.
+
+That last point is a deliberate, bounded leak: it says two of somebody's cards
+match, never which. Everybody is about to watch those two land in the middle
+anyway, so it is a second early rather than a secret.
+
 **Binning is compulsory and can never be blocked.** You cannot take a card from
 anybody while you are still holding a pair — the reducer refuses it. That is not
 tidiness: a pair held back is two extra cards, and extra cards is somewhere extra
