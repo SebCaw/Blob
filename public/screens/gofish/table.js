@@ -1,6 +1,7 @@
 import { h } from '../../ui.js';
 import { cardFace, cardBack } from '../../cards.js';
 import { topbar, splitHand } from '../common.js';
+import { uiZoom } from '../../size.js';
 
 /**
  * The Go Fish table.
@@ -38,6 +39,63 @@ const ROW_MAX = 9;
 /** How many lines of the transcript are worth showing. */
 const HEARD = 4;
 
+/**
+ * The ring, and when there is no room for one.
+ *
+ * Seb asked for a table rather than a list of names, in the same words for both
+ * this and Cheat: make it into a table like in Silly Head and Blob, it will fill
+ * the space much better. He is right, and the reason is sharper here than
+ * anywhere else on the shelf: a Go Fish seat is something you POINT AT. The
+ * second half of every turn is choosing a person, and a person is easier to find
+ * in a place than in a list.
+ *
+ * The numbers are lifted from Silly Head's ring, which has already been through
+ * a phone. `RING_MIN_WIDTH` is in the APP's pixels rather than the screen's,
+ * because turning the text size up narrows the app exactly as a smaller phone
+ * would: at Largest a 375px phone has 268 of them to spend, and six seats round
+ * a pool do not go into that however the arithmetic is arranged. Under it the
+ * seats fall back to the list, which is a worse table and a perfectly good
+ * screen.
+ */
+const RING_MIN_WIDTH = 240;
+/** And what each seat past the third adds to that. Six need a wider table. */
+const RING_WIDTH_PER_SEAT = 30;
+const RING_X = 38;
+const RING_Y = 33;
+const RING_MID_Y = 45;
+/** The widest a seat gets. Narrower than Silly Head's: no face-up cards on it. */
+const SEAT_MAX_PCT = 26;
+
+/** Is there room for a ring at all, at the size this player has asked for? */
+function tooTightForRing(total) {
+  const need = RING_MIN_WIDTH + Math.max(0, total - 3) * RING_WIDTH_PER_SEAT;
+  return window.innerWidth / (uiZoom() || 1) < need;
+}
+
+function seatAngle(index, total) {
+  return -90 - (index * 360) / total;
+}
+
+/**
+ * How wide a seat is and how far out the ring sits, settled together.
+ *
+ * A seat takes a shade under the gap to its closest neighbour, and the ring
+ * comes in far enough that the outermost seat stays on the screen. The two
+ * depend on each other - pulling the ring in shortens the arc, which narrows the
+ * seats, which lets the ring back out - so it is settled by running the pair
+ * round a few times rather than by one formula that cannot express it.
+ */
+function ringGeometry(total) {
+  const step = 360 / total;
+  let ringX = RING_X;
+  let widthPct = SEAT_MAX_PCT;
+  for (let pass = 0; pass < 4; pass += 1) {
+    widthPct = Math.min(SEAT_MAX_PCT, 2 * ringX * Math.sin((step / 2) * (Math.PI / 180)) * 0.94);
+    ringX = Math.min(RING_X, 50 - widthPct / 2 - 3);
+  }
+  return { ringX, widthPct };
+}
+
 const RANK_ONE = {
   A: 'ace', 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six', 7: 'seven',
   8: 'eight', 9: 'nine', 10: 'ten', J: 'jack', Q: 'queen', K: 'king',
@@ -72,7 +130,15 @@ export function tableScreen(ctx) {
   const state = ctx.state;
   const you = state.you || {};
   const event = freshEvent(state.lastEvent);
-  const others = state.players.filter((p) => !p.left && p.id !== you.id);
+  const here = state.players.filter((p) => !p.left);
+  const ring = !tooTightForRing(here.length);
+
+  // You at the bottom, everybody else round from you in seating order - the
+  // same convention as Blob and Silly Head, so the shelf keeps one idea of where
+  // you are sitting.
+  const start = here.findIndex((p) => p.id === you.id);
+  const ordered = start === -1 ? here : here.slice(start).concat(here.slice(0, start));
+  const others = here.filter((p) => p.id !== you.id);
 
   const screen = h(
     // `--fixed` so the table does not wander under your thumb, and deliberately
@@ -82,16 +148,81 @@ export function tableScreen(ctx) {
     topbar(state, { title: 'Go Fish', ctx }),
     metaRow(ctx),
     statusLine(ctx),
-    middle(ctx, event),
-    h('div.gf-seats', others.map((p) => seat(ctx, p, event))),
+    ring ? ringTable(ctx, ordered, event) : middle(ctx, event),
+    ring ? null : h('div.gf-seats', others.map((p) => seat(ctx, p, event))),
     heard(ctx),
-    yourBooks(ctx),
+    // Your own books sit on your own seat once there is a table to sit at, so
+    // the strip only appears when the seats are a list.
+    ring ? null : yourBooks(ctx),
     yourHand(ctx),
     tools(ctx)
   );
 
-  requestAnimationFrame(() => spillIfNeeded(screen));
+  requestAnimationFrame(() => {
+    spillIfNeeded(screen);
+    fitSeats(screen);
+  });
   return screen;
+}
+
+/**
+ * The table: everybody round a felt, with the pool and the question in the
+ * middle of it.
+ *
+ * The middle is deliberately the same `middle()` the list layout draws. There is
+ * one question on the table and it should look the same wherever it is put - two
+ * versions of the loudest thing on the screen is two things to keep in step.
+ */
+function ringTable(ctx, ordered, event) {
+  const total = ordered.length;
+  const { ringX, widthPct } = ringGeometry(total);
+
+  const seats = ordered.map((player, index) => {
+    const radians = (seatAngle(index, total) * Math.PI) / 180;
+    return seat(ctx, player, event, {
+      left: `${50 + Math.cos(radians) * ringX}%`,
+      top: `calc(${RING_MID_Y}% - ${RING_Y} * ${Math.sin(radians).toFixed(4)} * 1%)`,
+    });
+  });
+
+  return h(
+    'div.table.gf-table',
+    { style: { '--seat-pct': String(widthPct), '--seat-scale': '1' } },
+    h('div.table__ring', h('div.table__felt'), seats, h('div.gf-centre', middle(ctx, event)))
+  );
+}
+
+/**
+ * Shrink the seats until no two of them touch.
+ *
+ * `ringGeometry` gets six seats close, and how tall a seat ends up once a long
+ * name and three books have had their say is not something it can predict - so
+ * the formula places them and a measuring pass settles it, which is the same
+ * split Blob's table uses.
+ *
+ * Boxes are compared against each other rather than against the ring, because
+ * seats lean out of a ring by design and asking whether the ring overflows
+ * counts collisions that are not there.
+ */
+function fitSeats(screen) {
+  const table = screen.querySelector('.gf-table');
+  if (!table) return;
+  const seats = [...table.querySelectorAll('.gf-seat')];
+  if (seats.length < 2) return;
+
+  for (let scale = 100; scale >= 70; scale -= 6) {
+    table.style.setProperty('--seat-scale', String(scale / 100));
+    const boxes = seats.map((el) => el.getBoundingClientRect());
+    let clash = false;
+    for (let i = 0; i < boxes.length && !clash; i += 1) {
+      for (let j = i + 1; j < boxes.length && !clash; j += 1) {
+        const a = boxes[i];
+        const b = boxes[j];
+        clash = a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+      }
+    }
+    if (!clash) return;
+  }
 }
 
 /**
@@ -360,7 +491,7 @@ function bookView(ctx, event) {
  * The row stays exactly where it is whether it is live or not — an inert control
  * that moves when it wakes up is one you have to find again every turn.
  */
-function seat(ctx, player, event) {
+function seat(ctx, player, event, at) {
   const state = ctx.state;
   const you = state.you || {};
   const picked = ctx.ui.gfRank;
@@ -369,6 +500,8 @@ function seat(ctx, player, event) {
   const asked = player.isAsked;
 
   const classes = ['gf-seat'];
+  if (at) classes.push('gf-seat--placed');
+  if (player.id === you.id) classes.push('gf-seat--you');
   if (player.out) classes.push('gf-seat--out');
   if (player.isTurn || asked) classes.push('gf-seat--turn');
   if (askable) classes.push('gf-seat--target');
@@ -377,22 +510,28 @@ function seat(ctx, player, event) {
   const body = [
     h(
       'div.gf-seat__head',
-      h('span.gf-seat__name', { text: player.name }),
+      h('span.gf-seat__name', { text: player.id === you.id ? 'You' : player.name }),
       h('span.gf-seat__count', { text: player.out ? 'out' : String(player.cardsHeld) })
     ),
     books(player),
     askable ? h('span.gf-seat__cue', { text: `Any ${RANK_MANY[picked]}?` }) : null,
-    asked ? h('span.gf-seat__cue.gf-seat__cue--waiting', { text: 'thinking' }) : null,
+    // "thinking" is what the rest of the table sees while it waits on somebody.
+    // On your OWN seat it is nonsense - you are not thinking, you are being
+    // asked - and the middle and the button underneath both already say so.
+    asked && player.id !== you.id
+      ? h('span.gf-seat__cue.gf-seat__cue--waiting', { text: 'thinking' })
+      : null,
     !player.connected && !player.isBot ? h('span.gf-seat__state', { text: 'away' }) : null,
   ];
 
   if (!askable) {
-    return h('div', { className: classes.join(' '), 'data-player-id': player.id }, ...body);
+    return h('div', { className: classes.join(' '), style: at || undefined, 'data-player-id': player.id }, ...body);
   }
   return h(
     'button',
     {
       className: classes.join(' '),
+      style: at || undefined,
       type: 'button',
       'data-player-id': player.id,
       'aria-label': `Ask ${player.name} for ${RANK_MANY[picked]}`,

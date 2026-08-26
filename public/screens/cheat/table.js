@@ -375,22 +375,36 @@ function seat(ctx, player, event) {
 }
 
 /**
- * The cards everybody knows this player is holding.
+ * How big this player's hand is, drawn rather than counted.
  *
- * Only ever cards the whole room watched get turned over and picked up, so
- * showing them is memory rather than a leak — the same reasoning Silly Head uses
- * for the cards it saw somebody take off the pile. Knowing that Dex is sitting
- * on two kings is most of how you decide whether to believe his next claim.
+ * This row used to show `publicCards` — the faces the whole room watched
+ * somebody pick up at a reveal. It was defensible and Seb did not want it: his
+ * words were "what are these cards doing here, I would rather have a
+ * visualisation on how many cards they have in their hand", and he is right
+ * about which of the two you are actually reading. Who is nearly out is the
+ * thing you check every single turn; a king Dex picked up four claims ago is a
+ * detail you check once.
+ *
+ * Taking it off the screen does not take it out of the game. It is still in the
+ * payload, it is still what the bots count with, and it is still something a
+ * person who was watching can remember. It just stops being remembered FOR you,
+ * which for this game is an improvement.
+ *
+ * The number is still there beside the name, because a fan of backs is a shape
+ * rather than a count and at eleven cards nobody can tell it from twelve. The
+ * fan is for the glance across the table; the number is for when you care.
  */
 function known(player) {
-  const cards = player.publicCards || [];
-  if (!cards.length || player.out) return null;
-  const shown = cards.slice(0, 4);
+  const held = player.cardsHeld || 0;
+  if (!held || player.out) return null;
+  const shown = Math.min(held, 12);
   return h(
-    'div.ch-seat__known',
-    { 'aria-label': `${player.name} is known to hold ${cards.length} cards` },
-    shown.map((card) => cardFace(card, { size: 'xs' })),
-    cards.length > shown.length ? h('span.ch-seat__more', { text: `+${cards.length - shown.length}` }) : null
+    'div.ch-seat__fan',
+    { 'aria-label': `${player.name} is holding ${held} ${held === 1 ? 'card' : 'cards'}` },
+    Array.from({ length: shown }, (_, i) =>
+      h('span.ch-seat__pip', { style: { '--i': String(i) }, 'aria-hidden': 'true' })
+    ),
+    held > shown ? h('span.ch-seat__more', { text: `+${held - shown}` }) : null
   );
 }
 

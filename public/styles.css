@@ -491,6 +491,18 @@ html[data-size='huge'] .bid__current {
   gap: 8px;
 }
 
+/* The three big choices on a game's front page.
+ *
+ * They used to be a `.stack--tight`, which is an 8px gap - the spacing for a
+ * list of settings rows, not for the three buttons the whole page exists to
+ * offer. On a tall phone that left them huddled together in the middle of a
+ * screen with room to spare at both ends. Seb asked for them spread out and
+ * this is all of it: the page keeps its shape, the buttons stop touching.
+ */
+.home-actions {
+  gap: 16px;
+}
+
 .spacer {
   flex: 1;
   min-height: 4px;
@@ -4792,8 +4804,28 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 }
 .ch-seat--turn .ch-seat__count { color: var(--ink); }
 .ch-seat__state { font-size: 11px; color: var(--ink-faint); }
-.ch-seat__known { display: flex; align-items: center; gap: 2px; }
-.ch-seat__more { font-size: 11px; color: var(--ink-faint); margin-left: 2px; }
+/* How big somebody's hand is, as a shape.
+ *
+ * This row used to be the faces the room watched them pick up. Seb asked for
+ * the hand size instead, and he is right about which one you read every turn -
+ * see the note on `known()` in the screen.
+ *
+ * Overlapping slivers rather than card backs: at twelve cards a row of real
+ * backs is wider than the seat, and the point of this is the silhouette. The
+ * exact number is still beside the name for when the shape is not enough. */
+.ch-seat__fan { display: flex; align-items: center; min-height: 15px; }
+.ch-seat__pip {
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--night-600);
+  border: 1px solid var(--night-500);
+  margin-left: -3px;
+  flex: none;
+}
+.ch-seat__pip:first-child { margin-left: 0; }
+.ch-seat--turn .ch-seat__pip { background: var(--night-500); }
+.ch-seat__more { font-size: 11px; color: var(--ink-faint); margin-left: 4px; }
 
 /* They just picked the lot up. */
 @keyframes ch-picked {
@@ -4805,6 +4837,15 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 
 /* -- The middle -------------------------------------------------------------- */
 
+/* The middle takes whatever room is going, at every window height.
+ *
+ * It used to only do that above 820px tall, which left a short-but-roomy window
+ * - a laptop, or a phone in landscape - with the claim pinned to the top and a
+ * void underneath it. Seb asked for the space filling out, and the middle is
+ * the right thing to fill it with: it is the one part of this screen anybody is
+ * looking at. `flex-shrink` stays at 1 but the content-based minimum keeps it
+ * from being squeezed into nothing, so a crowded table still overflows honestly
+ * and `spillIfNeeded` opens the hatch. */
 .ch-middle {
   display: flex;
   flex-direction: column;
@@ -4813,6 +4854,7 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   gap: 4px;
   padding: 10px 0;
   text-align: center;
+  flex: 1 1 auto;
 }
 .ch-middle__label {
   font-size: 11px;
@@ -5315,6 +5357,78 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   font-variant-numeric: tabular-nums;
 }
 .gf-book--mine { background: var(--lime-deep); color: #06121f; }
+
+/* -- The table ---------------------------------------------------------------
+ *
+ * Seb asked for this in the same words he used for Cheat: a table like Silly
+ * Head and Blob, because it fills the space much better. It does - but the
+ * reason it is worth the code here rather than there is that a Go Fish seat is
+ * something you POINT AT. The second half of every turn is choosing a person,
+ * and a person is easier to find in a place round a table than in a list of
+ * names.
+ *
+ * `.table`, `.table__ring` and `.table__felt` are the shared ones Blob and Silly
+ * Head already use, so the three games look like one app. What is local is the
+ * seat, which carries a name, a count and however many books - and the middle,
+ * which carries the question.
+ */
+.gf-table { margin: 2px 0 6px; }
+
+/* A seat placed on the ring rather than stacked in a list.
+ *
+ * The scale is set by the measuring pass in `fitSeats`, not by a media query:
+ * how tall a seat ends up once a long name and three books have had their say
+ * is not something the arithmetic can predict. */
+.gf-seat--placed {
+  position: absolute;
+  width: calc(var(--seat-pct, 24) * 1%);
+  min-width: 72px;
+  transform: translate(-50%, -50%) scale(var(--seat-scale, 1));
+  transform-origin: 50% 50%;
+  padding: 5px 6px;
+  gap: 2px;
+  align-items: center;
+  text-align: center;
+}
+.gf-seat--placed .gf-seat__head {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+}
+.gf-seat--placed .gf-seat__name { font-size: 12px; max-width: 100%; }
+.gf-seat--placed .gf-seat__count { font-size: 17px; }
+.gf-seat--placed .gf-seat__books { justify-content: center; }
+.gf-seat--placed .gf-seat__cue { font-size: 10px; line-height: 1.1; }
+
+/* Your own seat. Named "You" rather than by your own name, and given the accent
+   edge, because the one seat you never have to look for is your own. */
+.gf-seat--you { border-color: var(--night-500); }
+.gf-seat--you .gf-seat__name { color: var(--ink-soft); }
+
+/* The middle of the ring, which is the pool and - when there is one - the
+   question. Narrower than the felt so a long name still lands inside it, and
+   the type steps down to match: 56px reads well across a screen and not at all
+   across a circle. */
+.gf-centre {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  width: 58%;
+  max-width: 250px;
+  /* Nothing in here is tappable, and a seat behind it is. */
+  pointer-events: none;
+}
+.gf-centre .gf-middle { min-height: 0; padding: 0; gap: 3px; }
+.gf-centre .gf-ask__saying { flex-direction: column; gap: 0; }
+.gf-centre .gf-ask__rank { font-size: 40px; }
+.gf-centre .gf-ask__word { font-size: 15px; }
+.gf-centre .gf-ask__who { font-size: 12px; }
+.gf-centre .gf-verdict { font-size: 15px; }
+.gf-centre .gf-verdict--fish { font-size: 24px; }
+.gf-centre .gf-middle__label { font-size: 11px; }
+.gf-centre .gf-pool__card { margin-left: -34px; }
 
 /* -- What has been said ------------------------------------------------------
  *

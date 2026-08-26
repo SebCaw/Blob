@@ -39,7 +39,7 @@ function homeView(ctx) {
     h('p.muted.center', { style: { 'font-size': '14px' }, text: game.blurb }),
     h('div.spacer'),
     h(
-      'div.stack.stack--tight',
+      'div.stack.home-actions',
       action('Start a game', () => ctx.go('create')),
       action('Join a game', () => ctx.go('join'), { kind: 'ghost' }),
       action('On your own', () => ctx.playChaseSolo(), { kind: 'ghost' })

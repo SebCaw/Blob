@@ -47,7 +47,7 @@ function homeView(ctx) {
     h('p.muted.center', { style: { 'font-size': '14px' }, text: game.blurb }),
     h('div.spacer'),
     h(
-      'div.stack.stack--tight',
+      'div.stack.home-actions',
       action('Start a game', () => ctx.go('create')),
       action('Join a game', () => ctx.go('join'), { kind: 'ghost' }),
       // The third honest answer to "who are you playing with?", so it sits with

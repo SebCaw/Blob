@@ -100,7 +100,7 @@ function homeView(ctx) {
     h('div.spacer'),
     h('span.eyebrow.center', { text: 'How are you playing?' }),
     h(
-      'div.stack.stack--tight',
+      'div.stack.home-actions',
       modeCard({
         title: 'Round a table',
         blurb: 'You deal real cards. Blob runs the bidding and keeps the score.',
