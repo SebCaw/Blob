@@ -4984,43 +4984,66 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 
 /* -- The buttons ------------------------------------------------------------- */
 
+/* The bottom strip: what you can do, and the Cheat button beside it.
+ *
+ * A row rather than a stack, because the call is no longer the main event. It
+ * was a bar across the whole width when it was the one control on a clock; the
+ * clock still paces the game but a claim stays callable after it, so this is a
+ * small thing down the side you reach for once you have worked it out. Seb's
+ * words: "much smaller and on the side instead of a main bar across the middle".
+ */
 .ch-tools {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 96px;
+}
+.ch-tools__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.ch-claimbar { display: flex; flex-direction: column; gap: 6px; }
+.ch-tools__hint { font-size: 13px; color: var(--ink-faint); text-align: center; }
+
+/* Always in the same place, live or not. A control that only appears when it is
+   needed is one whose position you never learn. */
+.ch-call {
+  flex: 0 0 auto;
+  width: 84px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  min-height: 96px;
   justify-content: center;
+  gap: 2px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--bad);
+  background: color-mix(in srgb, var(--bad) 16%, transparent);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  padding: 6px 4px;
 }
-.ch-tools--quiet { min-height: 96px; }
-.ch-tools__hint { font-size: 13px; color: var(--ink-faint); text-align: center; }
-
-/* One button, always in the same place.
- *
- * It used to appear only while a claim was open, which made the one control in
- * this game that is on a clock also the one that moved. Now it sits there the
- * whole time and simply goes live, so by the time it matters your thumb already
- * knows where it is. Idle it is quiet enough to ignore and solid enough to aim
- * at. */
-.ch-call {
-  width: 100%;
-  min-height: 60px;
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  transition: opacity 140ms ease, transform 140ms var(--ease-pop);
+.ch-call__word { font-size: 15px; font-weight: 900; letter-spacing: 0.01em; }
+.ch-call__who {
+  font-size: 10px;
+  color: var(--ink-faint);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ch-call--idle {
-  opacity: 0.32;
-  transform: scale(0.98);
+  border-color: var(--night-500);
+  background: var(--night-800);
+  color: var(--ink-faint);
+  cursor: default;
 }
-/* Going live is the animation, rather than arriving. */
-@keyframes ch-call-wake {
-  0% { transform: scale(0.98); }
-  55% { transform: scale(1.03); }
-  100% { transform: none; }
-}
-.ch-tools--live .ch-call { animation: ch-call-wake 260ms var(--ease-pop) both; }
+.ch-call:not(.ch-call--idle):active { transform: translateY(1px); }
 
 .ch-ranks { display: flex; gap: 6px; width: 100%; }
 .ch-rank {
@@ -5081,9 +5104,6 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   .ch-middle--landed .ch-claim__cards,
   .ch-middle--flip .ch-reveal__card,
   .ch-seat--picked,
-  .ch-tools--live .ch-call {
-    animation: none;
-  }
   .ch-window__bar { animation: none; }
 }
 
