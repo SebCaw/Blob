@@ -4637,6 +4637,23 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* The trap written down at `.screen--fits` above, and this screen had it.
+     `.screen` is `flex: 1`, which stretches a flex item to its contents - so
+     `.screen--fixed`'s height is ignored and the screen grows taller than the
+     phone instead of clipping. Nothing is clipped, so `scrollHeight` and
+     `clientHeight` come back equal and `spillIfNeeded` reports a screen that
+     fits perfectly while the Cheat! button hangs off the bottom.
+
+     Measured on a twelve-player table at 375x812: at Large the screen was 774px
+     in a 688px slot and the button sat 49px below the fold; at Largest it was
+     779px in a 580px slot and the button was 216px down. Neither ever scrolled.
+     That is the one control in this game on a four second clock.
+
+     `flex: 0 0 auto` pins it to the window. What is inside gives way instead,
+     and the hatch can then actually open. Go Fish's `.gf-play` carries the same
+     line; see the note in ADDING-A-GAME.md about moving it onto
+     `.screen--fixed` itself so a fourth screen does not rediscover it. */
+  flex: 0 0 auto;
 }
 
 .ch-meta {
@@ -4700,8 +4717,22 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1 1 auto;
-  min-height: 0;
+  /* Grows into a tall window, never shrinks below what is in it.
+   *
+   * The second half of the same fix as `.ch-play`'s `flex: 0 0 auto`, and it is
+   * needed BECAUSE of it. Pinning the screen to the window stopped it running
+   * off the bottom of the phone - and this box, being `1 1 auto` with
+   * `min-height: 0`, cheerfully absorbed the difference instead: measured at
+   * twelve players and the largest text it was squeezed to 251px around 377px
+   * of seats, which then spilled straight over the hand and the buttons
+   * underneath. Traded one bug for a worse-looking one.
+   *
+   * `flex-shrink: 0` is what stops that, and dropping `min-height: 0` restores
+   * the content-based minimum a flex item has by default. Nothing inside here
+   * scrolls, which is the usual reason for that zero, so nothing wants it.
+   * The screen now genuinely overflows, `spillIfNeeded` can see it, and the
+   * hatch opens. */
+  flex: 1 0 auto;
 }
 
 /* -- Everybody else ---------------------------------------------------------

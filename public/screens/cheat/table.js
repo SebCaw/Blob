@@ -113,10 +113,31 @@ export function tableScreen(ctx) {
  * rather than on which text size somebody picked is the lesson from Blob's bid
  * screen, where the hatch only opened at the larger sizes and the default size
  * clipped its own top with no way to reach it.
+ *
+ * **Two measurements, not one, and this screen is why the second one exists.**
+ * `scrollHeight > clientHeight` only sees an overflow that is being CLIPPED. A
+ * screen that has GROWN past the window is not clipping anything, so the two
+ * numbers come back equal and this function cheerfully reports that a table with
+ * its Cheat! button hanging off the bottom fits perfectly. Measured at twelve
+ * players and the largest text: 779px of screen in a 580px slot, button 216px
+ * below the fold, and no scroll ever offered.
+ *
+ * The cause is `flex: 1` on `.screen` overriding `.screen--fixed`'s height, and
+ * `.ch-play` now pins itself with `flex: 0 0 auto`. This check stays because it
+ * is the one that would notice if that ever came undone.
+ *
+ * Note the second check compares against `--app-h` rather than against the
+ * bottom of the window. The window version looks more obvious and is wrong in
+ * the direction that hides the fix: this screen is SUPPOSED to be exactly one
+ * window tall and starts a few pixels down, so its bottom is always slightly
+ * past and it would report an overflow at every size.
  */
 function spillIfNeeded(screen) {
   screen.classList.remove('screen--spill');
-  if (screen.scrollHeight > screen.clientHeight + 1) screen.classList.add('screen--spill');
+  const clipped = screen.scrollHeight > screen.clientHeight + 1;
+  const told = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-h'));
+  const grew = Number.isFinite(told) && told > 0 && screen.clientHeight > told + 1;
+  if (clipped || grew) screen.classList.add('screen--spill');
 }
 
 // -- Header -------------------------------------------------------------------
