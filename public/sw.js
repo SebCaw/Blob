@@ -6,7 +6,7 @@
  * lie, and this app would rather show "reconnecting" than a stale round.
  */
 
-const CACHE = 'blob-shell-v15';
+const CACHE = 'blob-shell-v16';
 const SHELL = [
   '/',
   '/index.html',

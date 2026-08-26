@@ -4592,44 +4592,26 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   50% { opacity: 0.55; }
 }
 
-/* -- A laptop is not a tall phone -------------------------------------------
+/* A big screen is a phone with more room, not a different app.
  *
- * Given width, the seats go two-up and the pile moves alongside them instead of
- * under. Same content, half the height, and the window is filled rather than
- * padded out with nothing.
+ * The dead space on a laptop is VERTICAL, not horizontal. Every screen here is
+ * one column - `.screen` is 560px and widens to 620 and then 700 as the glass
+ * grows - and the gap came from `.ca-body` being the only thing allowed to
+ * grow: on a tall window it swallowed the slack and pushed the hand to the
+ * floor. Given height to spare the stack simply centres itself instead.
+ *
+ * There was also a block here that rearranged the table at 700px wide - seats
+ * two-up, the middle lifted out beside them. It sat directly under a comment
+ * saying that widening this screen would make it the odd one out, which is
+ * exactly what it did. Seb put it plainly: on a computer it should be almost
+ * like the phone, just with more width to play with. So the layout no longer
+ * changes with the glass at all; only the column does, and it does that for
+ * every screen in the app at once.
  */
-/* The dead space on a laptop was VERTICAL, not horizontal.
- *
- * Every screen in this app is a 560px column by design, so widening this one
- * would make it the odd one out. The gap was the body being the only thing that
- * grows: on a tall window it swallowed the slack and pushed the hand to the
- * very bottom, leaving several hundred pixels of nothing in the middle. Given
- * height to spare, the stack simply centres itself instead. */
 @media (min-height: 780px) {
   .ca-play { justify-content: center; gap: 10px; }
   .ca-body { flex: 0 1 auto; }
 }
-
-@media (min-width: 700px) {
-  .ca-body { flex-direction: row; align-items: stretch; gap: 12px; }
-  .ca-seats {
-    flex: 1 1 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    align-content: start;
-  }
-  .ca-middle {
-    flex: 0 0 190px;
-    align-self: center;
-    border-radius: 14px;
-    background: var(--night-800);
-    padding: 14px 10px;
-  }
-  .ca-pile__card { margin-left: -18px; }
-}
-
-
 
 @media (prefers-reduced-motion: reduce) {
   .ca-pile__card--new,
@@ -4955,31 +4937,10 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   .ch-body { flex: 0 1 auto; }
 }
 
-/* Given real width, the seats go two-up with the middle beside them. */
-@media (min-width: 760px) {
-  .ch-play { max-width: 820px; margin: 0 auto; width: 100%; }
-  .ch-body { flex-direction: row; align-items: stretch; gap: 12px; }
-  .ch-seats {
-    flex: 1 1 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    align-content: start;
-  }
-  .ch-middle {
-    flex: 0 0 230px;
-    align-self: center;
-    border-radius: 14px;
-    background: var(--night-800);
-    padding: 14px 10px;
-  }
-  .ch-middle--empty { background: none; }
-}
-
-@media (min-width: 1100px) {
-  .ch-play { max-width: 1040px; }
-  .ch-seats { grid-template-columns: repeat(3, 1fr); }
-}
+/* Same as Chase the Ace: no desktop layout. See the note in its block above.
+ * Cheat inherits the app's column and gets more width inside it, and nothing
+ * about where things sit changes between a phone and a laptop.
+ */
 
 @media (prefers-reduced-motion: reduce) {
   .ch-middle--landed .ch-pile,
