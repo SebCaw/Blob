@@ -60,21 +60,20 @@ in your hand.
 At a table, calling is a shout and the loudest person wins. On a screen that
 would hand it to whoever has the fastest connection, which is not a game.
 
-So a claim sits open for **three seconds** with a bar running down, and the next
+So a claim sits open for **four seconds** with a bar running down, and the next
 player cannot start until it shuts. Any eligible caller ends it instantly. It
 closes early when there is nobody left who might call — which on a table of bots
 is immediately, so a solo game never sits through the silence.
 
-Three seconds is also the beat the animations need. Without it, a card would
-land and be gone before anybody registered whose it was.
+It is also the beat the animations need. Without it, a card would land and be
+gone before anybody registered whose it was.
 
-**Four seconds, and the claim is the biggest thing on the screen.** It began at
-three, with the claim set as a 24px line under a row of card backs - and Seb
-reported the bar running out while he was still working out what had been said.
-That is one second doing two jobs: reading and reacting. So the claim now gets
-the size of the only thing in this game anybody has to react to, the count is a
-numeral rather than a word because "3" is read at a glance and "three" has to be
-read, and the window is a second longer.
+**It began at three, and the claim was hard to find.** It was set as a 24px line
+under a row of card backs, and Seb reported the bar running out while he was
+still working out what had been said — one second doing two jobs, reading and
+reacting. So the claim now gets the size of the only thing in this game anybody
+has to react to: the count as a large numeral, because "3" is read at a glance
+and "three" has to be read. The extra second was the cheap half of that fix.
 
 **Nothing shows who is mid-decision.** Each seat used to say "deciding" and clear
 as each bot answered, which meant three seats changing under your eyes during the
