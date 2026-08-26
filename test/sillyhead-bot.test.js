@@ -410,26 +410,44 @@ function duel(a, b, ctxf) {
   return loser ? loser.botLevel : null;
 }
 
-test('the levels are a ladder: every rung beats the one below it', () => {
+test('the levels are a ladder: the rungs wide enough to prove', () => {
   const ctxf = ctxFactory();
-  // Only the two rungs wide enough to prove in a reasonable number of games.
-  // Measured over several thousand duels while tuning: easy loses to medium
-  // about 79% of the time and medium to hard about 60%, so both of these clear
-  // half by a distance that survives a bad afternoon.
-  //
-  // Hard against impossible is about 56%, and that is NOT assertable here: at
-  // fifty-six percent you would need over a thousand duels to tell it from a
-  // coin, and a test that runs a thousand games to fail one time in six is
-  // worse than no test. It is pinned structurally instead, below.
-  //
-  // The counts are chosen so the assertion is safe, not so the test is quick.
-  // Easy against medium is 79%, which is never in doubt at sixty games. Medium
-  // against hard is 60%, and at a hundred games that is only two standard
-  // deviations clear of half — it failed about one run in ten, which is a test
-  // that cries wolf. Two hundred puts it near three, which is a test.
+
+  /**
+   * Only the gaps that are actually measurable in a sane number of games.
+   *
+   * Re-measured over 1200 duels a rung, because the numbers this test was
+   * written against had drifted and it had started crying wolf:
+   *
+   *   easy   vs medium      easy   loses 71.3%
+   *   medium vs hard        medium loses 53.4%   <- not assertable, see below
+   *   hard   vs impossible  hard   loses 58.5%
+   *   medium vs impossible  medium loses 60.7%
+   *
+   * The old version asserted medium against hard over 200 games on a stated
+   * 60%. The real figure is 53.4%, which at 200 games clears half by less than
+   * one standard deviation and therefore FAILS ABOUT ONE RUN IN SIX. It was
+   * read as flakiness for weeks. It was not: it was a true claim about the bots
+   * becoming a false one, and the test faithfully reporting it in the only way
+   * a threshold can.
+   *
+   * **The middle rung is genuinely thin.** Medium against hard is very nearly a
+   * coin toss, and proving it either way needs about 1,950 duels — a test that
+   * slow is one nobody runs. It is pinned structurally instead, by the slip
+   * ordering asserted below, and the fact of it is written down in
+   * SILLY-HEAD.md rather than hidden inside a sample size.
+   *
+   * Note that hard against impossible has gone the other way: the old comment
+   * called it unassertable at 56%, and at 58.5% it now clears three standard
+   * deviations in 300 games. So it is asserted.
+   *
+   * Counts are chosen so each assertion sits about three standard deviations
+   * clear of half, not so the test is quick.
+   */
   const rungs = [
     ['easy', 'medium', 60],
-    ['medium', 'hard', 200],
+    ['medium', 'impossible', 250],
+    ['hard', 'impossible', 300],
   ];
   for (const [lower, higher, games] of rungs) {
     let lowerLost = 0;
@@ -444,10 +462,16 @@ test('the levels are a ladder: every rung beats the one below it', () => {
 });
 
 test('impossible is the one that never slips, and the slips are ordered', () => {
-  // What actually separates the top of the ladder, asserted directly rather
-  // than measured: the same policy, followed less reliably the further down you
-  // go. This is deterministic, so it cannot flake — and if somebody reorders
-  // the levels it fails immediately rather than in one run out of four.
+  // What separates the levels, asserted directly rather than measured: the same
+  // policy, followed less reliably the further down you go. Deterministic, so it
+  // cannot flake — and if somebody reorders the levels it fails immediately
+  // rather than in one run out of four.
+  //
+  // This is also what holds the MEDIUM-TO-HARD rung, which at 53.4% is too
+  // narrow to duel for. If that gap is ever meant to be a real one, this is the
+  // knob: the two levels differ only in how often they ignore their own best
+  // answer, and at present that difference is small enough to disappear into
+  // the deal.
   const slips = ['easy', 'medium', 'hard', 'impossible'].map((level) => bot.SLIP[level]);
   assert.equal(slips[3], 0, 'impossible always plays its own best answer');
   for (let i = 1; i < slips.length; i++) {

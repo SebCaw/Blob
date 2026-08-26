@@ -275,10 +275,37 @@ bot seed never leaving the server, and the ladder pointing the right way).
   that makes it look like a pile. Photographs of real ones are coming and a
   prototype comes before anything is built, so nothing here is decided yet.
 
-- **Hard and Impossible are close.** 56% over more than a thousand duels, which
-  you may still feel as "about the same". Making Impossible genuinely frightening
-  needs a brain that looks ahead rather than another rule of thumb; seven of
-  those were tried and only one of them helped.
+- **The ladder has been re-measured, and the thin rung is not where it was.**
+  1200 head-to-head duels per pair:
+
+  | Rung | Lower one loses |
+  |---|---|
+  | easy vs medium | 71.3% |
+  | **medium vs hard** | **53.4%** |
+  | hard vs impossible | 58.5% |
+  | medium vs impossible | 60.7% |
+
+  The order is right everywhere — every level beats every level below it — but
+  **medium against hard is now very nearly a coin toss**. Telling 53.4% from
+  half needs about 1,950 duels, so `test/sillyhead-bot.test.js` no longer tries;
+  it asserts the rungs that are wide enough to prove and pins that one
+  structurally, through the ordering of `SLIP`.
+
+  This is worth knowing because it was misread for weeks. The test asserted that
+  rung over 200 games against a figure of 60% that had since drifted, so it
+  failed about one run in six and everybody, including me, filed it as
+  flakiness. It was not flaky. It was a true claim about the bots quietly
+  becoming a false one, and a threshold reporting that in the only way a
+  threshold can.
+
+  The two levels differ only in how often they ignore their own best answer, and
+  at present that difference disappears into the luck of the deal. If Medium and
+  Hard are meant to feel different, `SLIP` is the knob.
+
+- **Hard and Impossible are closer than the top of a ladder should be**, though
+  less close than they were: 58.5%. Making Impossible genuinely frightening needs
+  a brain that looks ahead rather than another rule of thumb; seven of those were
+  tried and only one of them helped.
 - **A game can, very rarely, go round in circles.** Two players holding the last
   low cards with every 2 and 10 already sacked can trade the same handful
   indefinitely, because a 9 on the pile blocks everything above it. This is a
