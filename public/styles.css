@@ -4959,16 +4959,30 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 }
 .ch-ranks--all .ch-rank { min-height: 42px; font-size: 15px; }
 
-/* -- A laptop is not a tall phone -------------------------------------------
+/* -- A tall window should be USED, not padded out ---------------------------
  *
- * The lesson from Chase the Ace: the dead space on a desktop is VERTICAL, not
- * horizontal. Every screen in this app is a narrow column by design, and the gap
- * came from the body being the only thing allowed to grow, so on a tall window
- * it swallowed all the slack and pushed the hand to the floor.
+ * This block used to stop the body growing and centre a compact stack instead.
+ * On a 768x1278 window that left nearly six hundred pixels of nothing, split
+ * between the top and the bottom, with the whole game squeezed into a band in
+ * the middle. Seb sent a screenshot of it and asked for the height back.
+ *
+ * So the body grows again, and the growth is aimed at the MIDDLE - which is
+ * where the claim and the pile live, and the one part of this screen anybody is
+ * actually looking at. The seats stay their natural size at the top, the hand
+ * and the buttons stay at the bottom where thumbs are, and everything in between
+ * belongs to the thing you have four seconds to read.
+ *
+ * Note this is the opposite of the fix Chase the Ace wanted, and the difference
+ * is what sits inside the body. Chase's middle is a small discard pile, so a
+ * grown body there was a void. Cheat's middle centres a claim within itself, so
+ * a grown body is simply a bigger stage for it. Same symptom, opposite cure -
+ * worth checking which one a new screen is before copying either.
  */
-@media (min-height: 780px) {
-  .ch-play { justify-content: center; }
-  .ch-body { flex: 0 1 auto; }
+@media (min-height: 820px) {
+  .ch-play { gap: 14px; }
+  .ch-middle { flex: 1 1 auto; padding: 24px 0; justify-content: center; }
+  .ch-hand { gap: 8px; }
+  .ch-tools { min-height: 112px; }
 }
 
 /* Same as Chase the Ace: no desktop layout. See the note in its block above.
