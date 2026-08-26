@@ -52,19 +52,34 @@ export function historyScreen(ctx) {
           ),
           h('span.muted', {
             style: { 'font-size': '14px' },
-            text: `${friendlyDate(game.completedAt)} · ${friendlyTime(game.completedAt)} · ${plural(
-              game.players.length,
-              'player',
-              'players'
-            )} · ${game.rounds} rounds${game.mode === 'online' ? ' · online' : ''}`,
+            // Rounds are a Blob concept. Four of the six games on the shelf have
+            // none, and until now every one of their rows said "undefined
+            // rounds" - the client half of the fix that `historySummary` began
+            // on the server. See ADDING-A-GAME.md, which lists this file as the
+            // one that needed both halves.
+            text: [
+              friendlyDate(game.completedAt),
+              friendlyTime(game.completedAt),
+              plural(game.players.length, 'player', 'players'),
+              game.rounds ? `${game.rounds} rounds` : null,
+              game.mode === 'online' ? 'online' : null,
+            ]
+              .filter(Boolean)
+              .join(' · '),
           }),
           h('span.muted', {
             style: { 'font-size': '13px' },
-            text: game.players
-              .slice()
-              .sort((a, b) => b.total - a.total)
-              .map((p) => `${p.name} ${p.total}`)
-              .join('   '),
+            // A scored game lists its scores; a game with no score says whatever
+            // its own engine thought was worth saying, which is what `detail`
+            // is for. Sorting by `total` when there is none put the seats in
+            // whatever order the comparator happened to leave them.
+            text: game.players.some((p) => typeof p.total === 'number')
+              ? game.players
+                  .slice()
+                  .sort((a, b) => b.total - a.total)
+                  .map((p) => `${p.name} ${p.total}`)
+                  .join('   ')
+              : game.detail || game.players.map((p) => p.name).join('   '),
           })
         )
       )

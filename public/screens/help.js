@@ -10,6 +10,7 @@ import {
 import { STEPS as SEVENS_STEPS, ANSWERS as SEVENS_ANSWERS, SUGGESTED as SEVENS_SUGGESTED } from './help-sevens.js';
 import { STEPS as CHASE_STEPS, ANSWERS as CHASE_ANSWERS, SUGGESTED as CHASE_SUGGESTED } from './help-chase.js';
 import { STEPS as CHEAT_STEPS, ANSWERS as CHEAT_ANSWERS, SUGGESTED as CHEAT_SUGGESTED } from './help-cheat.js';
+import { STEPS as GOFISH_STEPS, ANSWERS as GOFISH_ANSWERS, SUGGESTED as GOFISH_SUGGESTED } from './help-gofish.js';
 
 /**
  * How to play — shown, and asked about.
@@ -239,6 +240,18 @@ function lessonFor(ctx) {
       shrug:
         'I do not know that one, sorry. Try asking about the sevens, why you cannot play, or whether the ace is ' +
         'high — or have a look at Show me.',
+    };
+  }
+  if (id === 'gofish') {
+    return {
+      name: 'Go Fish',
+      steps: GOFISH_STEPS,
+      answers: GOFISH_ANSWERS,
+      suggested: GOFISH_SUGGESTED,
+      greeting: 'Ask me anything about Go Fish. Tap one below if you like.',
+      shrug:
+        'I do not know that one, sorry. Try asking how to ask somebody for a card, what happens when you go ' +
+        'fish, or why the game stopped before thirteen books - or have a look at Show me.',
     };
   }
   if (id === 'cheat') {

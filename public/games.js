@@ -141,6 +141,37 @@ export const GAMES = [
       '<rect x="11" y="13.6" width="9" height="7.8" rx="1.5"/></svg>',
     ready: true,
   },
+  {
+    id: 'gofish',
+    name: 'Go Fish',
+    tagline: 'Ask for what you want. Everybody hears you.',
+    blurb: 'Collect books of four. Also played as Authors or Happy Families.',
+    players: '3 to 6',
+    // A deep ocean, and it had to be deep: Sevens is already a blue at 205, and
+    // two blues a few degrees apart are one blue to anybody looking at a phone
+    // in a dim room.
+    hue: 228,
+    // A DELIBERATE DEPARTURE from the accent rule, and the second one after
+    // Chase the Ace's. The rule says the complement of the hue at S100 L62 -
+    // but every blue ground has a warm complement, and the warm end of the
+    // shelf is full: Blob lime, Silly Head amber, Sevens orange. A rule-derived
+    // accent here would have landed on top of one of the three. This is a surf
+    // cyan instead, near enough the ground's own family to belong to it and far
+    // enough off to be an accent. See GO-FISH.md.
+    accent: '#3dd8ff',
+    accentDeep: '#149fd7',
+    // A hook over a pile: the pool in the middle and the one thing you do to it.
+    // Every other icon on the shelf is a card doing something; this is the only
+    // one where the card is not the subject.
+    icon:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M14.4 2.8 V8.6 ' +
+      'a2.8 2.8 0 0 1 -5.6 0"/><path d="M8.8 8.6 L10.9 6.8"/>' +
+      '<path d="M6 13.6 V12.4 H18 V13.6"/>' +
+      '<rect x="3.6" y="13.8" width="16.8" height="7.4" rx="1.7"/></svg>',
+    // Flipped last, once the two browser checkpoints in ADDING-A-GAME.md pass.
+    ready: true,
+  },
 ];
 
 /** @param {string} id */

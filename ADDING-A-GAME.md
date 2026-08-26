@@ -57,28 +57,29 @@ What each one demands that the platform does not already do:
   pile, its own author included. And its bot ladder had to be **measured**, twice,
   because both intuitive versions came out perfectly inverted; the numbers are in
   `CHEAT.md` and the lesson generalises.
-- **Go Fish** — **NEXT, and the rules are settled bar one question.** Asking a
-  named player for a named rank is a public request about private information,
-  and the answer changes what everyone knows. Watch the history record: "who
-  asked whom for what" is the whole game and none of the existing record shapes
-  carry it.
+- **Go Fish** — **BUILT and on the shelf. See `GO-FISH.md`.** Asking a named
+  player for a named rank is a public request about private information, and the
+  prediction held: the whole game is in the log, and the log turned out to be the
+  bot ladder as well.
 
-  Settled with Seb: books of **four**; you must already hold the rank you ask
-  for; a successful ask lets you **go again**; **you never show a card you
-  fished**, which means fishing always ends your turn (showing would give it
-  away, so the two rules cannot both stand); **empty your hand and you are out**,
-  keeping the books you have already laid down; play carries on until all sets
-  are made; three to six players. Colour: **hue 228**, deep ocean, with a surf
-  cyan accent `#3dd8ff` - a deliberate departure from the accent rule, because
-  every sea hue produces a warm accent and the warm end of the shelf is full
-  (see the hue note below).
+  It is the first engine where **a turn is taken by two people**. An ask sits open
+  on the state and the person holding the table up is the TARGET, not whoever's
+  turn it is — so `stallWatch` watches two candidates, the way Chase the Ace's
+  does, for a sharper reason. It is also the first game with a **forced move that
+  is still a tap**: the answer is not a decision, and it is a button anyway,
+  because resolving it on the server the instant it is asked deletes the one
+  second the game is made of.
 
-  **The one open question: is there a pool at all?** Either the normal game -
-  five cards each, the rest face down, draw one when told to fish - or no pool at
-  all, the whole deck dealt out, and "go fish" simply meaning no. The second is
-  the better game and fits everything else Seb has said, but it has not been
-  confirmed and it changes the hand size from five to thirteen. **Do not build
-  until this is answered.**
+  Its privacy boundary is the **shortest in the repo** — hands and the pool, and
+  nothing else. No card id ever leaves its owner's hand except the beat where
+  cards physically cross the table. That was the easy half; see the cost section
+  below for where the time actually went.
+
+  The one open question is settled: **there IS a pool**, and **out is out** even
+  while the pool still has cards. Measured consequence, worth knowing before
+  playing: a game essentially never makes all thirteen books. It averages 11.8 and
+  stops when there is nobody left to ask.
+
 - **Solitaire** — **single player, and two variants under one tile: traditional
   (Klondike) and around the clock (Clock Patience).** See the section below; it
   is the odd one out and needs its own treatment.
@@ -662,6 +663,16 @@ writing the rule down was what forced the distinction into the open.
 **3. `engineById` returns `BLOB` for an unknown id** (`lib/engines.js:223`)
 instead of refusing, so a typo in a game id silently plays Blob.
 
+**3b. ~~`screens/history.js` renders Blob's shape.~~ FIXED while building Go
+Fish.** `historySummary` fixed the server half while Sevens was going in; the
+client half sat unfinished for three more games, so every Sevens, Chase, Cheat
+and Go Fish row in the history list said "undefined rounds" and listed every
+player's score as `undefined`. It now drops the rounds when there are none and
+falls back to the engine's own `detail` line when nobody has a total. **Worth
+noticing how it survived**: the fix was written down in this file as needing
+BOTH halves, one half was done, and the entry was not updated — so three games
+were added on top of a bug the checklist had already found.
+
 **4. `public/sw.js:38-44` lists every screen by hand.** A third game's screens
 are missing from the precache and nobody finds out until a phone goes offline.
 There is no build step, so the practical fix is a test asserting every file under
@@ -772,6 +783,51 @@ afternoon and needed almost no revision. Everything expensive was somewhere else
 - **The platform grew one hook** (`deadline`) and the room grew one timer beside
   its other three. That was the whole platform cost, which is the argument for
   the engine registry working.
+
+## What building Go Fish actually cost
+
+The reducer-to-glass ratio held again: rules, view, bots and thirty-four tests in
+one stretch, and every real problem afterwards. Four things worth carrying.
+
+**The screen grew past the window and every check said it was fine.** `.screen`
+is `flex: 1`, which overrides the height `.screen--fixed` sets — so at the
+largest text with six players the screen was 1024px tall in an 812px window and
+the answer button sat below the fold. Nothing was clipped, so
+`scrollHeight === clientHeight` and `spillIfNeeded` reported a screen that fitted
+perfectly. **This is the third screen to hit it** and the note at `.screen--fits`
+in `styles.css` already described it; the fix is `flex: 0 0 auto`, and it should
+probably move onto `.screen--fixed` itself rather than being rediscovered a
+fourth time. Cheat's table has the same shape and has never been measured at six
+players.
+
+**Then the obvious repair was wrong in the direction that hides itself.** The
+replacement check — is the screen's bottom past the bottom of the window — is
+true always, because the screen is SUPPOSED to be one window tall and starts a
+few pixels down. It fired at every size and quietly threw away part of the screen
+that fitted. Compare against `--app-h`, which is what the screen was told to be.
+
+**Let the measurement decide WHAT to drop, not just whether to scroll.** Go Fish
+sheds its transcript first and only scrolls if that is not enough, because the
+transcript is the one part of that screen that is a convenience rather than a
+control. Keyed on measurement, so it needs no rule about player counts: five
+short names and five long ones are different screens.
+
+**The bot ladder came out inverted at the top, exactly as Cheat's did.** The
+first version gave the top rung two extras over Hard — information hygiene and
+discounting stale negatives — and measured at 26.8% against three Hards, which is
+a 25% baseline. What actually separates them is **counting**: a player known to
+be sitting on three sevens is a book to anybody holding the fourth, and Hard only
+knows that they hold *some*. With counting, and with the hygiene term measured up
+from 0.12 to 0.4 rather than guessed, the ladder over 500 four-handed games runs
+easy 2.0%, medium 12.9%, hard 36.4%, impossible 48.6%. **The general lesson is
+the same one twice now: the extra a top rung gets has to be a different KIND of
+knowledge, not more enthusiasm about the same kind.**
+
+Two smaller things. `topbar` already draws the game code on the right, so passing
+`left: codeChip(state)` shows it twice — Cheat's table does this and nobody has
+noticed. And a log that is the game's whole memory is a real payload: at 160
+entries it is about nine kilobytes on every broadcast, which is why Go Fish's log
+entries carry no clock.
 
 ## Controls, and the four things playing it caught
 
@@ -904,7 +960,9 @@ app gets its first COOL accent — the one thing on the shelf that cannot be
 confused with any other.
 
 Solitaire's pencilled 20 now sits next to Cheat's 30 and should move before it
-is built.
+is built. **Go Fish took 228 as planned**, and it looks right next to Sevens'
+205 on the shelf — the twenty-three degrees are enough because the accents are
+not the same temperature.
 
 **The warm end of the shelf is now full, and that is a real constraint.** Blob
 has lime, Silly Head amber, Sevens orange. Every BLUE ground produces a warm

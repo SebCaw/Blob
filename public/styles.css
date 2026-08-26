@@ -5000,3 +5000,441 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   }
   .ch-window__bar { animation: none; }
 }
+
+/* == Go Fish: a question everybody hears, and one person who has to answer ===
+ *
+ * The opposite screen to Cheat's, which sits directly above this block and is
+ * worth reading first for the contrast. There, almost nothing is visible and
+ * the whole game is what cannot be checked. Here nothing is hidden except a
+ * hand and the pool, and the game is entirely made of things said out loud - so
+ * this screen is mostly WORDS, and the cards are the smallest part of it.
+ *
+ * Three things carry the layout.
+ *
+ * THE MIDDLE is the question. It is the biggest type on the screen when a
+ * question is open, for the same reason Cheat's claim is: it is the one object
+ * anybody has to react to, and reading it should not be work. Unlike Cheat's
+ * there is no clock on it, so no bar and no negative-delay trick - see the note
+ * at the top of `screens/gofish/table.js`.
+ *
+ * THE SEATS are buttons. Once you have picked a rank, every seat you may ask
+ * lights up and pointing at somebody is the move. The row does not change SIZE
+ * when it goes live, only colour: a control that grows when it wakes up is one
+ * you have to find again every turn.
+ *
+ * THE BOTTOM STRIP is one slot at one height, whatever is happening. Being
+ * asked a question in front of four people is quite enough pressure without
+ * hunting for the button.
+ */
+.gf-play {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* The trap written down at `.screen--fits` above, and it caught this screen
+     too. `.screen` is `flex: 1`, which grows a screen to whatever is inside it -
+     so `.screen--fixed`'s height is ignored, the element runs off the bottom of
+     the window, and `overflow-y: auto` has nothing to scroll because nothing is
+     clipped. Measured at the largest text with six players: the screen was
+     1024px tall in an 812px window and the answer button sat 150px below the
+     fold, with `scrollHeight === clientHeight` reporting everything as fine.
+
+     `flex: 0 0 auto` pins it to the window. What is inside gives way instead,
+     and `spillIfNeeded` can then see the overflow and open the hatch. */
+  flex: 0 0 auto;
+}
+
+.gf-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.gf-meta__count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+.gf-meta__count strong {
+  font-size: 19px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.gf-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--night-800);
+  color: var(--ink-faint);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.gf-chip--speed {
+  margin-left: auto;
+  border: 1px solid var(--night-500);
+  color: var(--ink);
+  font-weight: 800;
+  min-height: 28px;
+  cursor: pointer;
+}
+.gf-chip--on {
+  background: var(--lime-deep);
+  border-color: var(--lime);
+  color: #06121f;
+}
+
+.gf-status {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-faint);
+  text-align: center;
+  min-height: 22px;
+}
+.gf-status--you { color: var(--lime); font-weight: 900; }
+
+/* -- The middle -------------------------------------------------------------
+ *
+ * One box, five things it can be, and a fixed floor under all of them so the
+ * seats and the hand do not jump every time somebody answers.
+ */
+.gf-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 116px;
+  padding: 8px 0;
+  text-align: center;
+}
+.gf-middle__label {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+.gf-pool { display: flex; align-items: flex-end; }
+.gf-pool__card { margin-left: -30px; }
+.gf-pool__card:first-child { margin-left: 0; }
+.gf-pool__slot {
+  width: 46px;
+  height: 64px;
+  border-radius: 8px;
+  border: 2px dashed var(--night-600);
+}
+
+@keyframes gf-landed {
+  0% { transform: scale(0.94); opacity: 0.4; }
+  100% { transform: none; opacity: 1; }
+}
+.gf-middle--landed { animation: gf-landed 260ms var(--ease-pop) both; }
+
+/* The question. The biggest thing on the screen while it is there, because it
+   is the only sentence on it and it should be legible from across a table. */
+.gf-ask__who {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+.gf-ask__saying {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+}
+.gf-ask__rank {
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 900;
+  color: var(--lime);
+  font-variant-numeric: tabular-nums;
+}
+.gf-ask__word {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+/* Cards crossing the table. The one place a face appears outside a hand, and
+   it lasts one beat - `NEWS_MS` in the screen decides how long. */
+.gf-cross { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+@keyframes gf-cross-in {
+  0% { transform: translateX(-70px) rotate(-12deg); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+.gf-cross__card {
+  animation: gf-cross-in 340ms var(--ease-pop) both;
+  animation-delay: calc(var(--i) * 70ms);
+}
+
+.gf-verdict { margin: 2px 0 0; font-size: 17px; font-weight: 900; }
+.gf-verdict--hit { color: var(--lime); }
+.gf-verdict--fish { color: var(--ink); font-size: 30px; letter-spacing: 0.01em; }
+.gf-verdict--book { color: var(--lime); }
+
+.gf-drawn { display: flex; align-items: center; gap: 8px; }
+@keyframes gf-drawn-in {
+  0% { transform: translateY(-22px) scale(0.9); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+.gf-drawn__card { animation: gf-drawn-in 300ms var(--ease-pop) both; }
+
+/* A book going down: four cards landing in a row, one after another. */
+.gf-book__four { display: flex; gap: 3px; justify-content: center; }
+@keyframes gf-book-down {
+  0% { transform: translateY(-26px) scale(1.08); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+.gf-book__card {
+  animation: gf-book-down 300ms var(--ease-pop) both;
+  animation-delay: calc(var(--i) * 60ms);
+}
+
+/* -- Everybody else, and on your turn a row of targets ---------------------- */
+.gf-seats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gf-seat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--night-800);
+  border: 1px solid transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.gf-seat--turn { border-color: var(--night-500); background: var(--night-700); }
+.gf-seat--out { opacity: 0.45; }
+/* Live, and the ONLY thing that changes is colour. Same padding, same height,
+   same place - see the note at the top of this block. */
+.gf-seat--target {
+  border-color: var(--lime);
+  background: var(--night-700);
+  cursor: pointer;
+}
+.gf-seat--target:active { transform: translateY(1px); }
+.gf-seat__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gf-seat__name {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gf-seat__count {
+  font-size: 15px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+.gf-seat--turn .gf-seat__count { color: var(--ink); }
+.gf-seat__state { font-size: 11px; color: var(--ink-faint); }
+.gf-seat__cue { font-size: 12px; font-weight: 800; color: var(--lime); }
+.gf-seat__cue--waiting { color: var(--ink-faint); font-weight: 700; }
+.gf-seat__books { display: flex; flex-wrap: wrap; gap: 3px; }
+
+@keyframes gf-gave {
+  0% { transform: none; }
+  40% { transform: translateX(6px); }
+  100% { transform: none; }
+}
+.gf-seat--gave { animation: gf-gave 380ms var(--ease-pop) both; }
+
+/* A book on the table. Small, because there can be thirteen of them and they
+   are a score rather than a thing to read. */
+.gf-book {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--night-600);
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.gf-book--mine { background: var(--lime-deep); color: #06121f; }
+
+/* -- What has been said ------------------------------------------------------
+ *
+ * A transcript, deliberately, rather than anything worked out for you. Knowing
+ * that Ben is sitting on three sevens IS the game; an app that put "three
+ * sevens" next to his name would have played it. What this does is the thing a
+ * room does for free - it stops you missing what was said while you were
+ * looking at your own cards.
+ */
+.gf-heard {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--night-900);
+  border: 1px solid var(--night-800);
+  min-height: 62px;
+  justify-content: flex-end;
+}
+.gf-heard__line {
+  font-size: 12px;
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gf-heard__line--last { color: var(--ink-soft); font-weight: 700; }
+
+/* -- Your own side of the table ---------------------------------------------- */
+.gf-mine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.gf-mine__label { font-size: 11px; color: var(--ink-faint); margin-right: 2px; }
+
+.gf-hand { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.gf-hand--empty { min-height: 24px; justify-content: center; }
+.gf-fan { display: flex; justify-content: center; }
+.gf-hand__card { margin-left: -18px; transition: transform 140ms var(--ease-pop); }
+.gf-hand__card:first-child { margin-left: 0; }
+/* Every card of the picked rank lifts, not just the one tapped - the rank is
+   what you ask for, and lifting one of three sevens would draw a distinction
+   the game does not have. */
+.gf-hand__card--picked { transform: translateY(-12px); z-index: 2; }
+
+/* -- The one control that matters -------------------------------------------- */
+.gf-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 96px;
+  justify-content: center;
+}
+.gf-tools__hint { font-size: 13px; color: var(--ink-faint); text-align: center; }
+
+.gf-answer {
+  width: 100%;
+  min-height: 58px;
+  font-size: 19px;
+  font-weight: 900;
+}
+.gf-answer--fish { letter-spacing: 0.02em; }
+@keyframes gf-wake {
+  0% { transform: scale(0.97); }
+  60% { transform: scale(1.02); }
+  100% { transform: none; }
+}
+.gf-tools--live .gf-answer { animation: gf-wake 260ms var(--ease-pop) both; }
+
+/* The slot when there is nothing to press. It is a shape rather than a button,
+   so nothing on the screen looks live when it is not - the lesson Sevens
+   learned by having eleven identical inert cards reported as a broken hitbox. */
+.gf-picked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 58px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  background: var(--night-800);
+  border: 1px solid var(--night-600);
+}
+.gf-picked--empty {
+  justify-content: center;
+  color: var(--ink-faint);
+  font-size: 15px;
+  font-weight: 700;
+  border-style: dashed;
+}
+.gf-picked__rank {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--lime);
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: center;
+}
+.gf-picked__word { flex: 1 1 auto; font-size: 15px; font-weight: 800; }
+
+/* -- The end ----------------------------------------------------------------- */
+.gf-over__who { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
+.gf-over__books {
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gf-over__books--none { font-style: italic; }
+
+/* When it will not all fit, the transcript is what gives ground.
+ *
+ * "Controls stay, captions go" - the rule Blob's bid pad already follows.
+ * Everything else on this screen is either a control or the question you are
+ * answering; the transcript is the one part that is purely a convenience.
+ *
+ * Set by `spillIfNeeded` after measuring rather than by a media query, because
+ * whether this screen fits depends on the player count and the length of five
+ * names as much as it does on the text size. See the note on it in table.js.
+ */
+.gf-play--quiet .gf-heard { display: none; }
+
+/* And at the biggest type the middle can afford to be a little less generous:
+   somebody who asked for the largest cards wants the room spent on them. */
+html[data-size='huge'] .gf-play { gap: 6px; }
+html[data-size='huge'] .gf-middle { min-height: 92px; }
+html[data-size='huge'] .gf-tools { min-height: 86px; }
+
+/* -- A tall window ------------------------------------------------------------
+ *
+ * Same call as Cheat's, and for the same reason: the middle of this screen is
+ * the thing anybody is looking at, so extra height goes there rather than being
+ * split into empty margins. Chase the Ace wanted the opposite, because its
+ * middle is a small discard pile and a grown body around it is a void. Check
+ * which one a screen is before copying either.
+ */
+@media (min-height: 820px) {
+  .gf-play { gap: 12px; }
+  .gf-middle { flex: 1 1 auto; padding: 20px 0; justify-content: center; }
+  .gf-hand { gap: 8px; }
+  .gf-tools { min-height: 112px; }
+  .gf-heard { min-height: 78px; }
+}
+
+/* No desktop layout, same as Chase the Ace and Cheat. Go Fish inherits the
+ * app's column and gets a little more width inside it, and nothing about where
+ * things sit changes between a phone and a laptop. Grep for `min-width` in this
+ * block before believing that - two games grew one directly underneath a
+ * comment saying not to.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .gf-middle--landed,
+  .gf-cross__card,
+  .gf-drawn__card,
+  .gf-book__card,
+  .gf-seat--gave,
+  .gf-tools--live .gf-answer {
+    animation: none;
+  }
+}

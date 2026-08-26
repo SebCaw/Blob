@@ -6,7 +6,7 @@
  * lie, and this app would rather show "reconnecting" than a stale round.
  */
 
-const CACHE = 'blob-shell-v18';
+const CACHE = 'blob-shell-v24';
 const SHELL = [
   '/',
   '/index.html',
@@ -60,6 +60,12 @@ const SHELL = [
   '/screens/chase/lobby.js',
   '/screens/chase/table.js',
   '/screens/chase/over.js',
+  '/screens/help-gofish.js',
+  '/screens/gofish/index.js',
+  '/screens/gofish/home.js',
+  '/screens/gofish/lobby.js',
+  '/screens/gofish/table.js',
+  '/screens/gofish/over.js',
   '/manifest.webmanifest',
   '/icons/blob.svg',
 ];

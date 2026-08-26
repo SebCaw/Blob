@@ -10,6 +10,7 @@ import { sillyheadScreen, sillyheadWelcome } from './screens/sillyhead/index.js'
 import { sevensScreen, sevensWelcome, sevensScreenKey } from './screens/sevens/index.js';
 import { chaseScreen, chaseWelcome, chaseScreenKey } from './screens/chase/index.js';
 import { cheatScreen, cheatWelcome, cheatScreenKey } from './screens/cheat/index.js';
+import { gofishScreen, gofishWelcome, gofishScreenKey } from './screens/gofish/index.js';
 import { applyGameTheme } from './games.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -248,6 +249,51 @@ const ctx = {
       const name = (ui.name || '').trim() || lastName() || 'You';
       lastName(name);
       state = await net.createGame(name, 0, 'online', { game: 'cheat' });
+      ui.route = 'game';
+      net.connect();
+      render();
+      for (let i = 0; i < SOLO_BOTS; i += 1) {
+        try {
+          await net.send({ type: 'player/addBot', level: SOLO_LEVEL });
+        } catch {
+          /* the lobby has its own way to add one */
+        }
+      }
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /**
+   * A Go Fish game.
+   *
+   * Nothing to ask on the way in. There is one deck and no variant, and how many
+   * cards you start with follows from how many people turn up - so the front
+   * page asks for a name and gets out of the way.
+   */
+  async createGoFish(name) {
+    try {
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'gofish' });
+      ui.route = 'game';
+      net.connect();
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /**
+   * Go Fish against three bots, in one tap.
+   *
+   * Three opponents makes four round the table, which is one above this game's
+   * minimum and the size the deal is written for - five cards each and
+   * thirty-two in the pool.
+   */
+  async playGoFishSolo() {
+    try {
+      const name = (ui.name || '').trim() || lastName() || 'You';
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'gofish' });
       ui.route = 'game';
       net.connect();
       render();
@@ -553,6 +599,7 @@ net.on('state', (next) => {
   if (next.game === 'sevens') return onSevensState(next);
   if (next.game === 'chase') return onChaseState(next);
   if (next.game === 'cheat') return onCheatState(next);
+  if (next.game === 'gofish') return onGoFishState(next);
 
   const roundChanged = next.roundIndex !== lastRoundIndex;
   const phaseChanged = next.phase !== lastPhase;
@@ -868,6 +915,73 @@ ctx.backToShelf = () => {
 
 // -- Render ------------------------------------------------------------------
 
+/**
+ * A Go Fish state landing.
+ *
+ * The same job as the others: drop what this phone was holding that belongs to
+ * the moment just left, make a noise at the points the game is genuinely waiting
+ * on you, and hand over to `render()`.
+ *
+ * The thing worth clearing is the rank you had picked. It belongs to one turn,
+ * and carrying it across a handover would leave cards lifted that are no longer
+ * the same hand - or worse, leave a rank selected that you have just given away.
+ *
+ * **Being asked is the one moment this game demands your attention**, so that is
+ * the one that buzzes. Nothing here is on a clock, but a table of four people
+ * looking at you is its own kind of deadline.
+ */
+function onGoFishState(next) {
+  const phaseChanged = next.phase !== lastPhase;
+  const wasYourTurn = Boolean(state && state.you && state.you.isTurn);
+  const wasAsked = Boolean(state && state.you && state.you.answering);
+  const handChanged =
+    state && state.you && next.you && (state.you.hand || []).length !== (next.you.hand || []).length;
+
+  if (phaseChanged || handChanged || !next.you || !next.you.isTurn || next.ask) ui.gfRank = null;
+  if (phaseChanged) ui.confirmLeave = false;
+
+  if (phaseChanged && next.phase === 'playing') {
+    buzz([14, 70, 14]);
+    sound('deal');
+  }
+  // Somebody has asked you a question and the table is looking at you.
+  if (next.you && next.you.answering && !wasAsked) {
+    buzz([10, 40, 10]);
+    sound('turn');
+  }
+  if (next.you && next.you.isTurn && !wasYourTurn && !next.ask) {
+    buzz(12);
+    sound('turn');
+  }
+  // A card changing hands, by anybody. The sound the table makes while it is
+  // somebody else's go, so you can hear the game moving without watching it.
+  if (state && next.lastEvent && (next.lastEvent.kind === 'give' || next.lastEvent.kind === 'fish')) {
+    const before = state.lastEvent ? state.lastEvent.at : null;
+    if (next.lastEvent.at !== before) sound('card');
+  }
+  // A book going down is the only thing in this game that scores.
+  if (state && next.lastEvent && next.lastEvent.kind === 'book') {
+    const before = state.lastEvent ? state.lastEvent.at : null;
+    if (next.lastEvent.at !== before) {
+      sound(next.lastEvent.playerId === (next.you && next.you.id) ? 'win' : 'card');
+      if (next.lastEvent.playerId === (next.you && next.you.id)) buzz(14);
+    }
+  }
+  if (phaseChanged && next.phase === 'complete') {
+    const won = next.you && (next.winners || []).some((w) => w.id === next.you.id);
+    buzz(won ? [14, 50, 14] : 20);
+    sound(won ? 'win' : 'lose');
+  }
+
+  state = next;
+  lastPhase = next.phase;
+  lastRoundIndex = -1;
+  arrived(next);
+  if (next.phase === 'complete') releaseWake();
+  else keepAwake();
+  render();
+}
+
 function pickScreen() {
   if (ui.pendingCode) return switchGameScreen(ctx);
   if (ui.route === 'history') return historyScreen(ctx);
@@ -887,12 +1001,14 @@ function pickScreen() {
     if (ui.game === 'sevens' && !shared) return sevensWelcome(ctx);
     if (ui.game === 'chase' && !shared) return chaseWelcome(ctx);
     if (ui.game === 'cheat' && !shared) return cheatWelcome(ctx);
+    if (ui.game === 'gofish' && !shared) return gofishWelcome(ctx);
     return welcomeScreen(ctx);
   }
   if (state.game === 'sillyhead') return sillyheadScreen(ctx);
   if (state.game === 'sevens') return sevensScreen(ctx);
   if (state.game === 'chase') return chaseScreen(ctx);
   if (state.game === 'cheat') return cheatScreen(ctx);
+  if (state.game === 'gofish') return gofishScreen(ctx);
   // Handing the phone to someone else outranks the phase. Their bid is often
   // the one that locks the round, and without this the phone would jump
   // straight to the revealed bids while they were still holding it - losing
@@ -924,6 +1040,7 @@ function screenKey() {
   if (state.game === 'sevens') return sevensScreenKey(state);
   if (state.game === 'chase') return chaseScreenKey(state);
   if (state.game === 'cheat') return cheatScreenKey(state);
+  if (state.game === 'gofish') return gofishScreenKey(state);
   if (ui.takeover) return 'takeover';
   return `game:${state.phase}:${ui.correcting ? 'fix' : ''}`;
 }
