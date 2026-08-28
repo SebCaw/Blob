@@ -2774,6 +2774,23 @@ html[data-game='sevens'] .hand--fanned .card-face--playable {
 
 .help-art--trick .help-note { position: absolute; bottom: 0; left: 0; right: 0; }
 
+/*
+   Several lines of transcript instead of one caption.
+
+   The rule above pins a note to the bottom of its art, which is exactly right
+   when there is one of them and puts three in the same place when there are
+   three. Rather than unpin every note and re-place the twenty that are happy,
+   the few that come in groups get a container that stacks them.
+*/
+.help-art--trick .help-lines {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.help-art--trick .help-lines .help-note { position: static; }
+
 /* Two lines of a scorecard: one made, one blobbed. */
 .help-art--score { flex-direction: column; gap: 10px; }
 

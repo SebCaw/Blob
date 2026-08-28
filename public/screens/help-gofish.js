@@ -66,9 +66,17 @@ export const STEPS = [
     art: () =>
       h(
         'div.help-art.help-art--trick',
-        h('span.help-note', { text: 'Ann → Ben: any kings?' }),
-        h('span.help-note', { text: 'Ben: go fish' }),
-        h('span.help-note', { text: 'So Ann has a king and Ben has not.' })
+        // Three lines of transcript rather than one caption under a picture,
+        // and the only panel in the app that is. `.help-note` on its own is
+        // pinned to the bottom of the art - right for one, and three of them
+        // landed on top of each other. The wrapper is what puts them in a
+        // column; see `.help-lines`.
+        h(
+          'div.help-lines',
+          h('span.help-note', { text: 'Ann → Ben: any kings?' }),
+          h('span.help-note', { text: 'Ben: go fish' }),
+          h('span.help-note', { text: 'So Ann has a king and Ben has not.' })
+        )
       ),
   },
   {
