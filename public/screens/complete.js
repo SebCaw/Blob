@@ -1,7 +1,7 @@
 import { h } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { leaderboard, confetti, action } from './common.js';
-import { scorecard } from './history.js';
+import { scorecard } from './scorecard.js';
 
 /** The end of the game: who won, by how much, and the whole card if you want it. */
 
@@ -68,8 +68,7 @@ export function completeScreen(ctx) {
         : null,
       isMaster
         ? h('button.btn.btn--link', { text: 'Start a different game', type: 'button', onClick: () => ctx.leaveGame() })
-        : action('New game', () => ctx.leaveGame()),
-      h('button.btn.btn--link', { text: 'Past games', type: 'button', onClick: () => ctx.go('history') })
+        : action('New game', () => ctx.leaveGame())
     )
   );
 }

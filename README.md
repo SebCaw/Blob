@@ -43,6 +43,22 @@ public/         the app: vanilla ES modules, no framework
 test/           node:test
 ```
 
+**Past games is switched off, and only on the client.** There is no browsing
+screen: the server still writes a record when a game finishes and still serves
+`/api/history`, but nothing in `public/` reads it. That is because the free
+hosting tier has no persistent disk — records do not survive a restart or a
+redeploy, so the screen was an empty list more often than not, and occasionally a
+misleading one.
+
+The server half stayed on purpose. It costs nothing, it keeps `historyRecord` and
+`historySummary` in the engine contract that all six games already implement, and
+it means moving to a paid instance with a disk is the only thing standing between
+here and it working. **Bringing it back is restoring `public/screens/history.js`
+and its route in `app.js` from git history** — one commit, and the data is already
+being written. A ranking system would want the same disk and the same records.
+
+Do not "tidy away" the server side as dead code. It is dormant, not dead.
+
 **One server, two games.** `server/` owns rooms, sessions, the queue, presence,
 grace windows and Master elections, and none of that differs by game. What does
 differ — the rules, the redaction, what a missing player holds up — is an

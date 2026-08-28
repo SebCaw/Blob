@@ -258,6 +258,19 @@ class Room {
     this._watchDeadline();
     this._scheduleBotMove();
 
+    // Still written, and deliberately, even though NOTHING IN THE CLIENT CAN
+    // READ IT ANY MORE.
+    //
+    // "Past games" was taken off the shelf because on the free hosting tier
+    // there is no persistent disk: the records do not survive a restart or a
+    // redeploy, so the screen was mostly an empty list and occasionally a
+    // misleading one. The server half stayed. It costs nothing, it keeps
+    // `historyRecord`/`historySummary` in the engine contract that all six games
+    // implement, and it means the day this moves to a paid instance with a disk
+    // the records simply start accumulating - with only the client to restore.
+    //
+    // So this is dormant, not dead. Do not tidy it away. See README.
+    //
     // Re-saved on a correction too: the record is written once on completion,
     // so without this a score fixed after the final round would be right on
     // screen and wrong in the history for good.

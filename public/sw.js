@@ -6,7 +6,7 @@
  * lie, and this app would rather show "reconnecting" than a stale round.
  */
 
-const CACHE = 'blob-shell-v39';
+const CACHE = 'blob-shell-v42';
 const SHELL = [
   '/',
   '/index.html',
@@ -33,7 +33,7 @@ const SHELL = [
   '/screens/reveal.js',
   '/screens/summary.js',
   '/screens/complete.js',
-  '/screens/history.js',
+  '/screens/scorecard.js',
   '/screens/election.js',
   '/prefs.js',
   '/screens/help-sillyhead.js',

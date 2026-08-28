@@ -551,45 +551,6 @@ export function leaderboard(state, previousOrder = [], options = {}) {
 }
 
 /** A full-width primary action. */
-/**
- * A placeholder shaped like the thing that is coming.
- *
- * Waiting is easier to sit through when you can see WHAT is arriving, which a
- * line of text cannot show. This is the shape of it, pulsing on the same 1.6s
- * beat the shelf's resume row already uses - one waiting rhythm in the app
- * rather than two.
- *
- * Deliberately not a shimmer sweeping across. A shimmer is a second animation
- * language for the same idea, and on a screen that may be showing several rows
- * at once it draws far more attention than the wait deserves.
- *
- * @param {{lines?: number[], className?: string}} options
- *   `lines` are widths in percent, top to bottom, so a placeholder can be the
- *   rough shape of the row it stands in for rather than a generic grey box.
- */
-export function skeletonRow({ lines = [60, 90, 40], className = '' } = {}) {
-  return h(
-    'div',
-    { className: `skeleton ${className}`.trim(), 'aria-hidden': 'true' },
-    lines.map((width) => h('span.skeleton__line', { style: { width: `${width}%` } }))
-  );
-}
-
-/**
- * Several of them, and the one thing screen readers are told.
- *
- * The rows themselves are `aria-hidden` - they are decoration, and announcing
- * three empty boxes helps nobody. The status line is what actually gets read
- * out, once, which is what somebody who cannot see the pulse needs.
- */
-export function skeletonList(count = 3, options = {}) {
-  return h(
-    'div.stack.stack--tight',
-    { role: 'status', 'aria-label': options.label || 'Loading' },
-    Array.from({ length: count }, () => skeletonRow(options))
-  );
-}
-
 export function action(label, onClick, options = {}) {
   return h('button', {
     className: `btn btn--${options.kind || 'primary'}`,

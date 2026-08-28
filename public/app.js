@@ -20,7 +20,6 @@ import { playingScreen } from './screens/playing.js';
 import { revealScreen } from './screens/reveal.js';
 import { summaryScreen } from './screens/summary.js';
 import { completeScreen } from './screens/complete.js';
-import { historyScreen } from './screens/history.js';
 import { electionOverlay } from './screens/election.js';
 import { settingsSheet } from './screens/settings.js';
 import { helpOverlay } from './screens/help.js';
@@ -94,8 +93,6 @@ const ui = {
   takeover: null,
   addingOffline: false,
   offlineName: '',
-  historyList: undefined,
-  historyRecord: null,
   showCard: false,
   electionSeen: null,
   rematchPending: false,
@@ -168,7 +165,6 @@ const ctx = {
   },
   go(route) {
     ui.route = route;
-    if (route === 'history') ui.historyList = undefined;
     render();
   },
   /**
@@ -907,15 +903,14 @@ function onSillyHeadState(next) {
 /**
  * A state has landed: put its colours on and show the game it belongs to.
  *
- * Two screens it must NOT drag you off, and they are the two you can only be on
- * deliberately. The history is somebody reading last week's scores while a game
- * runs on in another room. A game's own front page is somebody who went to the
- * shelf and tapped the other tile — a bot moving in the game they left should
- * not throw them back into it mid-tap.
+ * One screen it must NOT drag you off, and it is the one you can only be on
+ * deliberately: a game's own front page is somebody who went to the shelf and
+ * tapped the other tile, and a bot moving in the game they left should not throw
+ * them back into it mid-tap.
  */
 function arrived(next) {
   ui.resuming = null;
-  const chosen = ui.route === 'history' || ui.route === 'home' || ui.route === 'create';
+  const chosen = ui.route === 'home' || ui.route === 'create';
   if (chosen) return;
   if (ui.route !== 'game') applyGameTheme(next.game || 'blob');
   ui.route = 'game';
@@ -1012,7 +1007,6 @@ function onGoFishState(next) {
 
 function pickScreen() {
   if (ui.pendingCode) return switchGameScreen(ctx);
-  if (ui.route === 'history') return historyScreen(ctx);
   if (!state && ui.route === 'shelf') return shelfScreen(ctx);
   if (!state || ui.route !== 'game') {
     // Silly Head has its own front page and its own new-game form, and it gets
@@ -1061,7 +1055,6 @@ function pickScreen() {
  */
 function screenKey() {
   if (ui.pendingCode) return 'switch';
-  if (ui.route === 'history') return `history:${ui.historyRecord ? 'one' : 'list'}`;
   if (!state && ui.route === 'shelf') return 'shelf';
   if (!state || ui.route !== 'game') return `welcome:${ui.game}:${ui.route}`;
   if (state.game === 'sillyhead') return `sillyhead:${state.phase}:${ui.shConfirmReady ? 'ready' : ''}`;

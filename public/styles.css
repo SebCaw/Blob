@@ -577,39 +577,30 @@ html[data-size='huge'] .bid__current {
   transform: translate(-50%, 0);
 }
 
-/* -- Waiting for something to arrive ----------------------------------------
+/* Two things that CANNOT be styled inline, and quietly were not.
  *
- * The shape of what is coming, rather than a line of text about it. Reuses
- * `shelf-waiting`, the 1.6s pulse the resume row on the shelf already uses, so
- * there is ONE waiting rhythm in the app rather than two competing ones.
+ * `Content-Security-Policy: style-src 'self'` blocks `style="..."` attributes
+ * outright. The app never noticed because everything it draws sets style through
+ * the CSSOM, which the same policy allows - but hand-written HTML is a different
+ * matter, and both of these were silently doing nothing.
  *
- * Deliberately not a shimmer sweeping across. A shimmer is a second animation
- * language for the same idea, and several rows of it at once draws far more
- * attention than a wait deserves.
+ * The noscript one had been broken since it was written: with its colour blocked
+ * it rendered as the browser default, which is black text on this app's very
+ * dark ground. The one message somebody with JavaScript off will ever see, and
+ * it was invisible.
  */
-.skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.05);
-  animation: shelf-waiting 1.6s ease-in-out infinite;
+.noscript-note {
+  padding: 24px;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  text-align: center;
 }
-.skeleton__line {
-  height: 11px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-}
-/* Each row a beat behind the one above, so the list breathes rather than
-   flashing as one block. */
-.skeleton:nth-child(2) { animation-delay: 0.15s; }
-.skeleton:nth-child(3) { animation-delay: 0.3s; }
-.skeleton:nth-child(4) { animation-delay: 0.45s; }
 
-@media (prefers-reduced-motion: reduce) {
-  .skeleton { animation: none; }
-}
+/* Qualified, because `.legal p` sets a margin shorthand and would otherwise win
+   on specificity - which it did, leaving this doing nothing at all. */
+.legal p.legal__back--spaced { margin-top: 28px; }
 
 /* -- The legal pages --------------------------------------------------------
  *
