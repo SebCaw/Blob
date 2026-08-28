@@ -5505,7 +5505,24 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
   background: var(--night-700);
   cursor: pointer;
 }
+/*
+   The press nudge, and it must not be written as a bare `transform`.
+
+   A seat in the LIST is in normal flow, so replacing its transform costs
+   nothing. A seat on the RING is centred on its point by
+   `translate(-50%, -50%)` - so a rule that overwrote that moved the seat by half
+   its own width and height the instant it was pressed. See `.gf-seat--placed`.
+
+   That is the whole of Seb's "it just moves the name instead of asking", and
+   why it only happened with a mouse or a touchpad: press, the seat jumps out
+   from under the cursor, release lands on nothing, and no click is ever
+   dispatched. A finger never noticed, because a touch keeps targeting the
+   element it started on however far that element runs away.
+*/
 .gf-seat--target:active { transform: translateY(1px); }
+.gf-seat--placed.gf-seat--target:active {
+  transform: translate(-50%, -50%) scale(var(--seat-scale, 1)) translateY(1px);
+}
 .gf-seat__head {
   display: flex;
   align-items: baseline;
