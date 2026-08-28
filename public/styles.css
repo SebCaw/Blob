@@ -5169,9 +5169,28 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 
 .ch-hand { display: flex; flex-direction: column; gap: 4px; align-items: center; }
 .ch-hand--empty { min-height: 24px; justify-content: center; }
-.ch-fan { display: flex; justify-content: center; }
+/*
+   The fan wraps onto a second row rather than running off the side.
+
+   Cheat deals more cards into one hand than any other game here, and at the
+   largest text size a full hand simply does not go across a phone. It used to
+   keep going anyway.
+
+   The overlap is a negative margin, which is what makes wrapping fiddly: the
+   first card of the SECOND row would carry a -18px it has nothing to overlap,
+   and `:first-child` only forgives the very first card of all. So the container
+   carries a matching 18px of padding on the left, and every card keeps its
+   negative margin — the first of each row eats the padding instead of the card
+   before it, and the rows line up.
+*/
+.ch-fan {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  row-gap: 8px;
+  padding-left: 18px;
+}
 .ch-hand__card { margin-left: -18px; transition: transform 140ms var(--ease-pop); }
-.ch-hand__card:first-child { margin-left: 0; }
 /* Lifted clear of the fan, not merely outlined. A border alone is invisible at
    the overlap, which is exactly where a chosen card sits. */
 .ch-hand__card--picked { transform: translateY(-12px); z-index: 2; }
@@ -5186,9 +5205,18 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
  * Seb's words: "much smaller and on the side instead of a main bar across the
  * middle".
  */
+/*
+   A column, not two columns.
+
+   The Cheat button had a fixed 84px lane down the right, which meant it was
+   taking up room and drawing the eye even with nothing to call - Seb asked for
+   it "integrated, less out there". Stacking it under the main strip gives it the
+   full width when it is live and lets it shrink to almost nothing when it is
+   not.
+*/
 .ch-tools {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: stretch;
   gap: 8px;
   min-height: 96px;
@@ -5204,39 +5232,66 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 .ch-claimbar { display: flex; flex-direction: column; gap: 6px; }
 .ch-tools__hint { font-size: 13px; color: var(--ink-faint); text-align: center; }
 
-/* Always in the same place, live or not. A control that only appears when it is
-   needed is one whose position you never learn. */
+/*
+   Two sizes of the same button, and never absent.
+
+   LIVE, with a claim on the table and seconds to decide, it is the bar across
+   the bottom Seb asked to have back - the loudest thing on the screen, which is
+   right for the one control you have four seconds to hit.
+
+   IDLE, it shrinks to a small quiet pill in the same place. It stays on screen
+   because a control that only appears when it is needed is one whose position
+   you never learn, and by the time you need this one your thumb should already
+   know where it is. But it has no job at that moment, so it stops shouting.
+*/
 .ch-call {
   flex: 0 0 auto;
-  width: 84px;
+  width: 100%;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 8px;
   border-radius: var(--radius-sm);
   border: 2px solid var(--bad);
   background: color-mix(in srgb, var(--bad) 16%, transparent);
   color: var(--ink);
   font: inherit;
   cursor: pointer;
-  padding: 6px 4px;
+  padding: 9px 12px;
+  /* The slot is the same height in both states on purpose. A claim opening must
+     not move the strip: this screen is pinned, so a taller bar would push past
+     the bottom, and a control that shifts as it becomes live is one you can miss
+     by starting your thumb before it arrives. Go Fish's table had the same bug
+     in a different costume. */
+  min-height: 44px;
+  transition: background 140ms ease;
 }
-.ch-call__word { font-size: 15px; font-weight: 900; letter-spacing: 0.01em; }
+.ch-call__word { font-size: 18px; font-weight: 900; letter-spacing: 0.01em; }
 .ch-call__who {
-  font-size: 10px;
-  color: var(--ink-faint);
+  font-size: 12px;
+  color: var(--ink-soft);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ch-call--idle {
-  border-color: var(--night-500);
-  background: var(--night-800);
+  /* Small, centred, and occupying exactly the same slot as the live bar - the
+     margin is what is left of the 44px once the pill has taken its 26. */
+  width: auto;
+  min-width: 92px;
+  align-self: center;
+  min-height: 26px;
+  margin: 9px 0;
+  border-color: var(--night-600);
+  background: transparent;
   color: var(--ink-faint);
   cursor: default;
+  padding: 4px 14px;
+  border-width: 1px;
 }
+.ch-call--idle .ch-call__word { font-size: 12px; font-weight: 700; }
 .ch-call:not(.ch-call--idle):active { transform: translateY(1px); }
 
 .ch-ranks { display: flex; gap: 6px; width: 100%; }

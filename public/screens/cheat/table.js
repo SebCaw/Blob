@@ -114,8 +114,66 @@ export function tableScreen(ctx) {
     tools(ctx)
   );
 
-  requestAnimationFrame(() => spillIfNeeded(screen));
+  watchForOverflow(screen);
   return screen;
+}
+
+/**
+ * Ask the question again once the screen has stopped changing size.
+ *
+ * One `requestAnimationFrame` was not enough and the failure was silent. A frame
+ * after the screen is built the hand has not finished settling — a fan that
+ * wraps onto a second row is 84px taller than the one that was measured — so the
+ * check ran against a screen that genuinely did fit and found that it did.
+ * Measured afterwards at the largest text size: 799px of content in a 600px
+ * slot, the Cheat! button 209px below the fold, and `screen--spill` never
+ * applied, so there was no scroll to reach it with.
+ *
+ * A `ResizeObserver` is the honest answer rather than a longer guess at a delay.
+ * It fires whenever the screen's own height changes, which covers the fan
+ * wrapping, a late font, a card face arriving and the window being turned on its
+ * side. It is dropped when the screen is, because every push builds a new one
+ * and nothing else holds a reference.
+ */
+function watchForOverflow(screen) {
+  requestAnimationFrame(() => spillIfNeeded(screen));
+
+  // And again once everything has stopped moving. The frame after the screen is
+  // built is too early: the fan has not wrapped yet, so the screen genuinely
+  // does fit at the moment it is asked. Two later looks cost nothing and are
+  // what actually catch it - the observer below cannot, because it fires once
+  // for the size the hand already has and the hand never changes size again.
+  setTimeout(() => {
+    if (screen.isConnected) spillIfNeeded(screen);
+  }, 120);
+  setTimeout(() => {
+    if (screen.isConnected) spillIfNeeded(screen);
+  }, 500);
+
+  if (typeof ResizeObserver !== 'function') return;
+
+  // The HAND rather than the screen. The screen is `--fixed`, so its own box
+  // does not change when its contents outgrow it - only `scrollHeight` moves,
+  // which an observer cannot see. The hand is the part that actually changes
+  // height, and it is the part that pushed this over.
+  const hand = screen.querySelector('.ch-hand');
+  if (!hand) return;
+  // `sawConnected` matters: a ResizeObserver delivers its first callback for the
+  // size the element already has, and that can arrive BEFORE `render()` has put
+  // this screen in the document. Disconnecting on the first
+  // not-connected would therefore throw the observer away before it had ever
+  // done anything, which is exactly what happened.
+  let sawConnected = false;
+  const observer = new ResizeObserver(() => {
+    if (screen.isConnected) {
+      sawConnected = true;
+      spillIfNeeded(screen);
+      return;
+    }
+    // Connected once and gone now: the next push has replaced this screen.
+    if (sawConnected) observer.disconnect();
+  });
+  observer.observe(hand);
 }
 
 /**
@@ -493,17 +551,20 @@ function tools(ctx) {
 }
 
 /**
- * The Cheat button: small, down the side, and always there.
+ * The Cheat button: a bar when it matters, a pill when it does not.
  *
- * It used to be a bar across the bottom that only existed while a claim was
- * open. Two things were wrong with that: the one control you have four seconds
- * to hit was also the one whose position you could not learn, and on your own
- * turn there was no button on the screen at all. Seb asked for it "much smaller
- * and on the side instead of a main bar across the middle".
+ * Three shapes in three goes, and the last one is the point. It began as a bar
+ * across the bottom that existed only while a claim was open, which meant the
+ * one control you have four seconds to hit was also the one whose position you
+ * could never learn. Seb asked for it "much smaller and on the side", so it
+ * became a permanent 84px lane down the right - and that lane sat there drawing
+ * the eye with nothing to call, which he then asked to have "integrated, less
+ * out there", while wanting the big bar back for the moment it counts.
  *
- * Always rendered, live or not. A control that appears only when it is needed is
- * one whose position you never learn, and by the time you need this one your
- * thumb should already know where it is.
+ * Both are true at once. It is always rendered, so its position is learnable,
+ * and it is full width and loud while a claim is live and a small quiet pill in
+ * the same place when there is nothing to call. One control, two sizes; the CSS
+ * does the switching off `--idle`.
  */
 function callButton(ctx, live) {
   const state = ctx.state;
