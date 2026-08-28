@@ -4,6 +4,7 @@ import { Net, LIVE, RETRYING, LOST, lastName } from './net.js';
 import { keepAwake, releaseWake } from './wake.js';
 import { applySize, currentSize, pinViewport } from './size.js';
 import { play as sound, soundOn } from './sound.js';
+import { setupInstallBanner } from './install.js';
 import { askBeforeStart } from './prefs.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { shelfScreen } from './screens/shelf.js';
@@ -1226,6 +1227,11 @@ async function claimRematchSeat(rematchGameId, masterName) {
 const connection = h('div.conn', { role: 'status', 'aria-live': 'polite' });
 const toastEl = h('div.toast', { role: 'status', 'aria-live': 'polite' });
 document.body.append(connection, toastEl);
+
+// A game in progress is checked live, not once at boot: the install prompt can
+// fire at any point in the session, including mid-hand, and this is the one
+// thing standing between it and sliding a banner over somebody's turn.
+setupInstallBanner({ isInGame: () => Boolean(state) && state.phase !== 'lobby' && state.phase !== 'complete' });
 
 /**
  * Connection trouble is stated in plain language and never as an error the

@@ -577,6 +577,56 @@ html[data-size='huge'] .bid__current {
   transform: translate(-50%, 0);
 }
 
+/* -- Install banner ---------------------------------------------------------
+ *
+ * A strip at the BOTTOM, above the toast's own resting place, so the two never
+ * stack on each other - the toast is transient and this can sit for a whole
+ * session. Slides up the same way the toast does, and is empty (`display:
+ * none`, no children) until `install.js` actually has something to say, so it
+ * costs nothing on a phone that will never see it.
+ */
+.install-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 18px);
+  transform: translate(-50%, calc(100% + 40px));
+  z-index: 65;
+  width: calc(100vw - 32px);
+  max-width: 420px;
+  border-radius: var(--radius-sm);
+  background: var(--night-700);
+  border: 1px solid var(--night-500);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  transition: transform 280ms var(--ease-pop);
+}
+.install-banner:empty { display: none; }
+.install-banner--show { transform: translate(-50%, 0); }
+
+.install-banner__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px 10px 14px;
+}
+.install-banner__text {
+  flex: 1 1 auto;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+.install-banner__glyph {
+  display: inline-block;
+  padding: 0 3px;
+  font-weight: 900;
+}
+.install-banner__close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+}
+
+
 /* -- Mascot ---------------------------------------------------------------- */
 .mascot {
   display: block;
