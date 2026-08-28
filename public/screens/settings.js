@@ -126,6 +126,24 @@ function gameRows(ctx) {
 }
 
 /**
+ * Where the small print lives.
+ *
+ * Plain links out to two static pages rather than screens in the app, because a
+ * policy has to be readable without joining a game and linkable from outside it.
+ * They open in a new tab so nobody loses the game they are in by tapping one -
+ * this row is reachable mid-hand, like everything else in this sheet.
+ */
+function legalRow() {
+  return h(
+    'p.sheet__hint',
+    { style: { 'text-align': 'center', 'margin-top': '4px' } },
+    h('a', { href: '/privacy.html', target: '_blank', rel: 'noopener', text: 'Privacy' }),
+    ' · ',
+    h('a', { href: '/terms.html', target: '_blank', rel: 'noopener', text: 'Terms of use' })
+  );
+}
+
+/**
  * Put it on the home screen, for anybody who wants it.
  *
  * The offer itself is made once, at the end of a game, and never again if it is
@@ -247,6 +265,7 @@ export function settingsSheet(ctx) {
       soundRow(ctx),
       gameRows(ctx),
       installRow(ctx),
+      legalRow(),
       // The rules, reachable mid-hand — which is when somebody usually needs
       // them. Opening it closes this, so they are not stacked two deep.
       helpButton(

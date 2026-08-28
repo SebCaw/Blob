@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Privacy — Blob</title>
+    <meta name="description" content="What Blob stores, and what it does not." />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" href="/icons/blob.svg" />
+  </head>
+  <body>
+    <!--
+      A plain static page on purpose, rather than a screen inside the app.
+
+      A privacy policy has to be a URL somebody can link to, open with no
+      JavaScript, and read without joining a game — an app store will ask for
+      exactly that link one day, and so will anybody who is being careful. It
+      borrows the app's own stylesheet so it looks like the same product, and
+      needs nothing from the server: `staticHandler` already serves any real
+      file under `public/`.
+
+      Keep it TRUE. Every claim below was checked against the code rather than
+      assumed, and if the app ever starts storing something else this is the
+      file that has to change first.
+    -->
+    <main class="legal">
+      <p class="legal__back"><a href="/">&lsaquo; Back to Blob</a></p>
+
+      <h1 class="legal__title">Privacy</h1>
+      <p class="legal__lede">
+        Blob is a card game for a group of friends. It has no accounts, no adverts and no
+        tracking of any kind, so this page is shorter than most.
+      </p>
+
+      <h2>The short version</h2>
+      <p>
+        Blob stores the name you type in and enough information to keep you in the game you are
+        playing. It does not use cookies, does not contain any analytics or advertising, and does
+        not send anything to anybody else.
+      </p>
+
+      <h2>What is kept on your device</h2>
+      <p>
+        A few small settings are saved in your browser's local storage. They never leave your
+        device and are not readable by anyone else:
+      </p>
+      <ul>
+        <li>the name you last played under, so you do not have to retype it</li>
+        <li>which game you are currently in, so closing the tab does not throw you out of it</li>
+        <li>your card and text size, and whether sound is on</li>
+        <li>whether you have dismissed the offer to add Blob to your home screen</li>
+      </ul>
+      <p>
+        <strong>These are not cookies and this is not tracking.</strong> They are what makes the
+        app work at all, which is why there is no consent banner on this site — none is required
+        for storage that is strictly necessary for a service you asked for. You can clear all of
+        it at any time through your browser's normal "clear site data" setting.
+      </p>
+
+      <h2>What is kept on the server</h2>
+      <p>
+        While a game is running, the server holds the game itself: who is playing, the display
+        names they chose, and the state of the cards. This lives in memory and is gone when the
+        game ends or the server restarts.
+      </p>
+      <p>
+        When a game finishes, a short record of it is written down — the display names, who won,
+        and when it was played — so the games list has something to show. There is nothing in
+        that record beyond a first name and a result.
+      </p>
+      <p>
+        Ordinary web server logs record IP addresses briefly, as every web server does. They are
+        not used for anything and are not linked to players or games.
+      </p>
+
+      <h2>What Blob never does</h2>
+      <ul>
+        <li>No cookies. Not one.</li>
+        <li>No analytics, no tracking pixels, no advertising.</li>
+        <li>No third-party scripts. The page you are reading loads nothing from anywhere else.</li>
+        <li>No email addresses, no passwords, no accounts — there is nothing to sign up for.</li>
+        <li>Nothing is sold, shared or handed to anybody.</li>
+      </ul>
+
+      <h2>Children</h2>
+      <p>
+        Blob is a family card game and children are very likely to play it. That is part of why it
+        collects nothing: there are no accounts to create, no way to message a stranger, and
+        nothing to buy. The only personal detail involved is a display name, and it does not have
+        to be a real one.
+      </p>
+
+      <h2>Your rights</h2>
+      <p>
+        Under UK and EU data protection law you can ask what is held about you, ask for it to be
+        corrected, or ask for it to be deleted. In practice there is very little to ask about — a
+        display name attached to a finished game. Clearing your browser's site data removes
+        everything held on your device immediately.
+      </p>
+
+      <h2>Getting in touch</h2>
+      <p>
+        Blob is run by one person as a personal project. If you want something removed, or you have
+        a question this page does not answer, get in touch with whoever sent you the link to the
+        game.
+      </p>
+
+      <p class="legal__foot">
+        If this page and the app ever disagree, the page is wrong and should be fixed. It is meant
+        to describe what the code actually does.
+      </p>
+      <p class="legal__back"><a href="/terms.html">Terms of use</a> &middot; <a href="/">Back to Blob</a></p>
+    </main>
+  </body>
+</html>

@@ -577,6 +577,54 @@ html[data-size='huge'] .bid__current {
   transform: translate(-50%, 0);
 }
 
+/* -- The legal pages --------------------------------------------------------
+ *
+ * `privacy.html` and `terms.html` are plain static files rather than screens in
+ * the app: a policy has to be a URL somebody can link to and read without any
+ * JavaScript, or joining a game. They borrow this stylesheet so they look like
+ * the same product, and this is the whole of what they need from it.
+ *
+ * Wider and quieter than a game screen - it is prose, not a table, and a line
+ * of text 800px long is harder to read rather than easier.
+ */
+.legal {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 48px);
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.legal__title {
+  font-size: 34px;
+  font-weight: 900;
+  color: var(--ink);
+  margin: 8px 0 4px;
+  letter-spacing: -0.01em;
+}
+.legal__lede { font-size: 17px; color: var(--ink); margin: 0 0 28px; }
+.legal h2 {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--lime);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 32px 0 8px;
+}
+.legal p { margin: 0 0 14px; }
+.legal ul { margin: 0 0 14px; padding-left: 22px; }
+.legal li { margin-bottom: 6px; }
+.legal strong { color: var(--ink); }
+.legal a { color: var(--lime); text-decoration: underline; text-underline-offset: 2px; }
+.legal__back { font-size: 15px; font-weight: 800; margin-bottom: 20px; }
+.legal__foot {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--night-600);
+  font-size: 14px;
+  color: var(--ink-faint);
+}
+
 /* -- Install banner ---------------------------------------------------------
  *
  * A strip at the BOTTOM, above the toast's own resting place, so the two never
