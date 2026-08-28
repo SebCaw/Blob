@@ -577,6 +577,40 @@ html[data-size='huge'] .bid__current {
   transform: translate(-50%, 0);
 }
 
+/* -- Waiting for something to arrive ----------------------------------------
+ *
+ * The shape of what is coming, rather than a line of text about it. Reuses
+ * `shelf-waiting`, the 1.6s pulse the resume row on the shelf already uses, so
+ * there is ONE waiting rhythm in the app rather than two competing ones.
+ *
+ * Deliberately not a shimmer sweeping across. A shimmer is a second animation
+ * language for the same idea, and several rows of it at once draws far more
+ * attention than a wait deserves.
+ */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  animation: shelf-waiting 1.6s ease-in-out infinite;
+}
+.skeleton__line {
+  height: 11px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+/* Each row a beat behind the one above, so the list breathes rather than
+   flashing as one block. */
+.skeleton:nth-child(2) { animation-delay: 0.15s; }
+.skeleton:nth-child(3) { animation-delay: 0.3s; }
+.skeleton:nth-child(4) { animation-delay: 0.45s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
 /* -- The legal pages --------------------------------------------------------
  *
  * `privacy.html` and `terms.html` are plain static files rather than screens in
@@ -603,19 +637,33 @@ html[data-size='huge'] .bid__current {
   letter-spacing: -0.01em;
 }
 .legal__lede { font-size: 17px; color: var(--ink); margin: 0 0 28px; }
+/* Headings in INK, not in the accent - and this was wrong first time round.
+ *
+ * The accent means ONE thing everywhere else in this app: this is the thing to
+ * tap. Spending it on seven uppercase headings down a page with nothing
+ * tappable on it breaks that promise and shouts at somebody who is trying to
+ * read. A privacy policy wants to look calm and legible, not urgent.
+ *
+ * So the accent is kept for the links, which are the only things here you can
+ * actually do something with, and the headings get weight and letter-spacing to
+ * carry the structure instead of colour. */
 .legal h2 {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 900;
-  color: var(--lime);
+  color: var(--ink);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin: 32px 0 8px;
+  letter-spacing: 0.1em;
+  margin: 34px 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--night-600);
 }
 .legal p { margin: 0 0 14px; }
 .legal ul { margin: 0 0 14px; padding-left: 22px; }
 .legal li { margin-bottom: 6px; }
 .legal strong { color: var(--ink); }
-.legal a { color: var(--lime); text-decoration: underline; text-underline-offset: 2px; }
+/* The one place the accent belongs on these pages: the things you can tap. */
+.legal a { color: var(--lime); text-decoration: underline; text-underline-offset: 3px; }
+.legal--404 { padding-top: calc(env(safe-area-inset-top) + 72px); }
 .legal__back { font-size: 15px; font-weight: 800; margin-bottom: 20px; }
 .legal__foot {
   margin-top: 32px;

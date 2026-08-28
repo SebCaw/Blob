@@ -1,6 +1,7 @@
 import { h, friendlyDate, friendlyTime, plural } from '../ui.js';
 import { mascot } from '../mascot.js';
 import { myGames } from '../net.js';
+import { skeletonList } from './common.js';
 
 /**
  * Past games. Games this phone played in come first — that is almost always
@@ -10,13 +11,19 @@ import { myGames } from '../net.js';
 export function historyScreen(ctx) {
   const record = ctx.ui.historyRecord;
   if (record) return detailView(ctx, record);
+  if (ctx.ui.historyOpening) {
+    return shell(ctx, skeletonList(3, { lines: [55, 95, 70], label: 'Opening that game' }));
+  }
 
   const games = ctx.ui.historyList;
   const mine = new Set(myGames());
 
   if (games === undefined) {
     loadList(ctx);
-    return shell(ctx, h('p.lede.center', { text: 'Fetching the record books…' }));
+    // The shape of the list that is coming, rather than a line of text about
+    // it. This wait is a real one on the free hosting tier, where the first
+    // request of the evening also has to wake a sleeping server.
+    return shell(ctx, skeletonList(4, { lines: [45, 80, 60], label: 'Loading past games' }));
   }
 
   if (!games.length) {
@@ -200,6 +207,11 @@ async function loadList(ctx) {
 }
 
 async function loadOne(ctx, id) {
+  // Opening one is a fetch too, and until now it was a completely silent one:
+  // you tapped a row and nothing happened until the answer came back. On a slow
+  // connection that reads as a dead button.
+  ctx.ui.historyOpening = true;
+  ctx.render();
   try {
     const res = await fetch(`/api/history/${encodeURIComponent(id)}`);
     if (!res.ok) throw new Error('missing');
@@ -207,5 +219,6 @@ async function loadOne(ctx, id) {
   } catch {
     ctx.toast('Could not open that game.');
   }
+  ctx.ui.historyOpening = false;
   ctx.render();
 }

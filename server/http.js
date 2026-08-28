@@ -384,20 +384,38 @@ async function historyOneHandler(res, id, { store }) {
 
 // -- Static files ------------------------------------------------------------
 
+/**
+ * Serve a file, and decide what a miss MEANS.
+ *
+ * Two kinds of miss, and telling them apart is the whole of this function.
+ *
+ * A path with no file extension - `/join/4827`, `/history` - is a ROUTE. The
+ * app is a single page that reads its own URL, so those have to open the app
+ * shell; answering 404 would be wrong and would break every deep link and every
+ * shared game link.
+ *
+ * A path WITH an extension - `/styles.cs`, `/icons/blob.pn` - was asking for a
+ * file, and that file is not there. Quietly handing back the app shell with a
+ * 200 was the old behaviour and it is worse than useless: a mistyped stylesheet
+ * would arrive as a page of HTML, reported as success, and fail somewhere much
+ * further away from the cause. That gets the 404 page and a 404 status.
+ */
 async function staticHandler(res, pathname, publicDir) {
-  // Anything that is not a real file falls back to the app shell, so a deep
-  // link like /join/4827 opens the app rather than a 404.
   const rel = pathname === '/' ? '/index.html' : pathname;
   const root = path.resolve(publicDir);
   const resolved = path.resolve(root, `.${path.posix.normalize(rel)}`);
   if (!resolved.startsWith(root)) return send(res, 403, {}, 'Nope.');
 
   let file = resolved;
+  let missing = false;
   try {
     const stat = await fsp.stat(file);
     if (stat.isDirectory()) file = path.join(file, 'index.html');
   } catch {
-    file = path.join(root, 'index.html');
+    // An extension means a file was meant; anything else is one of the app's
+    // own routes and belongs to the shell.
+    missing = Boolean(path.extname(resolved));
+    file = path.join(root, missing ? '404.html' : 'index.html');
   }
 
   const ext = path.extname(file);
@@ -408,7 +426,7 @@ async function staticHandler(res, pathname, publicDir) {
     const data = await fsp.readFile(file);
     return send(
       res,
-      200,
+      missing ? 404 : 200,
       { 'Content-Type': type, 'Cache-Control': immutable ? 'public, max-age=604800' : 'no-cache' },
       data
     );
