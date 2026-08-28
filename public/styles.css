@@ -2509,6 +2509,23 @@ html[data-game='sevens'] .hand--fanned .card-face--playable {
   color: var(--ink-faint);
 }
 
+/* The small print at the very bottom of the settings sheet.
+ *
+ * As quiet as it can be while still being findable: eleven pixels, dimmed, and
+ * below the Done button so it is the last thing in the sheet rather than
+ * something to scroll past. Seb's brief was that it must not be in the way
+ * anywhere, and he is right - the only people who will ever tap this are
+ * looking for it on purpose.
+ */
+.sheet__legal {
+  margin: 18px 0 0;
+  font-size: 11px;
+  text-align: center;
+  color: var(--ink-faint);
+  opacity: 0.65;
+}
+.sheet__legal a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
 .sheet__hint {
   margin: 0;
   font-size: 13px;

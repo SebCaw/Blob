@@ -126,17 +126,21 @@ function gameRows(ctx) {
 }
 
 /**
- * Where the small print lives.
+ * The small print, and it is meant to be small.
+ *
+ * Dead last in the sheet, under the Done button, at eleven pixels and dimmed:
+ * this is a footer, not a feature. It has to EXIST - a privacy policy nobody can
+ * find is not one - and it has to be possible to ignore completely, which for
+ * something almost nobody will ever tap is the more important half.
  *
  * Plain links out to two static pages rather than screens in the app, because a
  * policy has to be readable without joining a game and linkable from outside it.
  * They open in a new tab so nobody loses the game they are in by tapping one -
- * this row is reachable mid-hand, like everything else in this sheet.
+ * this sheet is reachable mid-hand, like everything else in it.
  */
 function legalRow() {
   return h(
-    'p.sheet__hint',
-    { style: { 'text-align': 'center', 'margin-top': '4px' } },
+    'p.sheet__legal',
     h('a', { href: '/privacy.html', target: '_blank', rel: 'noopener', text: 'Privacy' }),
     ' · ',
     h('a', { href: '/terms.html', target: '_blank', rel: 'noopener', text: 'Terms of use' })
@@ -265,7 +269,6 @@ export function settingsSheet(ctx) {
       soundRow(ctx),
       gameRows(ctx),
       installRow(ctx),
-      legalRow(),
       // The rules, reachable mid-hand — which is when somebody usually needs
       // them. Opening it closes this, so they are not stacked two deep.
       helpButton(
@@ -285,7 +288,8 @@ export function settingsSheet(ctx) {
       // hand of Blob had no way to discover Silly Head existed short of leaving
       // and knowing where to look. Settings is on every screen, so it goes here.
       shelfRow(ctx, close),
-      h('button.btn.btn--ghost', { text: 'Done', type: 'button', onClick: close })
+      h('button.btn.btn--ghost', { text: 'Done', type: 'button', onClick: close }),
+      legalRow()
     )
   );
 }
