@@ -61,7 +61,22 @@ const RING_MIN_WIDTH = 240;
 /** And what each seat past the third adds to that. Six need a wider table. */
 const RING_WIDTH_PER_SEAT = 30;
 const RING_X = 38;
-const RING_Y = 33;
+/*
+  Taller than it is round, and deliberately.
+
+  A circle puts the seats as close to the middle vertically as it does
+  horizontally, and the middle of this table is the only place in the app that
+  has something long to say - "Ada had no fives", "Cleo takes one from the pool"
+  - stacked three deep while a turn plays out. On a phone that block grew up and
+  down into the name plates above and below it. Seb sent a photo of it sitting on
+  top of Ada's.
+
+  Pushing the ring out sideways instead would not have helped: the message is
+  narrow and tall, so the crowding is vertical, and a phone has no width to give
+  anyway. So the ring became an ellipse - same width, more height - which buys
+  the gap exactly where the words are.
+*/
+const RING_Y = 41;
 const RING_MID_Y = 45;
 /** The widest a seat gets. Narrower than Silly Head's: no face-up cards on it. */
 const SEAT_MAX_PCT = 26;

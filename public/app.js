@@ -13,7 +13,7 @@ import { sevensScreen, sevensWelcome, sevensScreenKey } from './screens/sevens/i
 import { chaseScreen, chaseWelcome, chaseScreenKey } from './screens/chase/index.js';
 import { cheatScreen, cheatWelcome, cheatScreenKey } from './screens/cheat/index.js';
 import { gofishScreen, gofishWelcome, gofishScreenKey } from './screens/gofish/index.js';
-import { applyGameTheme } from './games.js';
+import { applyGameTheme, GAMES } from './games.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
 import { playingScreen } from './screens/playing.js';
@@ -1291,16 +1291,39 @@ function boot() {
   const saved = net.session;
   if (saved && saved.game) ui.game = saved.game;
 
+  // A scanned QR or a shared link lands on /?c=4827&g=gofish with the code
+  // filled in.
+  const params = new URLSearchParams(location.search);
+  const code = (params.get('c') || '').replace(/\D/g, '');
+  const session = net.session;
+
+  /*
+    Which game the code belongs to, carried in the link because at this moment
+    nothing else can know it.
+
+    A code is four digits and says nothing about what is being played; the game
+    only arrives with the state, which is a round trip away. So somebody who
+    scanned a QR at a table of Go Fish used to spend that whole round trip on a
+    purple screen and then watch it turn blue under them — the one screen in the
+    app that a new player might see FIRST was also the one wearing the wrong
+    colours.
+
+    Only honoured when there is no session, and deliberately. A link for a
+    different game while you are already in one puts a question on screen rather
+    than joining anything, and repainting the app in the colours of a game you
+    have not agreed to join yet would be answering it for you.
+  */
+  const linkedGame = params.get('g');
+  if (code && !session && linkedGame && GAMES.some((game) => game.id === linkedGame)) {
+    ui.game = linkedGame;
+  }
+
+  if (code) history.replaceState(null, '', location.pathname);
+
   // Both before the first paint, so nobody sees the default size or the default
   // colours flash past.
   applySize(currentSize());
   applyGameTheme(ui.game);
-
-  // A scanned QR or a shared link lands on /?c=4827 with the code filled in.
-  const params = new URLSearchParams(location.search);
-  const code = (params.get('c') || '').replace(/\D/g, '');
-  const session = net.session;
-  if (code) history.replaceState(null, '', location.pathname);
 
   if (code && !session) {
     ui.code = code;

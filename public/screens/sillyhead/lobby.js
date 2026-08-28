@@ -1,6 +1,5 @@
 import { h, plural } from '../../ui.js';
-import { qrSvg } from '../../qr.js';
-import { topbar, playerRow, action } from '../common.js';
+import { topbar, codeCard, playerRow, action } from '../common.js';
 import { sizeControl } from '../../size.js';
 
 /**
@@ -159,16 +158,6 @@ function dropBot(ctx, player) {
   });
 }
 
-function codeCard(state) {
-  const joinUrl = `${location.origin}/?c=${state.code}`;
-  return h(
-    'div.code-card',
-    h('div.eyebrow', { text: 'Game code' }),
-    h('div.code.tabular', { text: state.code, 'aria-label': `Game code ${state.code.split('').join(' ')}` }),
-    qrSvg(joinUrl, { className: 'qr', label: `QR code to join game ${state.code}` }),
-    h('p.muted', { style: { 'font-size': '13px', 'margin-top': '8px' }, text: 'Scan, or type the code in.' })
-  );
-}
 
 /**
  * Standard or quick.

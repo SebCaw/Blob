@@ -1,5 +1,6 @@
 import { h, initials, fragment } from '../ui.js';
 import { uiZoom, pinViewport } from '../size.js';
+import { qrSvg } from '../qr.js';
 
 /**
  * A drawn crown rather than the U+265B glyph. A font that lacks it renders
@@ -46,6 +47,85 @@ function cog() {
  *
  * Drawn for the same reason as the crown, and because no emoji spoon is wooden.
  */
+/**
+ * The game code, the QR, and a way to send the link to somebody who is not here.
+ *
+ * Shared by all six lobbies, and it did not start that way: every game had its
+ * own copy of these few lines, identical down to the punctuation. That is fine
+ * right up until one of them gains something the others do not - which is
+ * exactly what happened the day a share button was added to Blob's lobby and to
+ * no other, so five games out of six quietly did not have it. One copy now.
+ *
+ * `g` in the link is what lets the join screen wear the right game's colours
+ * before anybody has joined anything - see the note in `boot()`. It is a hint
+ * rather than a promise: the real game arrives with the state, and a link with a
+ * missing or unrecognised `g` is simply ignored.
+ */
+export function codeCard(state) {
+  const joinUrl = `${location.origin}/?c=${state.code}&g=${state.game || 'blob'}`;
+  return h(
+    'div.code-card',
+    h('div.eyebrow', { text: 'Game code' }),
+    h('div.code.tabular', { text: state.code, 'aria-label': `Game code ${state.code.split('').join(' ')}` }),
+    qrSvg(joinUrl, { className: 'qr', label: `QR code to join game ${state.code}` }),
+    h('p.muted', { style: { 'font-size': '13px', 'margin-top': '8px' }, text: 'Scan, or type the code in.' }),
+    shareButton(state, joinUrl)
+  );
+}
+
+/**
+ * Sending the join link to somebody who is not in the room.
+ *
+ * The code and the QR between them already cover everybody at the table, and
+ * that was the whole of it for a long time - which quietly meant the only way to
+ * play was to be in the same room as somebody holding a phone up. This is the
+ * other half: a friend two streets away, or the cousin coming to the next one.
+ *
+ * `navigator.share` is the good path - it opens the phone's own share sheet, so
+ * the link goes straight into WhatsApp with none of the copy-then-find-the-app
+ * shuffle. It does not exist on most desktop browsers, so the clipboard is the
+ * fallback and the button says which one happened.
+ */
+function shareButton(state, joinUrl) {
+  const label = 'Send a link';
+  const button = h('button.btn.btn--ghost.code-card__share', {
+    text: label,
+    type: 'button',
+    onClick: async () => {
+      // Said on the button itself, since it is the only thing here that can
+      // report back. Restored on a timer rather than on the next render: the
+      // lobby redraws whenever somebody joins, which would otherwise wipe the
+      // reply the instant it was given.
+      const say = (text) => {
+        button.textContent = text;
+        setTimeout(() => {
+          button.textContent = label;
+        }, 2200);
+      };
+
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: 'Blob',
+            text: `Join my game. The code is ${state.code}.`,
+            url: joinUrl,
+          });
+          return;
+        }
+        await navigator.clipboard.writeText(joinUrl);
+        say('Link copied');
+      } catch (err) {
+        // Opening the share sheet and then backing out of it rejects, and is not
+        // a failure - telling somebody their tap went wrong when they simply
+        // changed their mind is worse than saying nothing at all.
+        if (err && err.name === 'AbortError') return;
+        say('Could not copy');
+      }
+    },
+  });
+  return button;
+}
+
 export function woodenSpoon() {
   const wrap = h('span.spoon', { 'aria-hidden': 'true' });
   wrap.appendChild(
