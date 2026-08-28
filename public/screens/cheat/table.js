@@ -21,13 +21,17 @@ import { topbar, splitHand } from '../common.js';
  * so the bar survives a repaint mid-window, and no timer here has to agree with
  * the server's about when the moment ends.
  *
- * **The window shutting no longer takes the call away.** A claim that has stood
- * is still callable until the next one lands on it, which Seb asked for after
- * playing: with people at a table, working out what just happened takes as long
- * as it takes. So the Cheat button stopped being a bar across the bottom and
- * became a small one down the side that is simply always there — on your own
- * turn, while you are choosing cards, and after the clock has run out. It is no
- * longer the thing you race; it is the thing you reach for when you have got it.
+ * **The Cheat button is always on screen, including on your own turn.** It used
+ * to be a bar across the bottom that only existed while a claim was open, which
+ * meant the one control in this game you have four seconds to hit was also the
+ * one whose position you could not learn — and on your own turn there was no
+ * button at all. It is a small one down the side now: same place every time,
+ * live when there is something to call and visibly inert when there is not.
+ *
+ * The four second window is unchanged. Making it callable AFTER the window was
+ * tried and taken back out: it meant holding the played cards back from the pile
+ * so they could still be turned over, which quietly changed when going out
+ * becomes final. Seb wanted the button, not the rule.
  */
 
 /** How long a just-happened thing is treated as news, for the animations. */
@@ -230,10 +234,7 @@ function statusLine(ctx) {
 function middle(ctx, event) {
   const state = ctx.state;
   const claim = state.claim;
-  // Only an OPEN claim gets the big treatment and the bar. Once it has stood it
-  // is the top of the pile as far as the table is concerned - still callable,
-  // but no longer the thing everybody is holding their breath over.
-  if (claim && !claim.closed) return claimView(ctx, claim, event);
+  if (claim) return claimView(ctx, claim, event);
 
   const last = state.lastEvent;
   if (last && last.kind === 'call' && last.cards) return revealView(ctx, last, event);
@@ -494,17 +495,15 @@ function tools(ctx) {
 /**
  * The Cheat button: small, down the side, and always there.
  *
- * It used to be the biggest thing on the screen, and that was right when it was
- * the one control on a four second clock — a control you are racing must be
- * impossible to miss and must never move. It is not on a clock any more. A claim
- * stays callable until the next one lands, so this is something you reach for
- * once you have worked it out, and Seb asked for it "much smaller and on the
- * side instead of a main bar across the middle".
+ * It used to be a bar across the bottom that only existed while a claim was
+ * open. Two things were wrong with that: the one control you have four seconds
+ * to hit was also the one whose position you could not learn, and on your own
+ * turn there was no button on the screen at all. Seb asked for it "much smaller
+ * and on the side instead of a main bar across the middle".
  *
- * Still always rendered, live or not, for the same reason as before: a control
- * that appears when it is needed is one whose position you never learn. It is
- * live on your own turn too, which is new and is most of the point — you can be
- * halfway through picking your cards and still call the thing said before you.
+ * Always rendered, live or not. A control that appears only when it is needed is
+ * one whose position you never learn, and by the time you need this one your
+ * thumb should already know where it is.
  */
 function callButton(ctx, live) {
   const state = ctx.state;

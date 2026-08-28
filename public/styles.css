@@ -5123,11 +5123,11 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 
 /* The bottom strip: what you can do, and the Cheat button beside it.
  *
- * A row rather than a stack, because the call is no longer the main event. It
- * was a bar across the whole width when it was the one control on a clock; the
- * clock still paces the game but a claim stays callable after it, so this is a
- * small thing down the side you reach for once you have worked it out. Seb's
- * words: "much smaller and on the side instead of a main bar across the middle".
+ * A row rather than a stack. The call used to be a bar across the whole width,
+ * which made the one control you have four seconds to hit also the one whose
+ * position you could not learn - and left your own turn with no button at all.
+ * Seb's words: "much smaller and on the side instead of a main bar across the
+ * middle".
  */
 .ch-tools {
   display: flex;
