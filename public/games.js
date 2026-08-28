@@ -196,3 +196,35 @@ export function applyGameTheme(id) {
   root.style.setProperty('--lime', game.accent);
   root.style.setProperty('--lime-deep', game.accentDeep);
 }
+
+/**
+ * How much of the draw each game gets when the shelf picks a colour for itself.
+ *
+ * Blob is deliberately weighted down rather than excluded. It is the app's own
+ * name and the colour everything else was designed against, so it should still
+ * come up - just not as the thing you see almost every time you open the app,
+ * which is what a straight `GAMES[0]` gave it.
+ */
+const SHELF_WEIGHT = { blob: 1 };
+const SHELF_WEIGHT_DEFAULT = 4;
+
+/**
+ * A colour for the shelf, chosen fresh each time the app is opened cold.
+ *
+ * The shelf belongs to no game, and it wore Blob's purple only because Blob is
+ * first in the list. Six games with six hues is a nicer thing to open than the
+ * same purple every morning.
+ *
+ * Not remembered anywhere on purpose - it is meant to be different next time.
+ * What IS remembered is a game you actually went into: `leaveGame` keeps that
+ * game's colours on the shelf rather than resetting, so where you have just been
+ * still shows.
+ */
+export function randomShelfGame() {
+  const weighted = [];
+  for (const game of GAMES) {
+    const n = SHELF_WEIGHT[game.id] || SHELF_WEIGHT_DEFAULT;
+    for (let i = 0; i < n; i += 1) weighted.push(game.id);
+  }
+  return weighted[Math.floor(Math.random() * weighted.length)] || GAMES[0].id;
+}

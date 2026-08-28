@@ -99,42 +99,40 @@ function homeView(ctx) {
     firstTimeHelp(ctx),
     h('div.spacer'),
     h('span.eyebrow.center', { text: 'How are you playing?' }),
+    /*
+      One stack of plain buttons, the same as the other five games.
+
+      This page used to be the odd one out. Its choices were two-line cards with
+      a title and a blurb, and Joining sat below a spacer as a separate thing
+      entirely — which is exactly how it read: Seb said the Join button "feels
+      like a different thing at the moment". It is not a different thing. It is
+      the fourth answer to the question at the top.
+
+      Blob keeps four where the others have three, because it genuinely has one
+      more way to play: it is the only game here you can run round a real table
+      with real cards. What the cards used to explain is now the line underneath,
+      which says the same thing in one sentence instead of three fragments.
+    */
     h(
       'div.stack.home-actions',
-      modeCard({
-        title: 'Round a table',
-        blurb: 'You deal real cards. Blob runs the bidding and keeps the score.',
-        onClick: () => {
-          ctx.ui.mode = 'table';
-          ctx.go('create');
-        },
+      action('Round a table', () => {
+        ctx.ui.mode = 'table';
+        ctx.go('create');
       }),
-      modeCard({
-        title: 'Online',
-        blurb: 'No cards to hand? Blob deals for you.',
-        kind: 'quiet',
-        onClick: () => ctx.go('nudge'),
-      }),
-      // The third honest answer to "how are you playing?", so it sits with the
-      // other two rather than below the fold as a footnote — which is where it
-      // landed as a plain button once the type was set any larger than default,
-      // and somebody using the big type is exactly who wants a practice game.
-      //
-      // Not behind Online, either: that route asks "are you sure you have no
-      // cards?", which is a question about the GROUP, and there is no group.
-      // Nothing is asked here at all — it deals you a lobby with three
-      // opponents already sat down.
-      modeCard({
-        title: 'On your own',
-        blurb: 'Play against Blob. Nobody else needed.',
-        kind: 'quiet',
-        onClick: () => ctx.playSolo(),
-      })
+      action('Online', () => ctx.go('nudge'), { kind: 'ghost' }),
+      action('Join a game', () => ctx.go('join'), { kind: 'ghost' }),
+      // The honest fourth answer, and it stays with the others rather than
+      // below the fold as a footnote — which is where it landed once the type
+      // was set any larger than default, and somebody using the big type is
+      // exactly who wants a practice game.
+      action('On your own', () => ctx.playSolo(), { kind: 'ghost' })
     ),
-    h('div.spacer'),
-    // Joining is what most people arriving at this screen are here to do, so it
-    // is a button of its own rather than a line of small print.
-    action('Join a game', () => ctx.go('join'), { kind: 'ghost' }),
+    h('p.muted.center', {
+      style: { 'font-size': '14px' },
+      text:
+        'Round a table you deal real cards and Blob keeps the score. ' +
+        'Online it deals for you. On your own you play against Blob.',
+    }),
     // Never played before? This is the first place to look, so it is on the
     // front page rather than buried behind a settings cog.
     helpButton(ctx, { kind: 'link' }),
@@ -164,14 +162,6 @@ function firstTimeHelp(ctx) {
   );
 }
 
-function modeCard({ title, blurb, onClick, kind }) {
-  return h(
-    'button',
-    { className: `mode-card${kind === 'quiet' ? ' mode-card--quiet' : ''}`, type: 'button', onClick },
-    h('span.mode-card__title', { text: title }),
-    h('span.mode-card__blurb', { text: blurb })
-  );
-}
 
 /**
  * Tapping Online gets one friendly check first.

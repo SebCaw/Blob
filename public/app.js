@@ -13,7 +13,7 @@ import { sevensScreen, sevensWelcome, sevensScreenKey } from './screens/sevens/i
 import { chaseScreen, chaseWelcome, chaseScreenKey } from './screens/chase/index.js';
 import { cheatScreen, cheatWelcome, cheatScreenKey } from './screens/cheat/index.js';
 import { gofishScreen, gofishWelcome, gofishScreenKey } from './screens/gofish/index.js';
-import { applyGameTheme, GAMES } from './games.js';
+import { applyGameTheme, GAMES, randomShelfGame } from './games.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
 import { playingScreen } from './screens/playing.js';
@@ -486,7 +486,8 @@ const ctx = {
     // for anybody who had ever played anything.
     ui.resuming = null;
     ui.route = 'shelf';
-    applyGameTheme(null);
+    // Deliberately NOT reset. You have just come out of a game, and the shelf
+    // keeping its colours is what says which one - Seb asked for exactly this.
     render();
   },
   /**
@@ -931,8 +932,8 @@ ctx.backToShelf = () => {
   ui.settingsOpen = false;
   ui.resuming = null;
   ui.route = 'shelf';
-  // The shelf shows the games in their own colours, so it wears neither.
-  applyGameTheme(null);
+  // Same as `leaveGame`: the colours of the game you have just left stay on the
+  // shelf, rather than snapping back to Blob's purple.
   render();
 };
 
@@ -1290,6 +1291,19 @@ function boot() {
   // knows which one it is asking the server about.
   const saved = net.session;
   if (saved && saved.game) ui.game = saved.game;
+
+  /*
+    A colour to open in.
+
+    The shelf belongs to no game and wore Blob's purple only because Blob is
+    first in the list, so opening the app looked the same every time however
+    many games were on it. It now picks one of the six, with Blob weighted down
+    rather than removed - it is still the app's name.
+
+    Only when there is nothing better to go on. A session already in a game keeps
+    that game's colours, and a scanned link sets them a few lines below.
+  */
+  if (!saved || !saved.game) ui.game = randomShelfGame();
 
   // A scanned QR or a shared link lands on /?c=4827&g=gofish with the code
   // filled in.
