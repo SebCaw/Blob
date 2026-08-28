@@ -1,7 +1,7 @@
 {
   "name": "Blob",
   "short_name": "Blob",
-  "description": "The bidding, scoring and leaderboard companion for the card game Blob.",
+  "description": "Six card games to play together on your phones. Blob, Silly Head, Sevens, Chase the Ace, Cheat and Go Fish. No accounts, no adverts, free.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -72,8 +72,63 @@ function codeCard(state) {
     h('div.eyebrow', { text: 'Game code' }),
     h('div.code.tabular', { text: state.code, 'aria-label': `Game code ${state.code.split('').join(' ')}` }),
     qrSvg(joinUrl, { className: 'qr', label: `QR code to join game ${state.code}` }),
-    h('p.muted', { style: { 'font-size': '13px', 'margin-top': '8px' }, text: 'Scan, or type the code in.' })
+    h('p.muted', { style: { 'font-size': '13px', 'margin-top': '8px' }, text: 'Scan, or type the code in.' }),
+    shareButton(state, joinUrl)
   );
+}
+
+/**
+ * Sending the join link to somebody who is not in the room.
+ *
+ * The code and the QR between them already cover everybody at the table, and
+ * that was the whole of it for a long time — which quietly meant the only way
+ * to play was to be in the same room as somebody holding a phone up. This is
+ * the other half: a friend two streets away, or the cousin who is coming to the
+ * next one.
+ *
+ * `navigator.share` is the good path — it opens the phone's own share sheet, so
+ * the link goes straight into WhatsApp with none of the copy-then-find-the-app
+ * shuffle. It does not exist on most desktop browsers, so the clipboard is the
+ * fallback and the button says which one happened.
+ */
+function shareButton(state, joinUrl) {
+  const label = 'Send a link';
+  const button = h('button.btn.btn--ghost.code-card__share', {
+    text: label,
+    type: 'button',
+    onClick: async () => {
+      // Said aloud, since the button is about to be the only thing reporting
+      // back. A restore on a timer rather than on the next render: the lobby
+      // redraws whenever somebody joins, which would otherwise wipe the reply
+      // the instant it was given.
+      const say = (text) => {
+        button.textContent = text;
+        setTimeout(() => {
+          button.textContent = label;
+        }, 2200);
+      };
+
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: 'Blob',
+            text: `Join my game of Blob. The code is ${state.code}.`,
+            url: joinUrl,
+          });
+          return;
+        }
+        await navigator.clipboard.writeText(joinUrl);
+        say('Link copied');
+      } catch (err) {
+        // Closing the share sheet without picking anything rejects, and is not
+        // a failure — telling somebody their tap went wrong when they simply
+        // changed their mind is worse than saying nothing.
+        if (err && err.name === 'AbortError') return;
+        say('Could not copy');
+      }
+    },
+  });
+  return button;
 }
 
 /**

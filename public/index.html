@@ -7,8 +7,42 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="description" content="The bidding, scoring and leaderboard companion for the card game Blob." />
+    <!--
+      Kept in step with the same line in `manifest.webmanifest`. It described
+      the app this used to be - a scoring companion for one game - for a good
+      while after it became six games you actually play here, which meant the
+      one sentence Google showed was about a version that no longer exists.
+    -->
+    <meta
+      name="description"
+      content="Six card games to play together on your phones. Blob, Silly Head, Sevens, Chase the Ace, Cheat and Go Fish. No accounts, no adverts, free."
+    />
     <meta name="theme-color" content="#150826" />
+
+    <!--
+      What a pasted link looks like in WhatsApp, iMessage, Discord or anywhere
+      else that unfurls a URL. Without these it is a bare grey line of text, and
+      that is the first thing seen by everybody who has never been here - which
+      is exactly the person worth winning.
+
+      `og:image` has to be ABSOLUTE and RASTER. Scrapers do not resolve relative
+      paths reliably and none of them render SVG, so the PNG the PWA already
+      ships does the job. The hardcoded host is the one place in the codebase
+      that knows the Render URL, and it is here because there is no way to avoid
+      it; when a paid instance and a proper domain arrive, this line changes
+      with them.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Blob" />
+    <meta property="og:title" content="Blob - card games for the whole table" />
+    <meta
+      property="og:description"
+      content="Six card games to play together on your phones. Share the code, everyone joins, bots fill any empty seats."
+    />
+    <meta property="og:url" content="https://blob-nm9h.onrender.com/" />
+    <meta property="og:image" content="https://blob-nm9h.onrender.com/icons/blob-512.png" />
+    <meta property="og:image:alt" content="The Blob logo" />
+    <meta name="twitter:card" content="summary" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Blob" />
