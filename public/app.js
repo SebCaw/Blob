@@ -4,7 +4,7 @@ import { Net, LIVE, RETRYING, LOST, lastName } from './net.js';
 import { keepAwake, releaseWake } from './wake.js';
 import { applySize, currentSize, pinViewport } from './size.js';
 import { play as sound, soundOn } from './sound.js';
-import { setupInstallBanner } from './install.js';
+import { setupInstallBanner, offerInstall } from './install.js';
 import { askBeforeStart } from './prefs.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { shelfScreen } from './screens/shelf.js';
@@ -1142,6 +1142,14 @@ function render() {
   fill(screenHost, screen, overlay);
   renderOverlays();
 
+  // The one quiet moment in the app: a game has just finished, nobody is
+  // waiting on anybody, and every game has a screen sitting here already. It is
+  // also the only moment it is safe to offer on an iPhone, where installing
+  // gives the app its own storage and would otherwise strand somebody
+  // mid-game. `offerInstall` decides for itself whether there is anything to
+  // say and whether this device has already said no.
+  if (state && state.phase === 'complete') offerInstall();
+
   // Searches the whole of `#app`, so it covers the screen and the overlays alike.
   if (focusKey) {
     const restored = root.querySelector(`[data-focus-key="${focusKey}"]`);
@@ -1228,10 +1236,11 @@ const connection = h('div.conn', { role: 'status', 'aria-live': 'polite' });
 const toastEl = h('div.toast', { role: 'status', 'aria-live': 'polite' });
 document.body.append(connection, toastEl);
 
-// A game in progress is checked live, not once at boot: the install prompt can
-// fire at any point in the session, including mid-hand, and this is the one
-// thing standing between it and sliding a banner over somebody's turn.
-setupInstallBanner({ isInGame: () => Boolean(state) && state.phase !== 'lobby' && state.phase !== 'complete' });
+// Catches Chrome's prompt and draws nothing by itself. The offer is made at the
+// end of a game, from two places that between them cover both orderings: the
+// render pass below, for a prompt that arrived earlier in the session, and this
+// callback, for one that arrives while a finished game is already on screen.
+setupInstallBanner({ canOfferNow: () => Boolean(state) && state.phase === 'complete' });
 
 /**
  * Connection trouble is stated in plain language and never as an error the

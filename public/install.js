@@ -16,6 +16,25 @@ import { h, fill } from './ui.js';
  * rather than inside one. It also means it can never replay the shelf's own
  * entry animation or shift anything shelf.js draws.
  *
+ * **It waits until a game has finished, and that is the whole design.** The
+ * commonest way anybody new arrives here is scanning a code to JOIN A GAME that
+ * is already happening, with people waiting on them — which makes arrival the
+ * single worst moment to ask somebody to install anything. The end of a game is
+ * the opposite: they have just played, nothing is urgent, and every game already
+ * has a screen sitting there for exactly that beat.
+ *
+ * On iPhone it also dodges a real trap. An installed iOS web app gets its OWN
+ * storage, separate from Safari's — so installing mid-game would lose the
+ * session that says which game you are in, and you would have to rejoin by code.
+ * After the game there is nothing left to lose.
+ *
+ * **One ask, and no means no.** The answer lives in `localStorage`, which is a
+ * note the browser keeps on that DEVICE, for good. Seb asked whether this could
+ * be done per IP address; it should not be, and it would not work — everybody on
+ * one wifi shares a public IP, so a family round a table looks like one person
+ * and five of them would never be asked at all. IPs also rotate, and they are
+ * personal data under GDPR, which nothing in this repo has ever stored.
+ *
  * Two platforms, two different problems:
  *
  *   Android/Chrome fires `beforeinstallprompt` when it thinks the page is
@@ -30,6 +49,13 @@ import { h, fill } from './ui.js';
  *   at all, and telling them to try would be a false promise.
  */
 
+/**
+ * Where the answer is kept.
+ *
+ * `localStorage`, not `sessionStorage`: this was the short-lived kind, which
+ * meant a dismissal was forgotten the moment the tab closed and the banner came
+ * back the next evening. Asking somebody who has already said no is nagging.
+ */
 const DISMISSED_KEY = 'blob.installDismissed';
 
 /** Already running as an installed app, on either platform's own signal. */
@@ -52,58 +78,88 @@ function isIosSafari() {
 
 function dismissed() {
   try {
-    return sessionStorage.getItem(DISMISSED_KEY) === '1';
+    return localStorage.getItem(DISMISSED_KEY) === '1';
   } catch {
+    // A browser refusing storage is one in private mode. Asking once per visit
+    // is the right failure there - better than never offering it at all.
     return false;
   }
 }
 
 function dismiss() {
   try {
-    sessionStorage.setItem(DISMISSED_KEY, '1');
+    localStorage.setItem(DISMISSED_KEY, '1');
   } catch {
-    /* a session that cannot remember this just gets asked again next time */
+    /* see above: a device that cannot remember gets asked again next time */
   }
 }
 
 let deferredPrompt = null;
 let bannerEl = null;
+/** Asked already since this page loaded. One offer per sitting, not per game. */
+let offeredThisLoad = false;
 
 /**
- * Wire up the banner. Call once, at boot, alongside the other global overlays.
+ * Make the app installable-on-request. Call once at boot.
  *
- * @param {{isInGame: () => boolean}} deps
- *   Whether a game is actually in progress right now, checked at the moment
- *   the prompt would fire rather than once at boot. `beforeinstallprompt` can
- *   arrive at any point in the session, including mid-hand, and a banner
- *   sliding in over the table while somebody is mid-turn is exactly the kind
- *   of interruption this app has otherwise gone out of its way to avoid.
+ * Deliberately shows NOTHING by itself. All this does is catch Chrome's prompt
+ * so it can be fired later, on our terms — `offerInstall` is what actually puts
+ * anything on the screen, and it is called at the end of a game and from
+ * Settings.
  */
-export function setupInstallBanner(deps) {
+export function setupInstallBanner({ canOfferNow = () => false } = {}) {
   bannerEl = h('div.install-banner', { role: 'status', 'aria-live': 'polite' });
   document.body.appendChild(bannerEl);
 
-  if (isStandalone() || dismissed()) return;
-
   window.addEventListener('beforeinstallprompt', (event) => {
-    // Chrome would otherwise show its own generic mini-bar; taking that away
-    // is the whole reason to listen at all, since it lets this app offer the
-    // same install in its own voice and only when the moment is quiet.
+    // Chrome would otherwise show its own generic mini-bar at a moment of its
+    // choosing. Taking that away is the whole reason to listen: it lets the
+    // offer arrive in this app's own voice, when the table is quiet.
     event.preventDefault();
     deferredPrompt = event;
-    if (!deps.isInGame()) show(androidBanner());
+    // And it has to be able to offer RIGHT HERE, not only on the next repaint.
+    // Chrome fires this whenever it decides the site is worth installing, which
+    // is very often while somebody is sitting on a finished game with nothing
+    // left to trigger a render. Without this the offer simply never arrived.
+    if (canOfferNow()) offerInstall();
   });
 
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
     hide();
   });
+}
 
-  // iOS gets no event to wait for — Safari never fires one — so the offer is
-  // just made once the app has settled, and only away from a live game.
-  if (isIosSafari() && !deps.isInGame()) {
-    show(iosBanner());
-  }
+/**
+ * Can this device be offered an install at all?
+ *
+ * `'prompt'` — Android, with a real button behind it.
+ * `'manual'` — iOS Safari, where the only route is the Share sheet.
+ * `'none'`   — already installed, or a browser that cannot do it. Notably every
+ *              non-Safari browser on iOS: they wear Safari's user-agent but can
+ *              install nothing, and offering would be a false promise.
+ */
+export function installState() {
+  if (isStandalone()) return 'none';
+  if (deferredPrompt) return 'prompt';
+  if (isIosSafari()) return 'manual';
+  return 'none';
+}
+
+/**
+ * Offer it. `force` is Settings asking on the player's behalf.
+ *
+ * Unforced, this respects a previous no and only ever speaks once per load —
+ * the end of every game calls it, and being asked after each of five hands
+ * would be worse than never asking.
+ */
+export function offerInstall({ force = false } = {}) {
+  const state = installState();
+  if (state === 'none') return false;
+  if (!force && (dismissed() || offeredThisLoad)) return false;
+  offeredThisLoad = true;
+  show(state === 'prompt' ? androidBanner() : iosBanner());
+  return true;
 }
 
 function show(content) {
@@ -132,7 +188,13 @@ function close() {
 function androidBanner() {
   return h(
     'div.install-banner__row',
-    h('span.install-banner__text', { text: 'Add Blob to your home screen — opens full screen, no address bar.' }),
+    // Worded as an invitation after a game rather than an instruction on
+    // arrival, because that is exactly when it appears. "Enjoyed that?" is
+    // doing real work: it says why it is asking NOW, which is the difference
+    // between an offer and an interruption.
+    h('span.install-banner__text', {
+      text: 'Enjoyed that? Add Blob to your home screen — it opens full screen, like an app.',
+    }),
     h('button.btn.btn--primary.btn--small', {
       text: 'Install',
       type: 'button',
@@ -160,9 +222,9 @@ function iosBanner() {
     'div.install-banner__row',
     h(
       'span.install-banner__text',
-      { text: 'Add Blob to your home screen: tap ' },
+      { text: 'Enjoyed that? Add Blob to your home screen — tap ' },
       h('span.install-banner__glyph', { text: '⬆︎', 'aria-hidden': 'true' }),
-      ' then "Add to Home Screen".'
+      ' below, then "Add to Home Screen".'
     ),
     h('button.icon-btn.install-banner__close', {
       type: 'button',

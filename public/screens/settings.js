@@ -3,6 +3,7 @@ import { sizeControl } from '../size.js';
 import { helpButton } from './help.js';
 import { soundOn, setSound } from '../sound.js';
 import { askBeforeStart, setAskBeforeStart } from '../prefs.js';
+import { installState, offerInstall } from '../install.js';
 
 /**
  * Settings, as a sheet over whatever you were doing.
@@ -125,6 +126,28 @@ function gameRows(ctx) {
 }
 
 /**
+ * Put it on the home screen, for anybody who wants it.
+ *
+ * The offer itself is made once, at the end of a game, and never again if it is
+ * turned down. This is the other half of that bargain: somewhere permanent and
+ * quiet where it can always be found, so saying no costs nothing and changing
+ * your mind later is possible. Absent entirely on a device that cannot install
+ * - already installed, or a browser that has no way to.
+ */
+function installRow(ctx) {
+  if (installState() === 'none') return null;
+  return h('button.btn.btn--ghost', {
+    text: 'Add to home screen',
+    type: 'button',
+    onClick: () => {
+      ctx.ui.settingsOpen = false;
+      ctx.render();
+      offerInstall({ force: true });
+    },
+  });
+}
+
+/**
  * The way back to the other games, from anywhere.
  *
  * The shelf used to be reachable only from a game's own front page, which you
@@ -223,6 +246,7 @@ export function settingsSheet(ctx) {
       ),
       soundRow(ctx),
       gameRows(ctx),
+      installRow(ctx),
       // The rules, reachable mid-hand — which is when somebody usually needs
       // them. Opening it closes this, so they are not stacked two deep.
       helpButton(
