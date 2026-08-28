@@ -701,10 +701,20 @@ html[data-size='huge'] .bid__current {
   color: var(--ink-soft);
   line-height: 1.35;
 }
+/*
+   A drawn icon now rather than a character, so it is sized against the text it
+   sits in and nudged up onto the line the way a glyph would have been.
+*/
 .install-banner__glyph {
   display: inline-block;
   padding: 0 3px;
-  font-weight: 900;
+  vertical-align: -0.16em;
+  line-height: 0;
+}
+.install-banner__glyph svg {
+  width: 1.05em;
+  height: 1.05em;
+  display: block;
 }
 .install-banner__close {
   flex: none;

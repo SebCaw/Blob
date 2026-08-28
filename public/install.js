@@ -1,4 +1,4 @@
-import { h, fill } from './ui.js';
+import { h, fill, fragment } from './ui.js';
 
 /**
  * The install banner: a one-tap way onto the home screen.
@@ -217,13 +217,41 @@ function androidBanner() {
   );
 }
 
+/**
+ * Safari's Share button, drawn rather than set in type.
+ *
+ * It was the U+2B06 character with a variation selector, and it came out as a
+ * fat white arrow sitting on the text baseline at whatever size and weight the
+ * system font felt like — Seb sent a photo of it. The same trap the crown and
+ * the settings cog in `common.js` are already written up for: a glyph you do
+ * not control is a glyph that will be wrong somewhere.
+ *
+ * Drawn as the actual icon rather than a generic arrow, because this sentence is
+ * telling somebody to find one specific button on their screen, and the fastest
+ * way to say which is to show it.
+ */
+function shareGlyph() {
+  const wrap = h('span.install-banner__glyph', { 'aria-hidden': 'true' });
+  wrap.appendChild(
+    fragment(
+      '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" ' +
+        'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M12 3 L12 15"/>' +
+        '<path d="M8 7 L12 3 L16 7"/>' +
+        '<path d="M6 11 L4 11 L4 21 L20 21 L20 11 L18 11"/>' +
+        '</svg>'
+    )
+  );
+  return wrap;
+}
+
 function iosBanner() {
   return h(
     'div.install-banner__row',
     h(
       'span.install-banner__text',
       { text: 'Enjoyed that? Add Blob to your home screen — tap ' },
-      h('span.install-banner__glyph', { text: '⬆︎', 'aria-hidden': 'true' }),
+      shareGlyph(),
       ' below, then "Add to Home Screen".'
     ),
     h('button.icon-btn.install-banner__close', {

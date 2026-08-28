@@ -129,6 +129,35 @@ function rankWord(rank, count) {
 let seen = { at: null, localAt: 0 };
 
 /**
+ * What the last measuring pass worked out, so the next render can start there.
+ *
+ * **This is a tap-target fix, not a performance one.** The seats are placed by
+ * formula and then settled by measurement a frame later, and every push rebuilds
+ * the whole screen — so each time a bot moved or a line arrived in the
+ * transcript, the table painted at full size and then shrank under your thumb a
+ * frame afterwards. Aiming at a name and hitting nothing, or hitting the seat
+ * next to it, is the whole of Seb's "clicking to ask somebody is a bit funny".
+ *
+ * The measuring pass cannot go: how tall a seat ends up with a long name and
+ * three books on it is not something the formula can predict. But its ANSWER can
+ * be remembered, and the answer only changes when something about the shape of
+ * the screen changes — which is what the key is. So the first render at a given
+ * size still settles visibly, and every render after it is already right.
+ */
+let settled = { key: null, scale: 1, quiet: false, spill: false };
+
+/**
+ * Everything that can change what the measuring pass decides.
+ *
+ * The window, the zoom (which is how the text-size control makes a phone
+ * narrower), and the number of people at the table. Not the state of the game:
+ * a card moving does not move a seat, and keying on it would put the jump back.
+ */
+function settleKey(total) {
+  return `${total}:${window.innerWidth}x${window.innerHeight}:${uiZoom() || 1}`;
+}
+
+/**
  * Whether what just happened is still news.
  *
  * Gated on the event's own identity plus a time window, never on "this render
@@ -173,9 +202,17 @@ export function tableScreen(ctx) {
     tools(ctx)
   );
 
+  // Both of these are what the last pass settled on, put back BEFORE the first
+  // paint so the screen arrives at the size it is going to stay at.
+  const key = settleKey(here.length);
+  if (settled.key === key) {
+    if (settled.quiet) screen.classList.add('gf-play--quiet');
+    if (settled.spill) screen.classList.add('screen--spill');
+  }
+
   requestAnimationFrame(() => {
-    spillIfNeeded(screen);
-    fitSeats(screen);
+    spillIfNeeded(screen, key);
+    fitSeats(screen, key);
   });
   return screen;
 }
@@ -202,7 +239,14 @@ function ringTable(ctx, ordered, event) {
 
   return h(
     'div.table.gf-table',
-    { style: { '--seat-pct': String(widthPct), '--seat-scale': '1' } },
+    {
+      style: {
+        '--seat-pct': String(widthPct),
+        // Where the last pass finished, so the seats do not move under a thumb
+        // that is already on its way to one. See `settled`.
+        '--seat-scale': String(settled.key === settleKey(total) ? settled.scale : 1),
+      },
+    },
     h('div.table__ring', h('div.table__felt'), seats, h('div.gf-centre', middle(ctx, event)))
   );
 }
@@ -219,12 +263,14 @@ function ringTable(ctx, ordered, event) {
  * seats lean out of a ring by design and asking whether the ring overflows
  * counts collisions that are not there.
  */
-function fitSeats(screen) {
+function fitSeats(screen, key) {
   const table = screen.querySelector('.gf-table');
   if (!table) return;
   const seats = [...table.querySelectorAll('.gf-seat')];
   if (seats.length < 2) return;
 
+  // The whole sweep happens inside one frame, so none of the sizes it tries on
+  // the way down is ever painted - only the one it stops at.
   for (let scale = 100; scale >= 70; scale -= 6) {
     table.style.setProperty('--seat-scale', String(scale / 100));
     const boxes = seats.map((el) => el.getBoundingClientRect());
@@ -236,8 +282,14 @@ function fitSeats(screen) {
         clash = a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
       }
     }
-    if (!clash) return;
+    if (!clash) {
+      settled = { ...settled, key, scale: scale / 100 };
+      return;
+    }
   }
+  // Still touching at the smallest we go. Remembering it anyway is the point:
+  // the next render should start here rather than at full size and shrink again.
+  settled = { ...settled, key, scale: 0.7 };
 }
 
 /**
@@ -276,11 +328,19 @@ function fitSeats(screen) {
  * last answer creeps tighter on every render, which is written down in
  * `common.js` and is easy to walk into again here.
  */
-function spillIfNeeded(screen) {
+function spillIfNeeded(screen, key) {
   screen.classList.remove('screen--spill', 'gf-play--quiet');
-  if (!overruns(screen)) return;
-  screen.classList.add('gf-play--quiet');
-  if (overruns(screen)) screen.classList.add('screen--spill');
+  let quiet = false;
+  let spill = false;
+  if (overruns(screen)) {
+    quiet = true;
+    screen.classList.add('gf-play--quiet');
+    if (overruns(screen)) {
+      spill = true;
+      screen.classList.add('screen--spill');
+    }
+  }
+  settled = { ...settled, key, quiet, spill };
 }
 
 function overruns(screen) {
