@@ -221,10 +221,13 @@ it and five not.
 
 It also does what Seb asked rather than what the code used to do: a returning
 Master gets the crown back **even after a vote has resolved and somebody else has
-been holding it**. That reverses a deliberate decision, and the reasoning is
-written into that file rather than lost here — the person who was voted in stops
-being Master with no say in it, which is a social problem rather than a technical
-one, and the honest version of this would eventually tell them.
+been holding it**. That reverses a deliberate decision.
+
+The cost was put to him plainly — the person voted in stops being Master with no
+say in it and no notification — along with an offer to make it an announcement or
+a prompt instead. **He chose the silent swap.** So it is a decision rather than an
+oversight, and it says so in `lib/master.js` too, because it is exactly the kind
+of thing somebody later mistakes for a missing feature.
 
 ### Tests
 
