@@ -82,6 +82,7 @@ async function route(req, res, deps) {
   if (pathname === '/api/games' && req.method === 'POST') return createGameHandler(req, res, deps);
   if (pathname === '/api/command' && req.method === 'POST') return commandHandler(req, res, deps);
   if (pathname === '/api/ping' && req.method === 'POST') return pingHandler(req, res, deps);
+  if (pathname === '/api/oops' && req.method === 'POST') return oopsHandler(req, res, deps);
   if (pathname === '/api/history' && req.method === 'GET') return historyListHandler(res, deps);
   if (pathname === '/healthz') return sendJson(res, 200, { ok: true, games: deps.rooms.byId.size });
 
@@ -238,6 +239,66 @@ async function pingHandler(req, res, { rooms, limiter }) {
   }
   room.touch(String(body.playerId));
   return sendJson(res, 200, { ok: true });
+}
+
+/** The most of any one field we will write into the log. */
+const OOPS_FIELD = 300;
+/** And of a stack, which is the part actually worth having. */
+const OOPS_STACK = 1200;
+
+/**
+ * Something went wrong on somebody's phone, and now we know.
+ *
+ * **Why this exists.** Every bug in this app until now has been found either by
+ * Seb playing it or by a machine playing it. Neither covers the case that
+ * matters most once other people arrive: a nephew's phone throws on some screen,
+ * he shrugs, closes the tab, and quietly never plays again. Nobody is told, so
+ * it is never fixed. This turns that silence into a line in the server log.
+ *
+ * **It is not analytics and must never become analytics.** It fires only when
+ * something actually threw. There is no session id, no page-view, no timing, no
+ * identifier of any kind, and nothing is stored — it goes to the log and the log
+ * scrolls away. The privacy page says exactly this, and if that ever stops being
+ * true the privacy page is the first thing that has to change.
+ *
+ * Deliberately unauthenticated: an error can happen before you have joined
+ * anything, which is precisely when you most want to hear about it. That makes
+ * it the one open write endpoint, so it is rate limited hard, capped in size,
+ * and never echoes anything back that could be used to probe the server.
+ */
+async function oopsHandler(req, res, { limiter }) {
+  // Always 204, whatever happens. A reporter that can fail is a second thing to
+  // go wrong on a page that is already broken, and there is nothing the phone
+  // could usefully do with an error about its error.
+  const done = () => (res.headersSent ? undefined : send(res, 204, {}, ''));
+
+  // Tight, and tighter than anything else here. A page stuck in a render loop
+  // can throw hundreds of times a second, and a whole family shares one address,
+  // so this is "enough to tell us what broke" rather than "every occurrence".
+  // Hitting the limit is not an error worth reporting either - hence 204.
+  if (!limiter.allow(`oops:${clientKey(req)}`, 30)) return done();
+
+  const body = await readJson(req, res);
+  if (body === undefined) return undefined;
+
+  const clip = (value, max) => String(value == null ? '' : value).replace(/\s+/g, ' ').slice(0, max);
+  const where = clip(body.where, OOPS_FIELD);
+  const message = clip(body.message, OOPS_FIELD);
+  if (!message) return done();
+
+  console.error(
+    '[blob] a phone reported an error',
+    JSON.stringify({
+      message,
+      where,
+      game: clip(body.game, 40),
+      screen: clip(body.screen, 60),
+      build: clip(body.build, 40),
+      agent: clip(req.headers['user-agent'], 160),
+      stack: clip(body.stack, OOPS_STACK),
+    })
+  );
+  return done();
 }
 
 /**
@@ -482,6 +543,14 @@ function readJson(req, res) {
     req.on('data', (chunk) => {
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
+        // `Connection: close` before the destroy, and it is not decoration.
+        // Destroying the request kills the socket, and a client that had been
+        // told nothing would put that socket back in its keep-alive pool and get
+        // ECONNRESET on its NEXT request - a perfectly good one, failing because
+        // of an oversized one that came before it. Saying "close" makes the
+        // client open a fresh connection instead. Found by a test that sent a
+        // huge report and then a normal one.
+        if (!res.headersSent) res.setHeader('Connection', 'close');
         sendJson(res, 413, badRequest('That was too much data.'));
         req.destroy();
         resolve(undefined);

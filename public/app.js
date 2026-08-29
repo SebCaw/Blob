@@ -5,6 +5,7 @@ import { keepAwake, releaseWake } from './wake.js';
 import { applySize, currentSize, pinViewport } from './size.js';
 import { play as sound, soundOn } from './sound.js';
 import { setupInstallBanner, offerInstall } from './install.js';
+import { watchForErrors, setErrorContext } from './errors.js';
 import { askBeforeStart } from './prefs.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { shelfScreen } from './screens/shelf.js';
@@ -1287,6 +1288,20 @@ window.addEventListener('unhandledrejection', (event) => {
 // -- Boot --------------------------------------------------------------------
 
 function boot() {
+  /*
+    Listening for faults before anything else runs.
+
+    First, so that a throw during boot itself is reported rather than lost - the
+    errors most worth hearing about are the ones that stop the app starting, and
+    those are exactly the ones a listener registered later would miss.
+
+    The context callback hands over the vaguest useful description of where
+    somebody was: a route name like "shelf" or "game". Never a player's name,
+    never a code, never a card. See `public/errors.js`.
+  */
+  watchForErrors();
+  setErrorContext(() => ({ game: ui.game || '', screen: ui.route || '' }));
+
   // A session remembers which game it is in, so a phone reopening into a game
   // knows which one it is asking the server about.
   const saved = net.session;
