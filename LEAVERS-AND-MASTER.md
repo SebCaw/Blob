@@ -1,9 +1,10 @@
 # Leavers, and the Master coming back
 
-Two questions Seb asked. One turns out to be a real bug in three of the six
-games; the other turns out to be a rule he wants changed rather than a bug.
+Two questions Seb asked. One turned out to be a real bug in three of the six
+games; the other turned out to be a rule he wanted changed rather than a bug.
 
-Findings only. Nothing in `lib/` or `server/` was changed.
+**Both are now fixed** — see "What was done" at the bottom. The findings below
+are kept as written, because they are the reason the code looks the way it does.
 
 ---
 
@@ -183,3 +184,53 @@ For the Master work:
 - Master drops and returns with votes cast but unresolved.
 - Master drops, election resolves, original returns.
 - Two people cannot both believe they are Master at any point.
+
+---
+
+## What was done
+
+### Leavers
+
+Option A, the recommendation above. `lib/handover.js` turns the seat into a bot
+in place, keeping the hand exactly where it is. Every engine that allows a
+mid-game walkout now calls it: Silly Head, Sevens, Chase the Ace, Cheat and Go
+Fish. Blob is unchanged, because it does not allow one.
+
+Go Fish and Cheat were changed too, even though they were not broken. Tipping a
+hand into the pool or onto the pile kept the deck whole but changed the odds for
+everybody still playing, and having one answer in all five is worth more than
+leaving two of them different.
+
+The same soak, after the change:
+
+| Game | Before | After |
+| --- | --- | --- |
+| Sevens | 250 of 250 never finished | **0 failures in 250** |
+| Chase the Ace | 146 of 200 never finished | **0 failures in 200** |
+| Silly Head | 50 deadlocks | **0 failures in 300** |
+| Cheat | fine | still fine, 200 games |
+| Go Fish | fine | still fine, 200 games |
+
+And 9,657 games of ordinary play with nobody leaving, to check nothing else
+moved: no failures.
+
+### The Master
+
+`lib/master.js`, one rule shared by all six engines instead of one engine having
+it and five not.
+
+It also does what Seb asked rather than what the code used to do: a returning
+Master gets the crown back **even after a vote has resolved and somebody else has
+been holding it**. That reverses a deliberate decision, and the reasoning is
+written into that file rather than lost here — the person who was voted in stops
+being Master with no say in it, which is a social problem rather than a technical
+one, and the honest version of this would eventually tell them.
+
+### Tests
+
+`test/handover.test.js`, 16 of them, run against every engine: the seat becomes a
+bot, the cards are conserved, the game still reaches `complete`, and a returning
+Master gets the crown back. Two existing tests asserted the old behaviour and now
+assert the new; both changes are commented where they sit.
+
+`tools/soak.js --leaver` is the wider version, and is how all of this was found.

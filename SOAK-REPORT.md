@@ -64,5 +64,9 @@ The first run was every seat playing to the end. The second had one real player
 leave partway through — Seb had asked what should happen in that case. This is
 where the findings are, and they are in `LEAVERS-AND-MASTER.md`.
 
-Short version: **three of the six games break permanently when somebody leaves
+Short version: **three of the six games broke permanently when somebody left
 mid-game.** Sevens failed 250 times out of 250.
+
+That is fixed. A bot now inherits the seat and the hand rather than the hand
+being deleted, and the same runs come back clean. Re-run afterwards with 9,657
+games of ordinary play to check nothing else moved: no failures.

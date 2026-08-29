@@ -226,11 +226,14 @@ test('the winner of the vote becomes Master for the rest of the game', () => {
   assert.equal(s.election.resolvedAt !== null, true);
   assert.equal(s.masterId, james);
 
-  // The old Master coming back does not get the crown back.
+  // And the original Master coming back takes it off them again. This used to
+  // assert the opposite; Seb asked for the reverse, and `lib/master.js` says
+  // what that costs - James has been Master for real, and stops being one with
+  // no say in it.
   s = ok(s, { type: 'conn/set', playerId: seb, connected: true }, null, ctxf);
-  assert.equal(s.masterId, james);
-  assert.equal(viewFor(s, seb).you.isMaster, false);
-  assert.equal(viewFor(s, james).you.isMaster, true);
+  assert.equal(s.masterId, seb);
+  assert.equal(viewFor(s, seb).you.isMaster, true);
+  assert.equal(viewFor(s, james).you.isMaster, false);
 });
 
 test('a tied election runs another ballot between the tied players', () => {
@@ -302,15 +305,20 @@ test('a Master back before any vote is cast keeps the crown', () => {
   assert.equal(s.masterId, seb);
 });
 
-test('once a vote is cast the election stands even if the Master returns', () => {
+test('a Master who comes back gets the crown even once votes are in', () => {
+  // This was the other way round, and deliberately: the election stood and the
+  // returning Master did not get it back. Seb asked for the reverse - "whenever
+  // the master rejoins they get their privileges back even if a new master has
+  // taken over" - so a vote about somebody who is now standing here is dropped.
+  // See `lib/master.js` for what that costs.
   const { state, ctxf } = startedGame(['Seb', 'James', 'Alex']);
   const [seb, james, alex] = state.players.map((p) => p.id);
   let s = ok(state, { type: 'conn/set', playerId: seb, connected: false }, null, ctxf);
   s = ok(s, { type: 'election/start' }, null, ctxf);
   s = ok(s, { type: 'election/vote', candidateId: james }, alex, ctxf);
   s = ok(s, { type: 'conn/set', playerId: seb, connected: true }, null, ctxf);
-  assert.ok(s.election, 'the vote continues');
-  assert.equal(s.election.resolvedAt, null);
+  assert.equal(s.election, null, 'the vote is dropped');
+  assert.equal(s.masterId, seb, 'and the original Master has it back');
 });
 
 test('a Master lost after results are entered does not disturb the round', () => {

@@ -757,15 +757,23 @@ test('coming back stops the server playing for you', () => {
   assert.equal(state.autoPlay[g.ids[1]], undefined);
 });
 
-test('somebody who walks out takes their cards with them', () => {
+test('somebody who walks out leaves their cards with the bot that takes over', () => {
+  // Their cards used to be deleted along with them, which is what stranded this
+  // game: the soak deadlocked fifty times in three hundred until a bot started
+  // inheriting the seat instead. See `lib/handover.js`.
   const g = playing(['A', 'B', 'C'], {
     hands: { 0: [C('AS')], 1: [C('KH')], 2: [C('QD')] },
     pile: [],
   });
   let state = ok(g.state, { type: 'conn/set', playerId: g.ids[2], connected: false }, null, g.ctxf).state;
   state = ok(state, { type: 'player/remove', playerId: g.ids[2] }, g.masterId, g.ctxf).state;
-  assert.equal(state.players.find((p) => p.id === g.ids[2]).left, true);
-  assert.equal(state.hands[g.ids[2]], undefined);
+
+  const seat = state.players.find((p) => p.id === g.ids[2]);
+  assert.equal(seat.isBot, true, 'a bot has the seat');
+  assert.equal(seat.handedOver, true);
+  assert.ok(!seat.left, 'and it is still in the game rather than skipped');
+  assert.deepEqual(state.hands[g.ids[2]], [C('QD')], 'holding what it was dealt');
+  // Unchanged and still the point: a hand is private whoever is playing it.
   assert.ok(!JSON.stringify(viewFor(state, g.ids[0])).includes(C('QD')));
 });
 

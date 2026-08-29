@@ -350,15 +350,24 @@ test('the barren backstop stops a table that has nothing left to do', () => {
   assert.ok(g.state.stoppedBarren, 'and it says why it stopped');
 });
 
-test('leaving mid-game puts your cards back in the pool', () => {
+test('leaving mid-game hands your seat to a bot, cards and all', () => {
+  // This used to tip the hand back into the pool. That kept the deck whole and
+  // was still the wrong answer - a hand reappearing in the pool changes the odds
+  // for everybody left - and the same idea in Sevens and Chase deleted the cards
+  // outright and stranded the game for ever. See `lib/handover.js`.
   const g = dealt();
-  const [ann, ben] = g.ids;
+  const [, ben] = g.ids;
   const held = g.state.hands[ben].slice();
   const pool = g.state.pool.length;
 
   g.state = ok(g.state, { type: 'player/remove', playerId: ben }, ben, g.ctxf);
-  assert.equal(g.state.pool.length, pool + held.length, 'the deck has to stay whole');
-  for (const card of held) assert.ok(g.state.pool.includes(card));
+
+  const seat = g.state.players.find((p) => p.id === ben);
+  assert.ok(seat.isBot, 'a bot is playing the seat now');
+  assert.ok(seat.handedOver, 'flagged, so the screens can say so');
+  assert.ok(!seat.left, 'NOT left: a left seat is skipped by the turn order');
+  assert.equal(g.state.pool.length, pool, 'nothing was tipped into the pool');
+  assert.deepEqual(g.state.hands[ben], held, 'and the hand is untouched');
 });
 
 // ── What anybody may see ─────────────────────────────────────────────────────

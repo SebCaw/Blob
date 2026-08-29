@@ -58,6 +58,10 @@ export function lobbyScreen(ctx) {
 }
 
 function lobbyStatus(player) {
+  // Somebody who walked out and had their seat taken over. Said plainly rather
+  // than shown as an ordinary bot: the name on the seat is still a person's, and
+  // the rest of the table will otherwise wonder where they went.
+  if (player.handedOver) return { text: 'Left, bot playing', kind: 'bot' };
   if (player.isBot) return { text: BOT_LEVELS[player.botLevel] ? BOT_LEVELS[player.botLevel].name : 'Bot', kind: 'bot' };
   if (player.isOffline) return { text: 'No phone', kind: 'offline' };
   if (!player.connected) return { text: 'Away', kind: 'gone' };
