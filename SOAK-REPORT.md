@@ -19,6 +19,11 @@ across easy, medium, hard and impossible. 400 seconds.
 **No failures.** Not one game out of 24,157 stalled, threw, refused a bot command
 twice in the same position, or failed to reach `complete`.
 
+Every finished game is also checked for two things beyond simply ending: that
+`engine.historyRecord` produces a record without throwing — nothing on the shelf
+reads it since past games came off, so it would otherwise rot unnoticed — and
+that no card id is in two places at once.
+
 ## Is that claim worth anything?
 
 It is worth exactly as much as the games being different from each other, so that
@@ -49,10 +54,13 @@ earned.
   disconnects, nobody leaves, nobody taps two things at once. That gap is where
   the leaver findings below came from, and it is the gap most likely to hide
   something else.
-- **Card conservation.** No invariant checks that cards are neither duplicated
-  nor lost during normal play. It would be a good thing to add and it is not
-  here, because a wrong invariant produces confident nonsense and each of the six
-  games conserves cards differently.
+- **Cards being LOST.** Duplication is checked — no card id may be in two places
+  when a game ends, and the check was proved against planted duplicates rather
+  than assumed to work. Loss is not checked, and deliberately: a Go Fish book is
+  stored as a rank and its four cards are dropped from the hand, so the number of
+  cards on the table falls during an entirely ordinary game. A conservation
+  assertion would fail constantly and teach everybody to ignore the output.
+  Catching real losses needs a rule per game, which is a job of its own.
 - **Blob cannot finish on its own.** It stops on the scoreboard between hands and
   waits for the Master, so the harness taps "next round" for it. That is a fact
   about the game, not a bug, but it means Blob's runs had one human step

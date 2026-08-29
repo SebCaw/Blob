@@ -31,6 +31,8 @@
  *   node tools/soak.js --seed 12345           replay one exact game
  *   node tools/soak.js --seats 6              one table size only
  *   node tools/soak.js --quiet                only the summary
+ *   node tools/soak.js --minutes 20           stop after twenty minutes
+ *   node tools/soak.js --leaver 12            somebody walks out of every game
  */
 
 const { ENGINES } = require('../lib/engines');
@@ -69,6 +71,53 @@ function reason(err) {
   if (!err) return 'refused';
   if (typeof err === 'string') return err;
   return err.message || err.reason || JSON.stringify(err);
+}
+
+/**
+ * The one card invariant that is true in all six games: nothing is in two
+ * places at once.
+ *
+ * Deliberately NOT "no card is ever lost", which sounds like the stronger check
+ * and would be wrong. Go Fish books are stored as a RANK and the four cards are
+ * dropped from the hand, so the number of cards on the table falls during a
+ * perfectly ordinary game; asserting conservation there would fail constantly
+ * and teach everybody to ignore this. Duplication has no such excuse anywhere -
+ * a card id in two hands means a deal or a transfer went wrong.
+ *
+ * @returns {string|null} what was duplicated, or null if all is well
+ */
+function duplicateCard(state) {
+  const seen = new Set();
+  let clash = null;
+  const walk = (value) => {
+    if (clash || !value) return;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'string') {
+          if (seen.has(item)) {
+            clash = item;
+            return;
+          }
+          seen.add(item);
+        } else if (item && typeof item === 'object') {
+          walk(item);
+        }
+      }
+      return;
+    }
+    if (typeof value === 'object') for (const item of Object.values(value)) walk(item);
+  };
+  // Only the places that hold CARDS. `finished` and `players` hold ids, and a
+  // player id appearing twice would be a different bug with a different name.
+  walk(state.hands);
+  walk(state.pool);
+  walk(state.pile);
+  walk(state.stock);
+  walk(state.table);
+  walk(state.up);
+  walk(state.down);
+  walk(state.discarded);
+  return clash;
 }
 
 // -- A small seeded random ----------------------------------------------------
@@ -159,8 +208,29 @@ function playOne(engineId, seats, seed, options = {}) {
   let lastRefusal = null;
   let hasLeft = false;
 
+  /**
+   * What every exit through the front door has to satisfy.
+   *
+   * `historyRecord` is what gets written down when a game ends, and it is the
+   * one piece of the engine contract nothing else here would exercise - the
+   * screens that used to read it were taken off the shelf, so a record that
+   * threw would go unnoticed until the day past games came back.
+   */
+  const finish = () => {
+    const dupe = duplicateCard(state);
+    if (dupe) return { ok: false, reason: 'duplicate card', detail: `${dupe} is in two places`, commands };
+    let record;
+    try {
+      record = engine.historyRecord(state);
+    } catch (err) {
+      return { ok: false, reason: 'historyRecord threw', detail: err.message, commands };
+    }
+    if (!record) return { ok: false, reason: 'no history record', detail: 'historyRecord returned nothing', commands };
+    return { ok: true, commands };
+  };
+
   while (commands < COMMAND_CAP) {
-    if (state.phase === 'complete') return { ok: true, commands };
+    if (state.phase === 'complete') return finish();
 
     // The walkout. After it, every remaining seat is a bot, so if the game does
     // not finish from here it is because the LEAVING broke it.
@@ -245,7 +315,7 @@ function playOne(engineId, seats, seed, options = {}) {
       }
     }
 
-    if (state.phase === 'complete') return { ok: true, commands };
+    if (state.phase === 'complete') return finish();
 
     // A tap a person would make. See `NUDGES`.
     const nudge = (NUDGES[engineId] || []).find((n) => n.phase === state.phase);
@@ -287,7 +357,7 @@ function playOne(engineId, seats, seed, options = {}) {
 // -- The run ------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const out = { games: 1200, engine: null, seed: null, seats: null, quiet: false, leaver: 0 };
+  const out = { games: 1200, engine: null, seed: null, seats: null, quiet: false, leaver: 0, minutes: 0 };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--quiet') out.quiet = true;
@@ -299,6 +369,9 @@ function parseArgs(argv) {
     // the bots left behind can still finish. `--leaver 1` walks out almost
     // immediately; a larger number lets the game get going first.
     else if (a === '--leaver') out.leaver = Number(argv[++i]) || 1;
+    // A wall-clock budget. Stops where it has got to and reports honestly on
+    // what it managed, rather than running past the time it was given.
+    else if (a === '--minutes') out.minutes = Number(argv[++i]);
   }
   return out;
 }
@@ -331,16 +404,32 @@ function main() {
 
   const perCombo = Math.max(1, Math.round(args.games / (engineIds.length * seatCounts.length)));
 
+  const until = args.minutes ? startedAt + args.minutes * 60_000 : Infinity;
+  let ranOut = false;
+
   for (const id of engineIds) {
     played[id] = 0;
     for (const seats of seatCounts) {
       let skipped = false;
       for (let i = 0; i < perCombo; i += 1) {
+        if (Date.now() >= until) {
+          ranOut = true;
+          break;
+        }
         const seed = (id.length * 7919 + seats * 104729 + i * 15485863) >>> 0;
         const r = playOne(id, seats, seed, { leaveAfter: args.leaver });
         if (!r.ok && r.reason === 'seats') {
           // Not a failure: this engine does not seat this many.
           limits.push(`${id} does not seat ${seats} (${r.detail})`);
+          skipped = true;
+          break;
+        }
+        if (!r.ok && r.reason === 'could not leave') {
+          // Also not a failure. Blob refuses a walkout mid-hand on purpose -
+          // "players can only be removed before the game starts, or between
+          // hands" - which is its own answer to the question this mode asks.
+          // Counting a rule as a bug is how a tool teaches people to ignore it.
+          limits.push(`${id} does not allow leaving mid-game (${r.detail})`);
           skipped = true;
           break;
         }
@@ -357,12 +446,17 @@ function main() {
       if (!skipped && !args.quiet) {
         console.log(`  ${id} x${seats}: ${perCombo} games`);
       }
+      if (ranOut) break;
     }
+    if (ranOut) break;
   }
 
   const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
   console.log('');
   console.log(`${total} games in ${seconds}s`);
+  // Said out loud rather than left to look like a complete run. A soak that
+  // quietly stopped early reads as "everything was covered" when it was not.
+  if (ranOut) console.log(`STOPPED EARLY: the ${args.minutes}-minute budget ran out before every combination was played.`);
   for (const id of engineIds) console.log(`  ${id}: ${played[id]}`);
   if (limits.length) {
     console.log('');
