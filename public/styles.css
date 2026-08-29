@@ -3270,6 +3270,39 @@ html[data-size='huge'] .bid__lead { display: none; }
 
 .tile:active { transform: translateY(3px); box-shadow: 0 2px 0 hsl(var(--tile-hue) 65% 11%); }
 
+/*
+   The shelf, made to fit at the largest text size.
+
+   `--ui-step` scales EVERYTHING by 1.4, padding and gaps included, which is
+   right almost everywhere and wrong on a list of six. A phone at Largest showed
+   three and a bit tiles: the games at the bottom were below the fold on the one
+   screen whose entire job is showing you what there is. Seb photographed it.
+
+   Spacing was tried first and got nowhere near - measured, tightening every gap
+   and shrinking the names moved the last tile from 863px to 793px against a
+   660px screen. The arithmetic simply does not allow six descriptions at 1.4x on
+   a phone, so something had to go.
+
+   **What goes is the tagline, and only at this size.** What is left is the name,
+   the icon and how many can play, which is enough to pick a game you already
+   know - and picking is what this screen is for. The description is still on
+   every game's own front page, one tap away, where somebody meeting Silly Head
+   for the first time was always going to end up anyway.
+
+   The one-line lede under the title goes too, on the same reasoning: it is
+   framing rather than information.
+*/
+html[data-size='huge'] .tile {
+  padding: 11px 15px;
+  gap: 1px;
+}
+html[data-size='huge'] .tile__name { font-size: 22px; }
+html[data-size='huge'] .tile__tagline { display: none; }
+html[data-size='huge'] .tile__players { font-size: 11px; }
+html[data-size='huge'] .shelf__list { gap: 10px; }
+html[data-size='huge'] .shelf > .stack.center .lede { display: none; }
+html[data-size='huge'] .shelf > .spacer { height: 2px; }
+
 /* The name, and whatever room is left over to its right. The icon is given a
    fixed share of it and the name takes the rest, so a longer name than these
    two shortens the gap rather than pushing the picture off the tile. */

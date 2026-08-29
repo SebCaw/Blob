@@ -214,14 +214,56 @@ export class Net {
       }
       this.disconnect();
       this.attempts += 1;
-      if (this.attempts > 6) {
-        this.setStatus(LOST);
-        return;
-      }
       this.setStatus(RETRYING);
-      const wait = Math.min(1000 * 2 ** (this.attempts - 1), 15000);
-      this.retryTimer = setTimeout(() => this.connect(), wait);
+
+      // Before settling into a retry loop, find out whether there is anything
+      // left to retry FOR.
+      //
+      // On the free hosting the server sleeps when nobody is playing and forgets
+      // every game it was running. A phone that comes back an hour later is
+      // holding a session for a game that no longer exists anywhere, and this
+      // used to reconnect for it forever — Seb photographed "Connection lost.
+      // Reconnecting…" sitting over the shelf, for a game that had ended the
+      // night before. No amount of waiting was ever going to fix that, so it
+      // says so once and lets go.
+      this.checkStillThere().then((there) => {
+        if (there) {
+          if (this.attempts > 6) {
+            this.setStatus(LOST);
+            return;
+          }
+          const wait = Math.min(1000 * 2 ** (this.attempts - 1), 15000);
+          this.retryTimer = setTimeout(() => this.connect(), wait);
+          return;
+        }
+        const error = new Error('That game has finished — the server restarts when nobody is playing.');
+        this.clearSession();
+        // Nothing is broken any more, so the banner comes down with the session.
+        this.setStatus(LIVE);
+        this.emit('gone', error);
+      });
     };
+  }
+
+  /**
+   * Is the game this phone holds a session for still running?
+   *
+   * Only a definite NO counts, and that asymmetry is the whole point. A fetch
+   * that fails outright means this phone has no signal — much the commonest
+   * reason to be in here — and is emphatically not evidence that the game has
+   * ended. Treating it as one would throw somebody out of a live game for
+   * driving through a tunnel.
+   *
+   * @returns {Promise<boolean>} false only when the server says it is not there
+   */
+  async checkStillThere() {
+    if (!this.session || !this.session.code) return true;
+    try {
+      const res = await fetch(`/api/games/${this.session.code}`, { cache: 'no-store' });
+      return res.status !== 404;
+    } catch {
+      return true;
+    }
   }
 
   /** Answer the server's heartbeat. Failures are ignored; the next one will do. */
