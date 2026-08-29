@@ -546,6 +546,27 @@ queue and can take 10–15 minutes.
 - **Single instance, always.** Rooms, the command queue and the SSE connections all live in
   memory, so a second replica would split players in the same game across servers. Scale
   vertically, never horizontally.
+
+### Hearing about errors
+
+A phone that throws posts to `/api/oops`, and the server writes a line beginning
+`[blob] a phone reported an error`. That happens always and needs no setup.
+
+Emailing them as well is optional, and off unless BOTH of the first two are set.
+Half-configured counts as off on purpose — an address with no key would fail on every
+send and log a failure each time:
+
+- `BLOB_ALERT_EMAIL` — where alerts go.
+- `BLOB_ALERT_KEY` — a [Resend](https://resend.com) API key. Their free tier is far more
+  than this needs.
+- `BLOB_ALERT_FROM` — optional. Defaults to Resend's shared test sender, which works with
+  no verified domain but may land in spam; set a real one once there is a domain.
+
+**Emails are gathered for two minutes and then nothing is sent for half an hour**, and
+that is the design rather than a tunable detail. The failure most worth being told about —
+a render loop, a bad deploy — is exactly the one that throws hundreds of times a minute,
+and one email each would turn the most useful signal this app has into something you
+filter away. See `server/alerts.js`.
 - **The free tier has no disk.** Games in progress and all history are lost on every
   redeploy and after ~15 minutes idle. Fixing this means a paid instance with a volume and
   `BLOB_DATA_DIR` pointed at it.

@@ -3,6 +3,7 @@
 const path = require('path');
 
 const { Store } = require('./server/store');
+const { createAlerter } = require('./server/alerts');
 const { Rooms } = require('./server/rooms');
 const { createServer, HEARTBEAT_MS } = require('./server/http');
 
@@ -63,7 +64,12 @@ async function build(options = {}) {
   });
   const restored = await rooms.restore();
 
-  const server = createServer({ rooms, store, publicDir: PUBLIC_DIR });
+  // Off unless BLOB_ALERT_EMAIL and BLOB_ALERT_KEY are set, which is the right
+  // default: the app has to run for anybody who clones it without an email
+  // account, and a missing key is not a fault. See `server/alerts.js`.
+  const alerter = createAlerter(options.alerter || {});
+
+  const server = createServer({ rooms, store, publicDir: PUBLIC_DIR, alerter });
 
   const sweeper = setInterval(() => rooms.sweep(), SWEEP_MS);
   if (sweeper.unref) sweeper.unref();
@@ -75,13 +81,14 @@ async function build(options = {}) {
     new Promise((resolve) => {
       clearInterval(sweeper);
       clearInterval(presence);
+      alerter.stop();
       rooms.disposeAll();
       server.close(() => resolve());
       // Long-lived SSE responses hold sockets open, so nudge them shut.
       server.closeAllConnections?.();
     });
 
-  return { server, rooms, store, restored, close };
+  return { server, rooms, store, restored, alerter, close };
 }
 
 async function main() {

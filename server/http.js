@@ -49,12 +49,12 @@ const SECURITY_HEADERS = {
  * @param {{rooms:object, store:object, publicDir:string}} deps
  * @returns {import('http').Server}
  */
-function createServer({ rooms, store, publicDir }) {
+function createServer({ rooms, store, publicDir, alerter }) {
   const limiter = new RateLimiter();
 
   const server = http.createServer(async (req, res) => {
     try {
-      await route(req, res, { rooms, store, publicDir, limiter });
+      await route(req, res, { rooms, store, publicDir, limiter, alerter });
     } catch (err) {
       console.error('[blob] request failed', req.method, req.url, err);
       if (!res.headersSent) {
@@ -266,7 +266,7 @@ const OOPS_STACK = 1200;
  * it the one open write endpoint, so it is rate limited hard, capped in size,
  * and never echoes anything back that could be used to probe the server.
  */
-async function oopsHandler(req, res, { limiter }) {
+async function oopsHandler(req, res, { limiter, alerter }) {
   // Always 204, whatever happens. A reporter that can fail is a second thing to
   // go wrong on a page that is already broken, and there is nothing the phone
   // could usefully do with an error about its error.
@@ -286,18 +286,30 @@ async function oopsHandler(req, res, { limiter }) {
   const message = clip(body.message, OOPS_FIELD);
   if (!message) return done();
 
-  console.error(
-    '[blob] a phone reported an error',
-    JSON.stringify({
-      message,
-      where,
-      game: clip(body.game, 40),
-      screen: clip(body.screen, 60),
-      build: clip(body.build, 40),
-      agent: clip(req.headers['user-agent'], 160),
-      stack: clip(body.stack, OOPS_STACK),
-    })
-  );
+  const report = {
+    message,
+    where,
+    game: clip(body.game, 40),
+    screen: clip(body.screen, 60),
+    build: clip(body.build, 40),
+    agent: clip(req.headers['user-agent'], 160),
+    stack: clip(body.stack, OOPS_STACK),
+  };
+
+  console.error('[blob] a phone reported an error', JSON.stringify(report));
+
+  // And, if it is configured, an email - batched and then quiet for a while,
+  // because the fault most worth hearing about is also the one that throws
+  // hundreds of times. See `server/alerts.js`. Never awaited: the phone is not
+  // waiting on Seb's inbox.
+  if (alerter) {
+    try {
+      alerter.record(report);
+    } catch {
+      // An alerter that goes wrong must not take the report with it.
+    }
+  }
+
   return done();
 }
 
