@@ -8,13 +8,19 @@ have actually been made here.
 
 ```bash
 node server.js     # http://localhost:4100 — no build step, no install needed
-npm test           # node --test, 283 tests
+npm test           # node --test, 386 tests
 node --check <f>   # quick syntax check on a single file
 ```
 
 There are **no dependencies**. `package.json` exists so hosts detect a Node app and know
-how to start it. Keep it that way — a dependency needs a real argument, and the QR encoder
-in `public/qr.js` was written out by hand rather than pulled in.
+how to start it. Keep it that way — a dependency needs a real argument, and both halves of
+the QR code were written out by hand rather than pulled in: the encoder in `public/qr.js`
+and the reader in `public/qr-read.js`. The reader is the bigger claim, so it carries the
+bigger test file — `test/qr-read.test.js` decodes everything the encoder can produce,
+including codes deliberately damaged past saving, and checks tilt, blur, sensor noise, a
+lighting gradient, every rotation and a small code in a busy 640x480 frame. `BarcodeDetector`
+is used ahead of it wherever a browser has one; it does not exist on iOS, which is why ours
+does.
 
 Run a local server on a spare port with its own data directory, never the default:
 

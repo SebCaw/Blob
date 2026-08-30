@@ -3245,9 +3245,14 @@ html[data-size='huge'] .bid__lead { display: none; }
 .shelf-join__code {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 26px;
-  letter-spacing: 0.28em;
-  text-indent: 0.28em;
+  /* Smaller and tighter than the full-page code field this borrows from, and
+     measured rather than picked: sharing a row with two buttons leaves it about
+     128px at the Large text setting, and a six-digit code set the way the join
+     screen sets it needs 166 of them. It clipped, silently, with the first
+     digits scrolled off the left. */
+  font-size: 22px;
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
   padding: 10px 12px;
 }
 
@@ -3443,15 +3448,43 @@ html[data-size='huge'] .bid__lead { display: none; }
    framing rather than information.
 */
 html[data-size='huge'] .tile {
-  padding: 11px 15px;
+  padding: 8px 14px;
   gap: 1px;
 }
-html[data-size='huge'] .tile__name { font-size: 22px; }
+html[data-size='huge'] .tile__name { font-size: 20px; }
 html[data-size='huge'] .tile__tagline { display: none; }
 html[data-size='huge'] .tile__players { font-size: 11px; }
-html[data-size='huge'] .shelf__list { gap: 10px; }
+html[data-size='huge'] .shelf__list { gap: 8px; }
 html[data-size='huge'] .shelf > .stack.center .lede { display: none; }
 html[data-size='huge'] .shelf > .spacer { height: 2px; }
+
+/*
+   And then the code box arrived and took back the line the six tiles were
+   already using.
+
+   Measured: without it the last tile ended fourteen pixels inside the bottom of
+   a 375-wide phone at this size, which was the whole of the room there was. The
+   box put it a hundred and fifty-six pixels past — two games below the fold
+   again, on the screen whose only job is showing you what there is.
+
+   What goes is labelling, not function. The heading over the shelf goes, since
+   six game tiles do not need to be told they are card games. The words "Got a
+   code?" go, since a four-digit box beside a button marked Join is not
+   ambiguous. Every control stays, and stays comfortably tappable — 46px BEFORE
+   this size setting multiplies everything by 1.4.
+*/
+html[data-size='huge'] .shelf__title { display: none; }
+html[data-size='huge'] .shelf-join { margin-bottom: 8px; }
+html[data-size='huge'] .shelf-join > .eyebrow { display: none; }
+html[data-size='huge'] .shelf-join__code {
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  text-indent: 0.12em;
+  padding: 4px 6px;
+  min-height: 46px;
+}
+html[data-size='huge'] .shelf-join__go { min-height: 46px; padding: 0 14px; }
+html[data-size='huge'] .shelf-join .scan-btn { min-height: 46px; padding: 0 12px; }
 
 /* The name, and whatever room is left over to its right. The icon is given a
    fixed share of it and the name takes the rest, so a longer name than these

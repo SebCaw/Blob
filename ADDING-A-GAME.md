@@ -397,8 +397,10 @@ Caveat: `leaderboard()` (`:492`) and `roundPips()` (`:410`) are Blob-only member
 that nothing marks as such, so a third game may reach for one and find it almost
 works.
 
-**`shelf.js`** — agnostic apart from the `'blob'` fallback at `:59`. Fix the
-fallback and it is clean. This is the one screen CLAUDE.md's claim is true about.
+**`shelf.js`** — agnostic apart from the `'blob'` fallback in `resumeRow`. Fix
+the fallback and it is clean. This is the one screen CLAUDE.md's claim is true
+about. It carries the code box as well as the tiles now — see **Arriving with a
+code** below, and read the height budget there before you add a seventh tile.
 
 **`help.js`** — a bundle registry pretending to be a conditional. The content is
 already split into `help-sillyhead.js`; only the selection at `:229` is an `if`.
@@ -429,6 +431,102 @@ Silly Head uses `sillyhead/over.js` instead, and that is the correct outcome
 rather than a failure: an end-of-round score summary is a Blob concept. A third
 game should not be pushed into them. Consider moving them to `screens/blob/` so
 the names stop implying they are a platform surface.
+
+---
+
+## Arriving with a code
+
+The commonest way anybody new reaches this app is not the shelf. It is somebody
+handing them a code, or holding up a phone with a QR on it. Four pieces cover
+that, all of them shared, and a new game wires up exactly one of them.
+
+**The code box is the first thing on the shelf.** `shelf.js` `joinBar` — a
+four-digit field, a camera button and Join, above the tiles. **A new game needs
+nothing here.** The box does not know or care which game a code belongs to; it
+sets `ui.code` and routes to `join`, and the server resolves the code to a game
+when the join lands. Do not add a per-game anything to it.
+
+**But it costs height, and the shelf is full.** The `html[data-size='huge']`
+block in `styles.css` exists because at the largest text setting everything is
+multiplied by 1.4 and six tiles plus a code box do not fit a phone. It is tuned,
+by measurement, to land the sixth tile at 801px against an 812px viewport on a
+375-wide phone. **That is eleven pixels of headroom for the whole screen.** A
+seventh tile is about another 112px, so it will not fit and no amount of
+tightening spacing will make it — the same arithmetic that already forced the
+taglines, the shelf heading and the "Got a code?" label to be dropped at that
+size. When you add game seven, plan for the shelf to become a scrolling list or
+a two-column grid at `huge`, and **measure it** rather than assuming: the failure
+is silent, it only happens at one text setting, and the way it shows up is a
+person never discovering half the games.
+
+**`codeCard(state)` in `common.js` — import it, never copy it.** The game code,
+the QR, and the "Send a link" button, for every lobby. This was six near-identical
+copies once, and the day a share button was added to Blob's lobby and to no other,
+five games out of six silently did not have it. One copy now, and a new lobby gets
+all three by calling it.
+
+**The QR encodes `?c=<code>&g=<game id>`, and the `g` has a job.** A code is four
+digits and says nothing about what is being played, but the game only arrives with
+the first state, which is a round trip away. Without the hint, somebody scanning a
+Go Fish code spends that round trip on a purple screen that then turns blue under
+them — the one screen a new player is most likely to see first, wearing the wrong
+game's colours. `boot()` and `ctx.scanToJoin` both honour it, and both check the
+id against `GAMES` first. **So the id in `public/games.js` is what makes this
+work**, and a game whose registry id and link id drift apart fails soft: the hint
+is ignored, nothing breaks, and nobody notices the colours are wrong.
+
+**Scanning is `scan.js` plus `qr-read.js`, and is entirely game-agnostic.** Worth
+knowing why it exists rather than using the phone's own camera app: a scanned link
+opens in the *browser*, which for an installed app is not the installed app — you
+land in a second copy of Blob looking at your own game from outside, with a
+different session. No web API can make a link jump into an installed app. The
+reader is ours because `BarcodeDetector` does not exist on iOS. Neither file has
+any per-game content and neither should grow any.
+
+---
+
+## Two things a new game's table screen should copy
+
+Both came out of playing rather than building, and both are about a screen that
+is technically correct and still leaves somebody confused.
+
+**Say whose turn it is where the player is looking.** Every game has a status
+line at the top saying "Your go", and at a table of five it was still possible to
+sit there while everybody waited — because your eyes are on your hand, working
+out what you can play, not on a caption above the table. Silly Head puts a gold
+ring on the block your own cards live in for exactly as long as the game is
+waiting on you (`sillyhead/table.js` `yoursClass`, `.sh-yours--turn`). Copy the
+idea, and copy the mechanism: **an `outline` and a `box-shadow`, never a border
+or padding.** Anything that changes how tall that block is gets measured by
+`fitCards` after paint, and a turn that resized every card on the table each time
+it came round would be worse than the problem being solved.
+
+**If the hand sorts itself, say which card is new.** A hand kept in rank order
+means a card you have just been given or just drawn files itself between two you
+already had, and the hand simply looks one longer — you cannot tell which one
+arrived, which in Go Fish is most of what you want to know. `gofish/table.js`
+marks it with a small star (`gf-hand__card--fresh`), and `app.js`
+`markWhatArrived` decides which cards those are **by comparing your hand with the
+one before it, on the client**. That is not laziness and it is the part to copy
+carefully:
+
+- The server *cannot* send it. Which card came out of the pool is the one
+  genuinely private thing in Go Fish, and a `lastEvent` naming it would hand the
+  table a card id that `viewFor` spent a whole essay refusing to leak.
+- Your own hand is only ever in your own view, so the difference between two
+  consecutive ones is too. No boundary is crossed.
+- It is presentation, not a decision. Nothing about what is legal is worked out
+  here, which is what keeps it inside the "the client draws what the server says"
+  rule rather than in breach of it.
+- **Three cases must come out as "nothing is new", and each one was a bug**: the
+  deal, where every card is new and marking all seven says nothing; a phone
+  reconnecting, which has no previous hand and would light up the lot; and a hand
+  that only shrank, where the existing marks must stay put, because the last thing
+  you picked up is still the last thing you picked up after you lay a book down.
+
+Any new state you keep for this goes in the `ui` object in `app.js` **and gets
+cleared in `resetGameView()`** — the list there is long for a reason, and a key
+that outlives its game is a stale selection pointing into somebody else's hand.
 
 ---
 

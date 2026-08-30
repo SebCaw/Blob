@@ -1,109 +1,53 @@
-# Handoff — build Go Fish
+# Handoff
 
-Written for a session starting cold. Read this top to bottom before touching
+Written for a session starting cold. Read it top to bottom before touching
 anything; it is ordered so you can act from the first section.
 
 Repo: `C:\Users\sebca\Projects\Blob`. Everything is committed and pushed to
-`main`, tip `c828fdf`, working tree clean, `npm test` green at **293 passing**.
+`main`, working tree clean, `npm test` green at **386 passing**.
+
+Live at `https://blob-nm9h.onrender.com` on Render's free tier, which sleeps when
+nobody is playing and forgets every game it was running when it does. That is the
+tier, not a bug to fix in code.
 
 ---
 
-## 0. ASK THIS FIRST — it blocks everything
+## 0. There is nothing blocked
 
-Go Fish's rules are settled with Seb bar one question, and the two answers are
-different games. **Do not start until he answers.**
+No unfinished work in the tree, no question waiting on Seb, nothing half-built.
+If you have arrived with a task, go and do it. What follows is context.
 
-> **Is there a pool at all?**
->
-> **Reading one** — normal Go Fish. Five cards each (seven if two or three
-> players), the rest face down in the middle. Told to go fish, you draw one from
-> it. Seb's rule "if they say go fish you don't pick anything" then applies only
-> once that pool is empty.
->
-> **Reading two** — no pool. The whole deck is dealt out, thirteen each with four
-> players, and "go fish" simply means *no, and your turn ends*. Nothing is ever
-> drawn.
+Two things sit with Seb rather than with you:
 
-Reading two looks right. Seb said "if they say go fish you dont pick anything"
-against the drawing rule rather than against the pool question, which he had
-already answered separately. It is also the better game — every card is in
-somebody's hand, so all thirteen books can always be made, and it becomes pure
-memory with no luck of the draw. It dissolves a problem raised earlier about a
-thirty-two card pool sitting unused when a player goes out.
-
-But it changes hand size from five to thirteen, so it cannot be assumed. One word
-from Seb settles it.
+- **`BLOB_ALERT_EMAIL` and `BLOB_ALERT_KEY` are not set in Render**, so client
+  error reports reach the log and nothing emails him. The code is written and
+  tested; it stays off until both are set, and half-configured counts as off. See
+  "Hearing about errors" in `CLAUDE.md`.
+- **Paid hosting.** Settled twice. Keeping a computer switched on does not help —
+  a free instance sleeps on inbound traffic and restarts regardless — and the
+  electricity costs about what the paid tier does.
 
 ---
 
-## 1. Go Fish, as settled
-
-Confirmed with him line by line. Also written into the planned-games section of
-`ADDING-A-GAME.md`.
-
-- Standard deck, **jokers out**. Three to six players, one deck.
-- You collect **books of four**. Most books wins.
-- On your turn you ask **one named player for one named rank**, and **you must
-  already hold at least one card of that rank**. This is the rule the whole game
-  hangs on.
-- **They have some** → they hand over **all** of them, and **you go again**.
-- **They haven't** → go fish.
-- **You never show a card you fished.** Seb was explicit: "no matter what."
-- **Therefore fishing always ends your turn.** If you went again after a lucky
-  draw, everyone would know you got what you asked for — the two rules cannot
-  both stand. Confirm this reading with him if you like, but it is forced.
-- **Empty your hand and you are out**, keeping any books already laid down.
-- Play **carries on until all sets are made**.
-
-**What makes it a game:** asking is a public act about a private hand. Say "any
-sevens?" and the whole table learns you hold a seven. Every question is
-information you give away to get information back. The app must broadcast every
-ask and every answer to everybody and remember them — and that is also the bot
-ladder: the easy one forgets what was asked, the top one remembers every question
-anyone has asked all game.
-
-**Colour: hue 228, deep ocean, accent `#3dd8ff` (surf cyan), deep `#149fd7`.**
-Seb picked it from a rendered comparison of three sea blues. It **breaks the
-app's accent rule deliberately** — normally the accent is the complement of the
-hue at S100 L62. Every blue ground produces a *warm* complement, and the warm end
-of the shelf is full (Blob lime, Silly Head amber, Sevens orange). Sevens is also
-already a blue at 205, which is why Go Fish had to go deep to 228. Document the
-departure the way `CHEAT.md` documents its own colour reasoning.
-
-**Two things to settle as you build:**
-
-- **Does handing cards over happen automatically?** When asked for your sevens
-  you have no choice, so instinct says the app just does it and animates it. But
-  that exact call was got wrong in Chase the Ace — pairs were auto-binned on the
-  same reasoning and Seb made it manual, because the *doing* is the game. Here
-  the act is being *asked*, not the handing over, so automatic is probably right.
-  Ask him.
-- **The history record.** "Who asked whom for what" is the whole game and none of
-  the existing record shapes carry it. See `historyRecord`/`historySummary`.
-
-**No clock anywhere.** Unlike Cheat, nothing here is time-critical, so no window
-and no countdown. Do not reach for the `deadline` hook.
-
----
-
-## 2. What the app is
+## 1. What the app is
 
 A Node/SSE multiplayer card-game app for Seb's family. **No dependencies, no
 build step.** One server runs every game through an engine registry; phones join
-by a four-digit code or a QR.
+by a four-digit code, a shared link, or a QR code they now scan inside the app.
 
-Five games are built and playable: **Blob**, **Silly Head**, **Sevens**, **Chase
-the Ace**, **Cheat**. Go Fish is sixth; **Solitaire** is planned seventh.
+Six games are built and playable: **Blob**, **Silly Head**, **Sevens**, **Chase
+the Ace**, **Cheat**, **Go Fish**. **Solitaire** is the planned seventh, and it
+**has no hue left** — the warm end of the shelf is full and both blues are taken.
+Worth solving before it starts.
 
 **Read in this order:**
 
 1. `CLAUDE.md` — house conventions and the three invariants. Non-negotiable.
-2. `ADDING-A-GAME.md` — the cheat sheet. Kept deliberately current; it has the
-   order of work, the engine contract, two browser checkpoints, the privacy
-   section, the bots section, the glass section, and a Controls section of things
-   that only came out of Seb playing.
-3. `CHEAT.md` — the most recent worked example, built in one session. Its
-   structure is a good model for `GO-FISH.md`.
+2. `ADDING-A-GAME.md` — the cheat sheet, kept deliberately current. Order of
+   work, the engine contract, two browser checkpoints, privacy, bots, the glass,
+   and a Controls section of things that only came out of Seb playing.
+3. The per-game file for whatever you are touching (`SILLY-HEAD.md`, `SEVENS.md`,
+   `CHASE-THE-ACE.md`, `CHEAT.md`, `GO-FISH.md`).
 
 **The three invariants**, from `CLAUDE.md`:
 
@@ -115,37 +59,119 @@ the Ace**, **Cheat**. Go Fish is sixth; **Solitaire** is planned seventh.
 
 ---
 
-## 3. What you have to touch to add a game
+## 2. What changed most recently
 
-**Server** — `lib/engines.js` registers one entry supplying `createGame`,
-`applyCommand`, `findPlayer`, `viewFor`, `historyRecord`, `historySummary`,
-`stallWatch`, `bots`, and optionally `deadline(state, now)` (Go Fish will not
-need that last one).
+### QR reading — `public/qr-read.js`, `public/scan.js`
 
-**Engine files** — `lib/gofish/{deck,rules,game,view,bot}.js`, mirroring
-`lib/cheat/`.
+The app had shown a QR code in every lobby for months and had no way of reading
+one. Using the phone's own camera app opens the link in the **browser**, which
+for an installed app is not the installed app — you land in a second copy of Blob
+looking at your own game from outside, with a different session. No web API lets
+a link jump into an installed app, so the only way to stay inside is to scan
+inside.
 
-**Client** — `public/games.js` (the shelf tile: id, name, tagline, blurb,
-players, hue, accent, accentDeep, icon, ready), `public/screens/gofish/{home,
-lobby,table,over,index}.js`, `public/screens/help-gofish.js` wired into
-`help.js`'s `lessonFor`, and **five branch points in `public/app.js`** — the
-import, `createGoFish`/`playGoFishSolo`, the `net.on('state')` handler, the
-welcome branch, the screen branch and the screen-key branch. Plus `public/sw.js`.
+`BarcodeDetector` is used where it exists. **It does not exist on iOS**, which is
+where this app is played, so a scanner built only on it would not work for the
+person who asked for one. Hence a hand-written reader — versions 1–10, all four
+correction levels, numeric, alphanumeric and byte modes.
 
-**A fixture in `test/privacy.test.js` is not optional.** That test walks
-`ENGINES` and **fails by name** for any game without one. It exists so a new game
-cannot ship without a privacy check. Cheat's passed first run because it was
-written before the game.
+It is two halves that fail differently, and the file says so at the top. The
+arithmetic — format info, unmasking, de-interleaving, Reed–Solomon, the bitstream
+— is right or obviously wrong, and `test/qr-read.test.js` checks it against
+everything the encoder can produce, including codes damaged past saving. Turning
+a photograph into a grid is a guess and is treated as one: the scanner runs it
+ten times a second and a failed frame costs nothing.
+
+**Three bugs in the front half, all found by measurement, each looking like
+something else. Know them before touching that code:**
+
+1. **Per-block thresholds fragment the image.** Cutting each 8×8 square at its own
+   midpoint is wrong when the squares line up with the code's modules, which at
+   ordinary distances they do — a square inside a dark module has its midpoint
+   dragged down, the light square next door has its dragged up, and every module
+   boundary grows a one-pixel stripe of the wrong colour. The binary image comes
+   out as an **outline drawing** and the finder scan reads a code whose modules
+   are one pixel across. Thresholds are smoothed over a 5×5 block neighbourhood.
+2. **An alignment pattern is five runs, not three.** Read as dark-light-dark it
+   matches twice, once either side, and lands a module out both times. Three runs
+   are also not distinctive enough to survive a widened search — the false
+   positive is usually **nearer the guess** than the real pattern is.
+3. **The alignment search must use the module size at that corner**, extrapolated
+   from the three finders, not the average across the code. Perspective is the
+   entire reason that search exists, so assuming even modules assumes the problem
+   away: at a steep angle the centre module came out half as big again, the ratio
+   check called it too fat to be one module, and the search returned nothing on
+   exactly the codes that needed it most.
+
+The code size is also not rounded and trusted — the nearest valid dimension is
+tried, then the ones either side, because at a steep angle the count comes out a
+module or two over. A wrong guess cannot produce a wrong answer: the format
+information and the Reed–Solomon check both have to pass. About 10ms a frame.
+
+### The code box on the front page — `screens/shelf.js`
+
+"Got a code?" with a four-digit field, a camera button and Join, above the tiles.
+Somebody handed a code did not come to browse; the only way in before was to guess
+which of six tiles the code belonged to, open it, find Join, and type it there.
+**It does not need to know which game the code is for.** The server does.
+
+### Silly Head — your go, on your cards
+
+The status line always said "Your go" at the top of the screen, which is not where
+anybody is looking. A gold ring now sits on the block your own cards live in for
+exactly as long as the game is waiting on you. `outline` and `box-shadow`, never
+padding — `fitCards` measures that block after paint, and a turn that changed its
+height would resize every card on the table each time it came round.
+
+### Go Fish — a star on what you just picked up
+
+A hand kept in rank order means a new card files itself between two you already
+had and the hand simply looks one longer. Worked out **on the client**, by
+comparing consecutive hands, and it has to be: the server cannot say which card
+came out of the pool without leaking the one genuinely private thing in that game.
+The three cases that must come out as "nothing is new" — the deal, a reconnect,
+and a hand that only shrank — are written up in `ADDING-A-GAME.md`; each was a bug.
+
+### The install offer is a card, not a strip
+
+Seb's words were that it "looks like cookies", which was exactly right: one line
+of small grey text, a button and a cross is the shape everybody has trained
+themselves to dismiss unread. Now a card with the mascot, a heading, a sentence
+and a full-width button, with "Not now" in words instead of a ✕. Still not modal,
+still only at the end of a game.
 
 ---
 
-## 4. Traps that cost real time in the last session
+## 3. The shelf height budget — read before adding a seventh game
 
-**The service worker will lie to you.** `public/sw.js` precaches the whole
-client, so any change to a shell file needs `CACHE` bumped or the browser serves
-the old one. This cost time twice in one session — once believing a layout fix
-had failed when the CSS was stale, once telling Seb something was live that his
-phone could not see. It is at **v18**. When verifying in a browser, clear it:
+`html[data-size='huge']` in `styles.css` exists because the largest text setting
+multiplies everything by 1.4, and six tiles plus a code box do not fit a phone.
+
+Measured on a 375×812 viewport: **the sixth tile ends at 801px.** Eleven pixels of
+headroom for the whole screen. Getting there cost the taglines, the shelf heading,
+the "Got a code?" label, and tightened padding on both the tiles and the code
+field. The code box alone had pushed the last tile from 798 to 954.
+
+**A seventh tile is about another 112px and will not fit.** No amount of spacing
+recovers it. Plan for a scrolling list or a two-column grid at that size, and
+**measure it** — the failure is silent, happens at one text setting only, and
+shows up as somebody never discovering half the games.
+
+The code field also clips silently when it is set too wide for the row it shares
+with two buttons: six digits at the Large setting needed 166px in a 128px box,
+with the leading digits scrolled off the left and no visual sign of it. Test with
+`482716`, not `4827`.
+
+---
+
+## 4. Traps that have cost real time
+
+**The service worker will lie to you.** `public/sw.js` precaches the whole client,
+so any change to a shell file needs `CACHE` bumped **and** new modules added to
+`SHELL`, or the browser serves the old one. It is at **v58**. This has cost hours
+across several sessions — once believing a layout fix had failed when the CSS was
+stale, once telling Seb something was live that his phone could not see. It is
+completely convincing while it is happening. To clear it when verifying:
 
 ```js
 navigator.serviceWorker.getRegistrations().then(r => r.forEach(x => x.unregister()));
@@ -160,93 +186,85 @@ entry in `.claude/launch.json`, or by hand:
 BLOB_PORT=4200 BLOB_DATA_DIR=/tmp/blob-scratch node server.js
 ```
 
-**Heredocs break on this content.** `cat > file <<'EOF'` failed repeatedly on JS
-and markdown — backticks, `${}`, table pipes. Use the Write tool, or write a
-Python patch script to the scratchpad and run it. Both work.
+**Heredocs break on this content.** `cat > file <<'EOF'` fails on JS and markdown
+— backticks, `${}`, table pipes. PowerShell here-strings mangle commit messages
+outright; write the message to a scratchpad file and use `git commit -F`. For
+multi-file edits, write a Python patch script and run it.
+
+**`requestAnimationFrame` does not fire while the preview pane is hidden.** Any
+browser measurement that waits on a frame will simply time out. Force a reflow
+with `void el.offsetHeight` and measure synchronously instead.
+
+**Zoom.** Measurement is in screen pixels; anything inside `#app` is inside a
+`zoom`. Divide by `uiZoom()` before writing a measured length back. `uiZoom`
+measures a known 100px probe rather than the app against itself — a bug that
+already happened and returned 2.1 for a zoom of 1.4.
+
+**Re-measure after a reload when testing sizes.** The app pins its height at load,
+so resizing the viewport gives stale numbers until you navigate again. This has
+produced false readings more than once.
 
 **The screen key.** `app.js` replays the whole entry animation whenever
 `screenKey()` changes, so a key names **where you are, not what you are doing
 there** — phase, essentially always. Putting a selection or an open window in it
-makes the screen re-enter on every tap. That bug shipped in two games with
-comments confidently claiming the opposite, and Seb reported it as the screen
-reloading.
+makes the screen re-enter on every tap. That shipped in two games with comments
+confidently claiming the opposite, and Seb reported it as the screen reloading.
 
 **A big screen is a phone with more room, not a different app.** `.screen` is a
 560px column widening to 620 then 700. Do not give a game its own desktop layout;
-both new games grew one and both had to lose it. But **do** use the vertical space
-on a tall window — see the note at `.ch-play` in `styles.css` for the one case
-where growing the body is right and the one where centring is.
+two games grew one and both had to lose it.
 
-**Re-measure after a reload when testing sizes.** The app pins its height at
-load, so resizing the viewport gives stale numbers until you navigate again. This
-produced two false readings before it was spotted.
+**Known and not worth chasing:** `test/server.test.js` occasionally fails teardown
+with `ENOTEMPTY` on a Windows temp directory — a cleanup race in the harness.
+Re-run.
 
 ---
 
-## 5. Bots — the one lesson worth carrying over
+## 5. Bots — the lesson worth carrying to any new game
 
-Cheat's ladder was built on intuition **twice** and came out perfectly inverted
-both times (easy won 43%, impossible 3%). Nothing looked wrong; the games all
-played fine. Only measuring caught it.
-
-The cause was one fact: **only 19% of claims were lies**, so calling was usually
-wrong, and a bot that called more lost more. Measured tells:
-
-| Signal | Lie rate |
-|---|---|
-| base rate, any claim | 19% |
-| claimer down to two cards, claiming 2+ | **59%** |
-| exactly three cards | 47% |
-| their last cards, going out | 47% |
-| same rank twice running | 37% |
-| **four cards** | **15%** — *below* the base rate |
-
-Two signals were measured and deliberately discarded; they are recorded in
+Cheat's difficulty ladder was built on intuition **twice** and came out perfectly
+inverted both times (easy won 43%, impossible 3%). Nothing looked wrong; the games
+all played fine. Only measuring caught it. The cause was one fact: only 19% of
+claims were lies, so calling was usually wrong, and a bot that called more lost
+more. Two signals were measured and deliberately discarded; they are recorded in
 `lib/cheat/bot.js` so nobody adds them back on intuition.
 
-**So: if a game has a judgement call in it, measure the ladder before believing
-it.** A 160-game script is twenty lines and it is the only thing that tells you
-whether "impossible" means anything. Silly Head's ladder test was also dismissed
-as flaky for weeks and turned out to be reporting a real drift — its middle rung
-had narrowed to 53.4%, barely a coin toss.
+**If a game has a judgement call in it, measure the ladder before believing it.**
+A 160-game script is twenty lines and it is the only thing that tells you whether
+"impossible" means anything. Silly Head's ladder test was dismissed as flaky for
+weeks and turned out to be reporting a real drift — its middle rung had narrowed
+to 53.4%, barely a coin toss.
 
-For Go Fish the ladder is obvious and easy: **memory**. Easy forgets what was
-asked, medium remembers the last round, hard remembers everything asked, and the
-top one also tracks what it has given away. All of it from the public log, never
-from anybody's hand.
+`tools/soak.js` drives the reducers directly and is the fastest way to hammer a
+game without a browser. `SOAK-REPORT.md` records what it found last time.
 
 ---
 
 ## 6. How Seb works
 
-- **Open every response with his name.** No emojis anywhere, files or chat.
-- **Commit and push to GitHub without asking** — standing permission — but only
-  on a green `npm test`. **Never touch the Render deploy**; he does that himself.
-- He is token-conscious; do not run large sweeps without reason. The privacy
-  fixture and a bot-ladder measurement are both worth it.
+- **Open every response with his name. No emojis anywhere**, files or chat.
+- **Commit and push to GitHub without asking** — standing permission — but only on
+  a green `npm test`. **Never touch the Render deploy**; he does that himself.
+- He is token-conscious and will say so mid-turn. Do not run large sweeps without
+  reason. A privacy fixture and a bot-ladder measurement are both worth it.
 - **He plays a real game and reports what felt wrong, usually in one line, often
-  mid-turn.** Almost every bug in the last session came that way and none would
-  have been caught by a test. Take the report seriously even when the mechanism
-  he names is not the actual cause — "the screen reloads when I throw a pair
-  away" was a precise description of a screen-key bug he had no way to name.
+  mid-turn.** Almost every UI bug in this project arrived that way and almost none
+  would have been caught by a test. Take the report seriously even when the
+  mechanism he names is not the actual cause — "the screen reloads when I throw a
+  pair away" was a precise description of a screen-key bug he had no way to name,
+  and "it plays up with the touch pad but a touch screen works perfectly" was the
+  only clue that found a transform bug in Go Fish's seats.
+- He sometimes dictates, so a sentence occasionally arrives garbled. Ask rather
+  than guess, but do the rest of the work first and ask at the end.
 - He answers rules questions tersely and in order. Number your questions.
 
 ---
 
-## 7. State of everything else
+## 7. Reports, not queues
 
-Nothing is half-done. Recently finished and awaiting his verdict on Render: the
-Cheat clarity work (bigger claim, four-second window, call button always
-present), Chase the Ace's opening pause, and the vertical-space fix for Cheat.
-
-**Known and not worth chasing:** `test/server.test.js` occasionally fails
-teardown with `ENOTEMPTY` on a Windows temp directory — a cleanup race in the
-harness. Re-run.
-
-**`NEXT-SESSION.md`** holds five genuinely open Silly Head items if Go Fish is
-blocked. The biggest are three card-travel animations and the loser row still
-being painted in the error colour — which Cheat and the others have inherited by
-reusing `.sh-loser`, so one CSS rule fixes four games.
-
-**Solitaire has no hue left.** The warm end of the shelf is full and both blues
-are taken. Worth solving before it starts.
+`NEXT-SESSION.md`, `SOAK-REPORT.md` and `LEAVERS-AND-MASTER.md` record finished
+work, kept because they hold measurements rather than intentions. Nothing in them
+is outstanding. `NEXT-SESSION.md` does still list some genuinely open Silly Head
+polish — card-travel animations, and the loser row painted in the error colour,
+which four games have inherited by reusing `.sh-loser`, so one CSS rule fixes all
+of them.
