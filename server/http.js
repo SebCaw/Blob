@@ -41,7 +41,11 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'same-origin',
   'X-Frame-Options': 'SAMEORIGIN',
   'Content-Security-Policy':
-    "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; " +
+    "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; " +
+    // The scanner draws camera frames into a canvas. `srcObject` is not a fetch
+    // so no policy governs it, but a browser that decides otherwise should get
+    // a camera rather than a blank rectangle.
+    "media-src 'self' blob: mediastream:; " +
     "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'",
 };
 

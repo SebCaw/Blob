@@ -482,6 +482,23 @@ function sending(ctx, cardId) {
   return Boolean(ctx.ui.shSending && ctx.ui.shSending.includes(cardId));
 }
 
+/**
+ * Your own cards, in a box that lights up when the game is waiting on you.
+ *
+ * The status line has always said "Your go" in words, at the top of the screen.
+ * That is not where anybody is looking — your eyes are on your hand, working out
+ * what you can put down — so at a table of five it was perfectly possible to sit
+ * there while everybody waited. The block your cards are in wears the turn
+ * instead, right where you are already looking.
+ *
+ * `quiet` is the second copy of your face-up cards drawn under your hand for the
+ * one crossover move. It sits INSIDE the box that is already glowing, and a ring
+ * inside a ring reads as two separate things to look at.
+ */
+function yoursClass(you, quiet) {
+  return `sh-yours${you.isTurn && !you.out && !quiet ? ' sh-yours--turn' : ''}`;
+}
+
 function yourCards(ctx) {
   const state = ctx.state;
   const you = state.you;
@@ -538,7 +555,8 @@ function yourCards(ctx) {
   };
 
   return h(
-    'div.sh-yours',
+    'div',
+    { className: yoursClass(you) },
     h('span.eyebrow.center', {
       text: hiding
         ? `Your hand — ${you.hand.length}, showing the ${inHand.length} you can play`
@@ -596,7 +614,8 @@ function faceUpRow(ctx, { quiet } = {}) {
   const crossover = quiet && you.hand.length === 1 && Boolean(chosenRank);
 
   return h(
-    'div.sh-yours',
+    'div',
+    { className: yoursClass(you, quiet) },
     h('span.eyebrow.center', {
       text: giving
         ? 'Tap the card you will pick up with the pile'
@@ -669,7 +688,8 @@ function faceDownRow(ctx) {
   const state = ctx.state;
   const you = state.you;
   return h(
-    'div.sh-yours',
+    'div',
+    { className: yoursClass(you) },
     h('span.eyebrow.center', { text: 'Your last three. Nobody knows what they are.' }),
     h(
       'div.sh-table-row',

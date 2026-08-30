@@ -1,4 +1,4 @@
-import { h } from '../../ui.js';
+import { h, fragment } from '../../ui.js';
 import { cardFace, cardBack } from '../../cards.js';
 import { topbar, splitHand } from '../common.js';
 import { uiZoom } from '../../size.js';
@@ -695,12 +695,37 @@ function yourBooks(ctx) {
  * not responding: an inert control that looks live is a bug report waiting to
  * happen, which is exactly what Sevens found out.
  */
+/**
+ * The mark on a card that has just arrived in your hand.
+ *
+ * A hand is kept in order, so a card you have just been given or just fished
+ * does not land at the end where you could see it — it files itself between two
+ * cards that were already there, and the hand simply looks one card longer.
+ * Which one is new is the thing you most want to know and the one thing the
+ * screen was not saying.
+ *
+ * Drawn rather than set in type, like the crown and the cog: a star from the
+ * system font arrives as an emoji at whatever size and colour it fancies.
+ */
+function freshPip() {
+  const wrap = h('span.gf-fresh', { 'aria-label': 'just picked up' });
+  wrap.appendChild(
+    fragment(
+      '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+        '<path d="M12 1 L14.4 8.6 L22 11 L14.4 13.4 L12 21 L9.6 13.4 L2 11 L9.6 8.6 Z" fill="currentColor"/>' +
+        '</svg>'
+    )
+  );
+  return wrap;
+}
+
 function yourHand(ctx) {
   const state = ctx.state;
   const you = state.you || {};
   const hand = you.hand || [];
   const picked = ctx.ui.gfRank;
   const usable = Boolean(you.isTurn && !state.ask);
+  const arrived = new Set(ctx.ui.gfNew || []);
 
   if (you.out) return h('div.gf-hand.gf-hand--empty', h('p.muted.center', { text: 'Your hand is empty. Nicely done.' }));
   if (!hand.length) return h('div.gf-hand.gf-hand--empty');
@@ -715,10 +740,13 @@ function yourHand(ctx) {
         row.map((card, i) => {
           const rank = card.slice(0, -1);
           const on = picked === rank;
+          const fresh = arrived.has(card);
           return h(
             'div',
             {
-              className: `gf-hand__card${on ? ' gf-hand__card--picked' : ''}`,
+              className: `gf-hand__card${on ? ' gf-hand__card--picked' : ''}${
+                fresh ? ' gf-hand__card--fresh' : ''
+              }`,
               style: { '--i': String(i) },
               // On the wrapper, not on the card. `cardFace` builds its own
               // attributes and quietly drops anything else handed to it.
@@ -734,7 +762,8 @@ function yourHand(ctx) {
                     ctx.render();
                   }
                 : null,
-            })
+            }),
+            fresh ? freshPip() : null
           );
         })
       )

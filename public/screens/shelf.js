@@ -2,6 +2,7 @@ import { h, fragment } from '../ui.js';
 import { GAMES, gameById } from '../games.js';
 import { sizeControl } from '../size.js';
 import { helpButton } from './help.js';
+import { scanButton } from './common.js';
 
 /**
  * The shelf: pick a game.
@@ -30,12 +31,74 @@ export function shelfScreen(ctx) {
       h('h1.shelf__title', { text: 'Card games' }),
       h('p.lede.center', { text: 'Pick one. Blob keeps the score, or deals as well.' })
     ),
-    h('div.spacer'),
+    joinBar(ctx),
     resumeRow(ctx),
     h('div.shelf__list', GAMES.map((game) => tile(ctx, game))),
     h('div.spacer'),
     helpButton(ctx, { kind: 'link' }),
     sizeControl(ctx)
+  );
+}
+
+/**
+ * The code box, first thing on the front page.
+ *
+ * Somebody being handed a code is not choosing a game — the person who invited
+ * them already did. Until now the only way in was to guess which of six tiles
+ * they meant, open it, find Join, and type the code there, which is three taps
+ * of homework before the app does the one thing they opened it for. The code
+ * goes at the very top, the way it does on every party game that expects people
+ * to arrive rather than to browse, and it does not need to know which game the
+ * code belongs to: the server does.
+ *
+ * The camera sits next to it rather than replacing it. A code read off a QR is
+ * quicker when it works, and four digits typed in always works.
+ */
+function joinBar(ctx) {
+  const codeInput = h('input.input.input--code.shelf-join__code', {
+    type: 'text',
+    inputmode: 'numeric',
+    pattern: '[0-9]*',
+    value: ctx.ui.code || '',
+    placeholder: '0000',
+    maxlength: '6',
+    'aria-label': 'Game code',
+    'data-focus-key': 'shelf-code',
+    autocomplete: 'one-time-code',
+    enterkeyhint: 'go',
+    onInput: (event) => {
+      const digits = event.target.value.replace(/\D/g, '').slice(0, 6);
+      event.target.value = digits;
+      ctx.ui.code = digits;
+    },
+    onKeydown: (event) => {
+      if (event.key === 'Enter') go();
+    },
+  });
+
+  // On to the join screen rather than straight into the game. The name is
+  // already filled in there from last time, so it is one more tap — and it is
+  // the tap that lets somebody be a different person tonight, which at a table
+  // of six sharing two phones happens more than you would think.
+  const go = () => {
+    const code = (ctx.ui.code || '').trim();
+    if (code.length < 4) {
+      ctx.toast('A game code is four digits.');
+      codeInput.focus();
+      return;
+    }
+    ctx.go('join');
+  };
+
+  return h(
+    'div.shelf-join',
+    h('span.eyebrow', { text: 'Got a code?' }),
+    h(
+      'div.shelf-join__row',
+      codeInput,
+      scanButton(ctx, { label: false }),
+      h('button.btn.btn--primary.shelf-join__go', { type: 'button', text: 'Join', onClick: go })
+    )
   );
 }
 

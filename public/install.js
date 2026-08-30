@@ -1,4 +1,5 @@
 import { h, fill, fragment } from './ui.js';
+import { mascot } from './mascot.js';
 
 /**
  * The install banner: a one-tap way onto the home screen.
@@ -185,18 +186,49 @@ function close() {
   hide();
 }
 
-function androidBanner() {
+/**
+ * The card the offer is made on.
+ *
+ * It was a strip: one line of thirteen-pixel grey text and a small button, sat
+ * along the bottom of the screen. Seb's words were that it "looks like
+ * cookies", and that is exactly right — it had the shape of the thing everybody
+ * on the internet has trained themselves to dismiss without reading, so the one
+ * genuinely useful offer this app makes was wearing the costume of the least
+ * useful thing on the web.
+ *
+ * So it is a card with a picture, a heading and a sentence, and the action is a
+ * full-width button rather than a chip wedged between the text and a cross. It
+ * is still not modal and still does not block anything — it appears when a game
+ * has just finished and nobody is waiting on anybody, and being ignorable is
+ * part of the deal. But it should be ignored because somebody read it and did
+ * not want it, not because it looked like boilerplate.
+ *
+ * "Not now" in words rather than a ✕ for the same reason: a cross in the corner
+ * is what you close a cookie bar with.
+ */
+function card(...inside) {
   return h(
-    'div.install-banner__row',
+    'div.install-card',
+    h('div.install-card__mascot', mascot('cheer', { size: 'md' })),
     // Worded as an invitation after a game rather than an instruction on
     // arrival, because that is exactly when it appears. "Enjoyed that?" is
     // doing real work: it says why it is asking NOW, which is the difference
     // between an offer and an interruption.
-    h('span.install-banner__text', {
-      text: 'Enjoyed that? Add Blob to your home screen — it opens full screen, like an app.',
+    h('h2.install-card__title', { text: 'Enjoyed that?' }),
+    ...inside,
+    h('button.btn.btn--link.install-card__no', { type: 'button', text: 'Not now', onClick: close })
+  );
+}
+
+function androidBanner() {
+  return card(
+    h('p.install-card__text', {
+      text:
+        'Put Blob on your home screen. It opens full screen like a proper app, and it is there next ' +
+        'time without anybody having to find the link again.',
     }),
-    h('button.btn.btn--primary.btn--small', {
-      text: 'Install',
+    h('button.btn.btn--primary.install-card__go', {
+      text: 'Add to home screen',
       type: 'button',
       onClick: async () => {
         hide();
@@ -208,12 +240,7 @@ function androidBanner() {
         // it has to be awaited or the browser can log an unhandled rejection.
         await prompt.userChoice.catch(() => {});
       },
-    }),
-    h('button.icon-btn.install-banner__close', {
-      type: 'button',
-      'aria-label': 'Dismiss',
-      onClick: close,
-    }, h('span', { text: '✕', 'aria-hidden': 'true' }))
+    })
   );
 }
 
@@ -246,18 +273,19 @@ function shareGlyph() {
 }
 
 function iosBanner() {
-  return h(
-    'div.install-banner__row',
+  return card(
+    h('p.install-card__text', {
+      text:
+        'Put Blob on your home screen. It opens full screen like a proper app, and it is there next ' +
+        'time without anybody having to find the link again.',
+    }),
+    // Two steps, numbered, because this is the platform with no button to press
+    // — it is a set of instructions and it should look like one rather than
+    // like a sentence with an icon buried in it.
     h(
-      'span.install-banner__text',
-      { text: 'Enjoyed that? Add Blob to your home screen — tap ' },
-      shareGlyph(),
-      ' below, then "Add to Home Screen".'
-    ),
-    h('button.icon-btn.install-banner__close', {
-      type: 'button',
-      'aria-label': 'Dismiss',
-      onClick: close,
-    }, h('span', { text: '✕', 'aria-hidden': 'true' }))
+      'ol.install-card__steps',
+      h('li', 'Tap ', shareGlyph(), ' at the bottom of Safari'),
+      h('li', { text: 'Choose "Add to Home Screen"' })
+    )
   );
 }

@@ -1,6 +1,7 @@
 import { h, initials, fragment } from '../ui.js';
 import { uiZoom, pinViewport } from '../size.js';
 import { qrSvg } from '../qr.js';
+import { canScan } from '../scan.js';
 
 /**
  * A drawn crown rather than the U+265B glyph. A font that lacks it renders
@@ -124,6 +125,47 @@ function shareButton(state, joinUrl) {
     },
   });
   return button;
+}
+
+/**
+ * A camera, drawn rather than set in type — same reasoning as the crown and the
+ * cog above.
+ */
+function cameraGlyph() {
+  const wrap = h('span.icon', { 'aria-hidden': 'true' });
+  wrap.appendChild(
+    fragment(
+      '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" ' +
+        'stroke-width="2.2" stroke-linejoin="round">' +
+        '<path d="M3 8.5h3.2l1.6-2.4h8.4l1.6 2.4H21v11H3z"/>' +
+        '<circle cx="12" cy="13.6" r="3.6"/>' +
+        '</svg>'
+    )
+  );
+  return wrap;
+}
+
+/**
+ * "Scan a code", where a camera exists to do it with.
+ *
+ * Absent rather than disabled where it does not — a browser with no camera is
+ * not a browser whose owner forgot to plug one in, and a permanently greyed-out
+ * button on the front page is furniture. Everywhere it appears, typing the code
+ * in is right next to it.
+ */
+export function scanButton(ctx, options = {}) {
+  if (!canScan()) return null;
+  return h(
+    'button',
+    {
+      className: `btn btn--${options.kind || 'ghost'} scan-btn`,
+      type: 'button',
+      'aria-label': 'Scan a game code with the camera',
+      onClick: () => ctx.scanToJoin(),
+    },
+    cameraGlyph(),
+    options.label === false ? null : h('span', { text: options.label || 'Scan a code' })
+  );
 }
 
 export function woodenSpoon() {

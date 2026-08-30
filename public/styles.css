@@ -672,38 +672,77 @@ html[data-size='huge'] .bid__current {
  * none`, no children) until `install.js` actually has something to say, so it
  * costs nothing on a phone that will never see it.
  */
+/* The install offer.
+
+   A card, not a strip. It was a strip — one line of small grey text with a
+   button and a cross — and it read as a cookie bar, which is the one shape on
+   the internet everybody dismisses without reading. It appears once, at the end
+   of a game, when nothing is urgent; it can afford the room. */
 .install-banner {
   position: fixed;
   left: 50%;
-  bottom: calc(env(safe-area-inset-bottom) + 18px);
-  transform: translate(-50%, calc(100% + 40px));
+  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  transform: translate(-50%, calc(100% + 60px));
   z-index: 65;
-  width: calc(100vw - 32px);
-  max-width: 420px;
-  border-radius: var(--radius-sm);
-  background: var(--night-700);
-  border: 1px solid var(--night-500);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-  transition: transform 280ms var(--ease-pop);
+  width: calc(100vw - 28px);
+  max-width: 400px;
+  transition: transform 320ms var(--ease-pop);
 }
 .install-banner:empty { display: none; }
 .install-banner--show { transform: translate(-50%, 0); }
 
-.install-banner__row {
+.install-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 10px 8px 10px 14px;
+  padding: 18px 20px 12px;
+  border-radius: var(--radius);
+  background: var(--night-700);
+  border: 2px solid var(--night-500);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55);
+  text-align: center;
 }
-.install-banner__text {
-  flex: 1 1 auto;
-  font-size: 13px;
+
+.install-card__mascot { width: 74px; height: 74px; }
+
+.install-card__title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.install-card__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
   color: var(--ink-soft);
-  line-height: 1.35;
 }
+
+.install-card__go { width: 100%; margin-top: 2px; }
+
+/* The iPhone half: instructions rather than a button, so they are numbered and
+   look like instructions. Left-aligned inside a centred card on purpose — two
+   steps centred read as a slogan. */
+.install-card__steps {
+  margin: 2px 0 0;
+  padding: 12px 14px 12px 34px;
+  width: 100%;
+  text-align: left;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.7;
+}
+
+.install-card__no { min-height: 40px; font-size: 14px; }
+
 /*
-   A drawn icon now rather than a character, so it is sized against the text it
-   sits in and nudged up onto the line the way a glyph would have been.
+   A drawn icon rather than a character, so it is sized against the text it sits
+   in and nudged up onto the line the way a glyph would have been.
 */
 .install-banner__glyph {
   display: inline-block;
@@ -712,15 +751,9 @@ html[data-size='huge'] .bid__current {
   line-height: 0;
 }
 .install-banner__glyph svg {
-  width: 1.05em;
-  height: 1.05em;
+  width: 1.15em;
+  height: 1.15em;
   display: block;
-}
-.install-banner__close {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  font-size: 13px;
 }
 
 
@@ -3188,6 +3221,123 @@ html[data-size='huge'] .bid__lead { display: none; }
   gap: 12px;
 }
 
+/* The code box, first thing on the front page.
+
+   Somebody arriving with a code did not come to browse, and the six tiles below
+   are a menu for people who did. It is one row so it costs one line of the
+   screen: the box, the camera, and the way in. */
+.shelf-join {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.shelf-join__row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+/* The box takes whatever is left after the two buttons, and may shrink below
+   its own content — a flex item will not otherwise, and 34px letters with a
+   third of an em of tracking are wider than a small phone. */
+.shelf-join__code {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 26px;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  padding: 10px 12px;
+}
+
+.shelf-join__go { flex: 0 0 auto; width: auto; padding: 0 20px; min-height: var(--tap); }
+
+/* -- Scanning -------------------------------------------------------------- */
+
+.scan-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* On the shelf it is the icon on its own — the box beside it already says what
+   this row is for, and the word would cost the code box a third of its width. */
+.shelf-join .scan-btn { flex: 0 0 auto; width: auto; padding: 0 16px; min-height: var(--tap); }
+
+/* The viewfinder.
+
+   Over everything and outside `#app`, like the confetti and the toast: `#app`
+   carries the `zoom` the text-size setting works through, and a camera preview
+   scaled to 1.4 would be a camera preview showing less of the room. */
+.scan {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #05010c;
+}
+
+.scan__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Filling rather than fitting: black bars down the sides make the code
+     smaller in the frame, and how much of the frame the code fills is the whole
+     of whether it reads. */
+  object-fit: cover;
+}
+
+/* Four corners rather than a box. A full rectangle reads as a thing you must
+   line the code up inside exactly, which is not true and makes people fuss;
+   corners read as "somewhere around here". */
+.scan__frame {
+  position: relative;
+  width: min(72vw, 300px);
+  aspect-ratio: 1;
+  box-shadow: 0 0 0 100vmax rgba(5, 1, 12, 0.55);
+}
+
+.scan__frame i {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 4px solid var(--lime);
+}
+
+.scan__frame i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 10px; }
+.scan__frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 10px; }
+.scan__frame i:nth-child(3) { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 10px; }
+.scan__frame i:nth-child(4) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 10px; }
+
+.scan__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 18px calc(env(safe-area-inset-right) + 20px) calc(env(safe-area-inset-bottom) + 22px)
+    calc(env(safe-area-inset-left) + 20px);
+}
+
+.scan__hint {
+  margin: 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.scan__close { width: auto; padding: 0 28px; background: rgba(0, 0, 0, 0.5); }
+
 /* The game you are already in, above the shelf itself.
 
    Deliberately not a tile: a tile is a choice between games and this is not one
@@ -3595,6 +3745,34 @@ html[data-size='huge'] .shelf > .spacer { height: 2px; }
 /* -- Your cards ------------------------------------------------------------ */
 
 .sh-yours { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+/* Your go, said on your own cards.
+
+   The status line says it in words, at the top of the screen, and that is not
+   where anybody is looking — your eyes are on your hand, deciding. So the block
+   your cards live in lights up while the game is waiting on you, and stops the
+   moment it is not.
+
+   An outline and a shadow rather than a border and some padding, because
+   everything on this screen is measured after it is painted by `fitCards`, and
+   anything that changed how tall this block is would resize every card on the
+   table each time the turn came round. An outline takes no space at all. */
+.sh-yours--turn {
+  border-radius: var(--radius);
+  outline: 2px solid var(--gold);
+  outline-offset: 5px;
+  box-shadow: 0 0 26px rgba(255, 201, 60, 0.2);
+  animation: sh-your-go 2.1s ease-in-out infinite;
+}
+
+@keyframes sh-your-go {
+  0%, 100% { outline-color: var(--gold); box-shadow: 0 0 26px rgba(255, 201, 60, 0.2); }
+  50% { outline-color: rgba(255, 201, 60, 0.42); box-shadow: 0 0 8px rgba(255, 201, 60, 0.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-yours--turn { animation: none; }
+}
 .sh-table-row { display: flex; justify-content: center; gap: clamp(8px, 3vw, 16px); }
 .sh-slot { position: relative; display: grid; place-items: center; min-width: 54px; min-height: 76px; }
 .sh-slot__gone { color: var(--night-500); font-size: 20px; font-weight: 900; }
@@ -5789,12 +5967,39 @@ html[data-size] .sv-play { --sv-step: 16px; --sv-card-w: 54px; --sv-card-h: 77px
 .gf-hand { display: flex; flex-direction: column; gap: 4px; align-items: center; }
 .gf-hand--empty { min-height: 24px; justify-content: center; }
 .gf-fan { display: flex; justify-content: center; }
-.gf-hand__card { margin-left: -18px; transition: transform 140ms var(--ease-pop); }
+.gf-hand__card { position: relative; margin-left: -18px; transition: transform 140ms var(--ease-pop); }
 .gf-hand__card:first-child { margin-left: 0; }
 /* Every card of the picked rank lifts, not just the one tapped - the rank is
    what you ask for, and lifting one of three sevens would draw a distinction
    the game does not have. */
 .gf-hand__card--picked { transform: translateY(-12px); z-index: 2; }
+
+/* Just picked up.
+
+   A hand keeps itself in order, so a card handed over or fished out of the pool
+   files itself between two you already had and the hand just looks longer. The
+   star says which one, and the card is lifted a little as well - a mark alone is
+   easy to miss in an overlapping fan where most of each card is behind the next
+   one, and the corner the star sits in is the corner that is showing. */
+.gf-hand__card--fresh { transform: translateY(-5px); z-index: 3; }
+.gf-hand__card--fresh.gf-hand__card--picked { transform: translateY(-12px); }
+
+.gf-fresh {
+  position: absolute;
+  top: -7px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--ink-dark);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.gf-fresh svg { width: 13px; height: 13px; display: block; }
 
 /* -- The one control that matters -------------------------------------------- */
 .gf-tools {

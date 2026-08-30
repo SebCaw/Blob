@@ -6,6 +6,7 @@ import { applySize, currentSize, pinViewport } from './size.js';
 import { play as sound, soundOn } from './sound.js';
 import { setupInstallBanner, offerInstall } from './install.js';
 import { watchForErrors, setErrorContext } from './errors.js';
+import { scan, joinFromText } from './scan.js';
 import { askBeforeStart } from './prefs.js';
 import { welcomeScreen, switchGameScreen } from './screens/welcome.js';
 import { shelfScreen } from './screens/shelf.js';
@@ -125,6 +126,8 @@ const ui = {
   shGiveUp: false,
   /** Silly Head: cards tapped and still in flight, so the tap looks answered. */
   shSending: null,
+  /** Go Fish: the cards that have just arrived in your hand, so they are marked. */
+  gfNew: null,
   /** The settings sheet, which can be opened from any screen in a game. */
   settingsOpen: false,
   /** How to play: which step, which tab, and the conversation so far. */
@@ -447,6 +450,52 @@ const ctx = {
       toast(error.message);
     }
   },
+  /**
+   * Read somebody else's screen, and land on the join page with the code in.
+   *
+   * The same three outcomes as following a link at boot, and deliberately so —
+   * it is the same act. A code for the game this phone is already in is not
+   * worth acting on; a code for a DIFFERENT game asks first, through the very
+   * screen `boot()` uses, rather than quietly walking out of a game somebody is
+   * in the middle of; and anything else fills the field in and gets out of the
+   * way.
+   */
+  async scanToJoin() {
+    let text;
+    try {
+      text = await scan();
+    } catch (error) {
+      toast(error.message);
+      return;
+    }
+    if (!text) return; // closed without scanning anything
+    const found = joinFromText(text);
+    if (!found) {
+      toast('That is not a game code.');
+      return;
+    }
+    const session = net.session;
+    if (session && session.code === found.code) {
+      ui.route = 'game';
+      net.connect();
+      render();
+      return;
+    }
+    if (session) {
+      ui.pendingCode = found.code;
+      render();
+      return;
+    }
+    ui.code = found.code;
+    // The link carries which game it is, which is the only thing that lets the
+    // join screen wear the right colours before the state has arrived.
+    if (found.game && GAMES.some((game) => game.id === found.game)) {
+      ui.game = found.game;
+      applyGameTheme(found.game);
+    }
+    ui.route = 'join';
+    render();
+  },
   async joinGame(code, name) {
     try {
       lastName(name);
@@ -603,6 +652,7 @@ function resetGameView() {
   ui.shConfirmReady = false;
   ui.shGiveUp = false;
   ui.shSending = null;
+  ui.gfNew = null;
   ui.settingsOpen = false;
   ui.helpOpen = false;
   ui.helpStep = 0;
@@ -964,6 +1014,7 @@ function onGoFishState(next) {
 
   if (phaseChanged || handChanged || !next.you || !next.you.isTurn || next.ask) ui.gfRank = null;
   if (phaseChanged) ui.confirmLeave = false;
+  markWhatArrived(next, phaseChanged);
 
   if (phaseChanged && next.phase === 'playing') {
     buzz([14, 70, 14]);
@@ -1005,6 +1056,38 @@ function onGoFishState(next) {
   if (next.phase === 'complete') releaseWake();
   else keepAwake();
   render();
+}
+
+/**
+ * Which cards in your Go Fish hand are ones you have only just picked up.
+ *
+ * Worked out here, by comparing the hand that has just landed with the one
+ * before it, and NOT sent by the server — because the server could not send it
+ * without saying out loud which card came out of the pool, and which card you
+ * drew is the one genuinely private thing in that game. Your own hand is only
+ * ever in your own view, so the difference between two of them is too.
+ *
+ * This is presentation rather than a decision: nothing here changes what is
+ * legal or what anything means, it marks cards the player already holds.
+ *
+ * Three cases have to come out as "nothing is new", and each one caught a bug:
+ * the deal, where every card is new and marking all seven says nothing; a phone
+ * reconnecting, which has no previous hand to compare against and would light up
+ * the lot; and a hand that only shrank, where the marks that are still in your
+ * hand stay put — "the last thing you picked up" is still the last thing you
+ * picked up after you have laid a book down.
+ */
+function markWhatArrived(next, phaseChanged) {
+  const before = state && state.you ? state.you.hand : null;
+  const now = next.you ? next.you.hand : null;
+  if (!now || phaseChanged || !before || !before.length || !state || state.id !== next.id) {
+    ui.gfNew = null;
+    return;
+  }
+  const had = new Set(before);
+  const arrived = now.filter((card) => !had.has(card));
+  if (arrived.length) ui.gfNew = arrived;
+  else if (ui.gfNew) ui.gfNew = ui.gfNew.filter((card) => now.includes(card));
 }
 
 function pickScreen() {

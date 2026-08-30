@@ -1,6 +1,6 @@
 import { h } from '../ui.js';
 import { mascot } from '../mascot.js';
-import { action } from './common.js';
+import { action, scanButton } from './common.js';
 import { sizeControl } from '../size.js';
 import { helpButton, openHelp } from './help.js';
 import { lastName } from '../net.js';
@@ -367,6 +367,8 @@ function joinView(ctx) {
       h('div.field', h('span.eyebrow', { text: 'Game code' }), codeInput),
       h('div.field', h('span.eyebrow', { text: 'Your name' }), nameInput)
     ),
+    // Right under the code box, because it is the other way of filling it in.
+    scanButton(ctx),
     h('div.spacer'),
     h('div.stack', mascot('think', { size: 'sm' }), action('Join game', submit))
   );
