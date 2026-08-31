@@ -172,6 +172,36 @@ export const GAMES = [
     // Flipped last, once the two browser checkpoints in ADDING-A-GAME.md pass.
     ready: true,
   },
+  {
+    id: 'kingscorner',
+    name: 'Kings Corner',
+    tagline: 'Build down, alternate colours, kings in the corners.',
+    blurb: 'Published as Kings in the Corner. Best at four. First to empty their hand wins.',
+    players: '2 to 6',
+    // A teal, and the seventh hue is where the budget finally got tight. The
+    // warm end of the shelf is full and both blues are taken, so this sits at
+    // 178 - between Silly Head's 148 and Sevens' 205, which ADDING-A-GAME.md
+    // predicted by name as the cluster most likely to need separating. The test
+    // is whether you can tell the three TILES apart on a phone in a dim room,
+    // not whether the numbers differ.
+    hue: 178,
+    // Straight off the house rule for once: the complement at S100 L62, deep at
+    // S83 L46. It lands on the one thing the shelf did not have - Blob is lime,
+    // Silly Head amber, Sevens orange, Chase mint, Go Fish cyan, Cheat blue, and
+    // nothing was red.
+    accent: '#ff3d47',
+    accentDeep: '#d71420',
+    // A crown sitting in the corner of the board: the name of the game and its
+    // only special rule, in one mark. Every other icon on the shelf is about a
+    // card; this one is about the place a card goes.
+    icon:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.4 V4.6 L6 6.6 ' +
+      'L8.4 3.4 L10.8 6.6 L13.8 4.6 V9.4 Z"/><path d="M3 12.2 H13.8"/>' +
+      '<rect x="10.6" y="13.4" width="10.4" height="7.8" rx="1.7"/></svg>',
+    // Flipped once both browser checkpoints pass.
+    ready: true,
+  },
 ];
 
 /** @param {string} id */

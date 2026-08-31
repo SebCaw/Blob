@@ -15,6 +15,11 @@ import { sevensScreen, sevensWelcome, sevensScreenKey } from './screens/sevens/i
 import { chaseScreen, chaseWelcome, chaseScreenKey } from './screens/chase/index.js';
 import { cheatScreen, cheatWelcome, cheatScreenKey } from './screens/cheat/index.js';
 import { gofishScreen, gofishWelcome, gofishScreenKey } from './screens/gofish/index.js';
+import {
+  kingscornerScreen,
+  kingscornerWelcome,
+  kingscornerScreenKey,
+} from './screens/kingscorner/index.js';
 import { applyGameTheme, GAMES, randomShelfGame } from './games.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -322,6 +327,50 @@ const ctx = {
       const name = (ui.name || '').trim() || lastName() || 'You';
       lastName(name);
       state = await net.createGame(name, 0, 'online', { game: 'gofish' });
+      ui.route = 'game';
+      net.connect();
+      render();
+      for (let i = 0; i < SOLO_BOTS; i += 1) {
+        try {
+          await net.send({ type: 'player/addBot', level: SOLO_LEVEL });
+        } catch {
+          /* the lobby has its own way to add one */
+        }
+      }
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /**
+   * A Kings Corner game.
+   *
+   * Nothing to ask on the way in. One deck, seven cards each, no variant - so
+   * the front page asks for a name and gets out of the way.
+   */
+  async createKingsCorner(name) {
+    try {
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'kingscorner' });
+      ui.route = 'game';
+      net.connect();
+      render();
+    } catch (error) {
+      toast(error.message);
+    }
+  },
+  /**
+   * Kings Corner against three bots, in one tap.
+   *
+   * Three opponents makes four round the table, which is the size this game is
+   * best at - twenty cards left in the stock, and eight slots between four
+   * people rather than between six.
+   */
+  async playKingsCornerSolo() {
+    try {
+      const name = (ui.name || '').trim() || lastName() || 'You';
+      lastName(name);
+      state = await net.createGame(name, 0, 'online', { game: 'kingscorner' });
       ui.route = 'game';
       net.connect();
       render();
@@ -653,6 +702,11 @@ function resetGameView() {
   ui.shGiveUp = false;
   ui.shSending = null;
   ui.gfNew = null;
+  // A lifted card or a lifted pile points into a board that has gone. Both are
+  // within-turn state and neither may outlive its game.
+  ui.kcCard = null;
+  ui.kcPile = null;
+  ui.kcNew = null;
   ui.settingsOpen = false;
   ui.helpOpen = false;
   ui.helpStep = 0;
@@ -676,6 +730,7 @@ net.on('state', (next) => {
   if (next.game === 'chase') return onChaseState(next);
   if (next.game === 'cheat') return onCheatState(next);
   if (next.game === 'gofish') return onGoFishState(next);
+  if (next.game === 'kingscorner') return onKingsCornerState(next);
 
   const roundChanged = next.roundIndex !== lastRoundIndex;
   const phaseChanged = next.phase !== lastPhase;
@@ -1077,6 +1132,90 @@ function onGoFishState(next) {
  * hand stay put — "the last thing you picked up" is still the last thing you
  * picked up after you have laid a book down.
  */
+/**
+ * A Kings Corner state landing.
+ *
+ * The one thing here that is not bookkeeping: a turn is a CHAIN, so the lifted
+ * card and the lifted pile have to survive a state arriving mid-turn - your own
+ * move comes back as a push and clearing the selection on every push would drop
+ * whatever you had picked up next. They are cleared when the turn moves on
+ * instead, which is the moment they stop meaning anything.
+ */
+function onKingsCornerState(next) {
+  const phaseChanged = next.phase !== lastPhase;
+  const wasYourTurn = Boolean(state && state.you && state.you.isTurn);
+  const turnMoved = !state || state.turnId !== next.turnId;
+
+  if (phaseChanged || turnMoved || !next.you || !next.you.isTurn) {
+    ui.kcCard = null;
+    ui.kcPile = null;
+  }
+  // A lifted card that has since been played is not lifted any more. Cheaper
+  // and more honest than trusting the tap that played it to clear it, because a
+  // refusal leaves the card where it was and it should stay picked up.
+  if (ui.kcCard && next.you && !(next.you.hand || []).includes(ui.kcCard)) ui.kcCard = null;
+  if (phaseChanged) ui.confirmLeave = false;
+
+  markKingsCornerArrival(next, phaseChanged);
+
+  if (phaseChanged && next.phase === 'playing') {
+    buzz([14, 70, 14]);
+    sound('deal');
+  }
+  if (next.you && next.you.isTurn && !wasYourTurn) {
+    buzz(12);
+    sound('turn');
+  }
+  // A card going down or a pile crossing the table, by anybody. The sound the
+  // table makes while it is somebody else's go.
+  if (state && next.lastEvent && (next.lastEvent.kind === 'play' || next.lastEvent.kind === 'move')) {
+    const before = state.lastEvent ? state.lastEvent.at : null;
+    if (next.lastEvent.at !== before) sound('card');
+  }
+  if (phaseChanged && next.phase === 'complete') {
+    const won = next.you && (next.winnerIds || []).includes(next.you.id);
+    buzz(won ? [14, 50, 14] : 20);
+    sound(won ? 'win' : 'lose');
+  }
+
+  state = next;
+  lastPhase = next.phase;
+  // The same tail every other engine's handler has. `arrived` is what routes a
+  // phone INTO the game and puts the colours on - a state landing on a phone
+  // that followed a shared link or woke up mid-game is the only way in, and
+  // leaving it out strands them on whatever screen they were looking at.
+  arrived(next);
+  if (next.phase === 'complete') releaseWake();
+  else keepAwake();
+  render();
+}
+
+/**
+ * Which card you have just picked up.
+ *
+ * You draw at most one card a turn, you cannot play it, and it files itself into
+ * a hand kept in suit order - so without a mark the hand simply looks one
+ * longer. Worked out on the client by comparing consecutive hands, exactly as Go
+ * Fish does, and for the same reason: your own hand is only ever in your own
+ * view, so the difference between two of them is too.
+ *
+ * The three cases that must come out as "nothing is new" are the deal, a phone
+ * reconnecting with no previous hand, and a hand that only shrank. Each was a
+ * bug in Go Fish before it was a rule here.
+ */
+function markKingsCornerArrival(next, phaseChanged) {
+  const before = state && state.you ? state.you.hand : null;
+  const now = next.you ? next.you.hand : null;
+  if (!now || phaseChanged || !before || !before.length || !state || state.id !== next.id) {
+    ui.kcNew = null;
+    return;
+  }
+  const had = new Set(before);
+  const arrived = now.filter((card) => !had.has(card));
+  if (arrived.length) ui.kcNew = arrived;
+  else if (ui.kcNew) ui.kcNew = ui.kcNew.filter((card) => now.includes(card));
+}
+
 function markWhatArrived(next, phaseChanged) {
   const before = state && state.you ? state.you.hand : null;
   const now = next.you ? next.you.hand : null;
@@ -1109,6 +1248,7 @@ function pickScreen() {
     if (ui.game === 'chase' && !shared) return chaseWelcome(ctx);
     if (ui.game === 'cheat' && !shared) return cheatWelcome(ctx);
     if (ui.game === 'gofish' && !shared) return gofishWelcome(ctx);
+    if (ui.game === 'kingscorner' && !shared) return kingscornerWelcome(ctx);
     return welcomeScreen(ctx);
   }
   if (state.game === 'sillyhead') return sillyheadScreen(ctx);
@@ -1116,6 +1256,7 @@ function pickScreen() {
   if (state.game === 'chase') return chaseScreen(ctx);
   if (state.game === 'cheat') return cheatScreen(ctx);
   if (state.game === 'gofish') return gofishScreen(ctx);
+  if (state.game === 'kingscorner') return kingscornerScreen(ctx);
   // Handing the phone to someone else outranks the phase. Their bid is often
   // the one that locks the round, and without this the phone would jump
   // straight to the revealed bids while they were still holding it - losing
@@ -1147,6 +1288,7 @@ function screenKey() {
   if (state.game === 'chase') return chaseScreenKey(state);
   if (state.game === 'cheat') return cheatScreenKey(state);
   if (state.game === 'gofish') return gofishScreenKey(state);
+  if (state.game === 'kingscorner') return kingscornerScreenKey(state);
   if (ui.takeover) return 'takeover';
   return `game:${state.phase}:${ui.correcting ? 'fix' : ''}`;
 }

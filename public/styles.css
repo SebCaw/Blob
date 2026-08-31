@@ -6153,3 +6153,335 @@ html[data-size='huge'] .gf-tools { min-height: 86px; }
     animation: none;
   }
 }
+
+/* ==========================================================================
+   KINGS CORNER
+   --------------------------------------------------------------------------
+   A three-by-three grid with the stock in the middle. That is not a compromise
+   for the phone - it IS the layout: four cross slots on the edges, four corners
+   on the corners, and the whole thing comes out square, which is the one shape
+   a 560px column has plenty of.
+
+   The board is sized against the column rather than in absolute pixels, because
+   at the largest text setting `zoom` shrinks the viewport in design pixels to
+   about 268 on a 375 phone - a board pinned at 340px would run straight off it.
+   ========================================================================== */
+
+.kc-play { gap: 10px; }
+
+.kc-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--night-700);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.kc-chip--code { color: var(--ink-soft); }
+
+/* The line is reserved even when it is short, so a status that grows by a word
+   does not resize the board under it. */
+.kc-status {
+  margin: 0;
+  min-height: 21px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* `isolation` rather than `position: relative`, which does NOT create a
+   stacking context. Sevens learned this: its columns were numbered around 40,
+   which is `.sheet`, so opening settings mid-game left cards painted on top of
+   the panel. */
+.kc-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: min(100%, 340px);
+  margin: 0 auto;
+  isolation: isolate;
+}
+
+.kc-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 86px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 0;
+  font-family: var(--font);
+  color: inherit;
+}
+
+.kc-cell--stock {
+  gap: 2px;
+  background: radial-gradient(circle at 50% 45%, var(--night-700), var(--night-800));
+  border-radius: 50%;
+}
+.kc-stock__count {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-faint);
+}
+.kc-stock__gone {
+  width: 30px;
+  height: 42px;
+  border-radius: 8px;
+  border: 2px dashed var(--night-600);
+}
+
+/* A slot is a button doing three jobs - play here, lift this, tell me why not -
+   because the slot is the thing you are already looking at, and a separate
+   "move pile" control somewhere else would mean finding it. */
+.kc-slot {
+  cursor: pointer;
+  background: var(--night-800);
+  border: 2px solid var(--night-700);
+  border-radius: var(--radius-sm);
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+.kc-slot--bare { background: transparent; border-style: dashed; }
+.kc-slot:active { transform: translateY(2px); }
+
+/* Somewhere this card, or this pile, will actually go. */
+.kc-slot--target {
+  border-color: var(--lime);
+  box-shadow: 0 0 0 2px var(--lime-deep) inset, 0 0 18px rgba(0, 0, 0, 0.35);
+}
+/* The pile you have picked up. Gold, the same colour as "the game is waiting on
+   you", because that is what it is. */
+.kc-slot--held {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px var(--gold-deep) inset;
+}
+/* This pile can be lifted. Deliberately quiet - it is an option, not an
+   instruction, and there can be several on screen at once. */
+.kc-slot--liftable::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  bottom: 5px;
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ink-faint);
+  opacity: 0.65;
+}
+.kc-slot--landed { animation: kc-land 620ms ease-out; }
+@keyframes kc-land {
+  0% { box-shadow: 0 0 0 3px var(--lime); }
+  100% { box-shadow: none; }
+}
+
+/* Both ends of a pile are load-bearing here, which is unique in this app: the
+   LOWEST card decides what can be played onto it, the HEAD decides where the
+   whole pile can move. So both are drawn, and you never have to tap a slot to
+   find out what it will take. */
+.kc-pile { display: flex; flex-direction: column; align-items: center; }
+.kc-pile__head {
+  display: block;
+  margin-bottom: -30px;
+  opacity: 0.72;
+  filter: saturate(0.7);
+}
+.kc-pile__low { display: block; }
+
+.kc-slot__count {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ink-faint);
+}
+
+/* The two kinds of empty slot are not the same hole and must not look like it.
+   A corner takes a king and nothing else for the whole game; a bare cross slot
+   is the only square in the game that will take absolutely anything, which
+   makes it the most valuable thing on the board. */
+.kc-empty {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  color: var(--ink-faint);
+}
+.kc-empty__mark { font-size: 22px; line-height: 1; font-weight: 800; }
+.kc-empty__note { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+.kc-empty--any { color: var(--ink-soft); }
+.kc-empty--any .kc-empty__mark { color: var(--lime); }
+
+/* Your cards, and the ring that says the game is waiting on you.
+
+   On the block your own cards live in rather than on a caption at the top,
+   because at a table of five it was still possible to sit there while everybody
+   waited - your eyes are on your hand, not on a status line above the board.
+
+   `outline` and `box-shadow`, never a border or padding: `fitFan` measures this
+   block after paint, and a turn that changed its height would re-fan every card
+   each time it came round. */
+.kc-yours {
+  display: grid;
+  place-items: center;
+  min-height: 92px;
+  padding: 4px 0;
+}
+.kc-yours--turn {
+  border-radius: var(--radius);
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+  box-shadow: 0 0 26px rgba(255, 201, 60, 0.2);
+  animation: kc-your-go 2.1s ease-in-out infinite;
+}
+@keyframes kc-your-go {
+  0%, 100% { outline-color: var(--gold); box-shadow: 0 0 26px rgba(255, 201, 60, 0.2); }
+  50% { outline-color: rgba(255, 201, 60, 0.42); box-shadow: 0 0 8px rgba(255, 201, 60, 0.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kc-yours--turn { animation: none; }
+  .kc-slot--landed { animation: none; }
+}
+
+.kc-hands { display: grid; gap: 6px; justify-items: center; }
+.kc-hands__empty { margin: 0; color: var(--ink-faint); font-size: 15px; }
+
+/* The card you have picked up, held above the fan. Gold rather than lime,
+   because lime already means "this is legal" on the slots it can go to, and the
+   two would be saying different things in the same colour. */
+.kc-play .card-face--lifted {
+  transform: translateY(-20px);
+  border-color: var(--gold);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  z-index: 3;
+}
+
+/* You draw at most one card a turn and cannot play it, and a hand kept in suit
+   order files it away where you will not spot it - so it is marked until it
+   goes. */
+.kc-card--fresh { box-shadow: 0 0 0 2px var(--gold) inset; }
+
+.kc-actions { display: grid; gap: 4px; }
+.kc-actions__note {
+  margin: 0;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+.kc-waiting {
+  margin: 0;
+  min-height: var(--tap);
+  display: grid;
+  place-items: center;
+  color: var(--ink-faint);
+  font-size: 15px;
+}
+
+/* How many cards everybody is holding: the only running score this game
+   produces, and public - you can count them across a table. */
+.kc-seats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.kc-seat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--night-800);
+  font-size: 13px;
+}
+.kc-seat__name {
+  color: var(--ink-soft);
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kc-seat__count { font-weight: 800; }
+.kc-seat--turn { background: var(--night-600); box-shadow: 0 0 0 1.5px var(--gold); }
+.kc-seat--turn .kc-seat__name { color: var(--ink); }
+.kc-seat--you .kc-seat__name { font-weight: 800; }
+.kc-seat--away { opacity: 0.55; }
+
+/*
+   The largest text size, where the board has to give the room back.
+
+   Measured on a 375x812 phone with four players: the seat counts ended at 897
+   against an 812 viewport - 85px below the fold. The page scrolls, so nothing
+   was unreachable, but the rule is to let the measurement decide WHAT to drop
+   rather than only whether to scroll.
+
+   What gives is the board, because it is the biggest block on the screen and
+   three rows of it at 1.4 is 361px on its own. The cards inside it do not
+   shrink; only the room around them does. The caption under the turn button
+   goes as well - it explains a rule the button label already states, and
+   "controls stay, captions go" is the same call the bidding pad makes.
+*/
+html[data-size="huge"] .kc-cell { min-height: 66px; }
+html[data-size="huge"] .kc-actions__note { display: none; }
+html[data-size="huge"] .kc-yours { min-height: 0; }
+html[data-size="huge"] .kc-play { gap: 6px; }
+
+.kc-over__who { display: grid; gap: 4px; }
+.kc-over__cards { display: flex; flex-wrap: wrap; gap: 3px; }
+.kc-over__out { color: var(--lime); font-size: 13px; font-weight: 700; }
+
+/*
+   The seventh tile, and the shelf had eleven pixels spare.
+
+   Six tiles plus the code box ended at 801px against an 812px viewport at this
+   size. A seventh is about another 112, so it does not fit and no amount of
+   tightening makes it - the taglines, the heading and the "Got a code?" label
+   have already gone to pay for the box.
+
+   So at the largest size ONLY, the tiles become two columns: four rows instead
+   of seven. Scrolling was the other option and it is worse, because the failure
+   it produces is somebody never finding half the games - which is the exact
+   failure this whole height budget exists to prevent.
+
+   Measured rather than assumed. The failure here is silent and happens at one
+   text setting only.
+*/
+html[data-size="huge"] .shelf__list {
+  /* minmax(0, 1fr) rather than 1fr. A grid track sized 1fr still has
+     min-width: auto, so a tile whose name will not break - Kings Corner, Chase
+     the Ace - widens its own track and pushes the second column off the side of
+     the phone. It looked like the column was clipped; it was the grid growing.
+     Measured: scrollWidth 468 against a clientWidth of 375. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+html[data-size="huge"] .tile { padding: 10px 12px; }
+
+/* The name WRAPS here rather than being ellipsised, and that is the whole point
+   of the two columns being worth having.
+
+   At half width the single-line rule truncated every long name: Cheat and Chase
+   the Ace both came out as "Ch...", which is two tiles nobody can tell apart on
+   the one screen whose entire job is showing you what there is. That is the same
+   failure the height budget exists to prevent, wearing a different hat. Two
+   short lines of name cost about 20px and are worth every one of them. */
+html[data-size="huge"] .tile__name {
+  font-size: 17px;
+  line-height: 1.12;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+/* The icon goes, and only here.
+
+   A half-width column cannot hold an icon and a name side by side: leaving both
+   in spilled the name across the icon, and breaking the name to avoid it gave
+   "Kin gs Cor ner", which is worse than either. The name is the information and
+   the icon is decoration, so the icon is what goes - the same call the taglines
+   already lost at this size, for the same reason. */
+html[data-size="huge"] .tile__icon { display: none; }
+html[data-size="huge"] .tile__players { letter-spacing: 0.04em; }
