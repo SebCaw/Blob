@@ -3,8 +3,13 @@
 Written for a session starting cold. Read it top to bottom before touching
 anything; it is ordered so you can act from the first section.
 
-Repo: `C:\Users\sebca\Projects\Blob`. Everything is committed and pushed to
-`main`, working tree clean, `npm test` green at **386 passing**.
+Repo: `C:\Users\sebca\Projects\Blob`. `npm test` green at **423 passing**.
+
+**One thing is not on `main`.** The seventh game, Kings Corner, is finished and
+pushed to the branch `kings-corner` — both halves, both browser checkpoints
+passed, tile live on the shelf. It is on a branch rather than `main` because Seb
+had not played it yet at the point the session ended. Merging it is a merge and
+nothing else; there is no unfinished work in it.
 
 Live at `https://blob-nm9h.onrender.com` on Render's free tier, which sleeps when
 nobody is playing and forgets every game it was running when it does. That is the
@@ -35,10 +40,15 @@ A Node/SSE multiplayer card-game app for Seb's family. **No dependencies, no
 build step.** One server runs every game through an engine registry; phones join
 by a four-digit code, a shared link, or a QR code they now scan inside the app.
 
-Six games are built and playable: **Blob**, **Silly Head**, **Sevens**, **Chase
-the Ace**, **Cheat**, **Go Fish**. **Solitaire** is the planned seventh, and it
-**has no hue left** — the warm end of the shelf is full and both blues are taken.
-Worth solving before it starts.
+Seven games are built and playable: **Blob**, **Silly Head**, **Sevens**, **Chase
+the Ace**, **Cheat**, **Go Fish**, **Kings Corner**. Solitaire was going to be the
+seventh and is **on hold, possibly for good** — Seb's reservation is that the
+world is already full of Solitaire, and it is the only game on the list with no
+group in it.
+
+The hue budget did not run out: Kings Corner took 178, a teal, with a coral
+accent. See `ADDING-A-GAME.md` for the one thing about that accent worth looking
+at on a real screen.
 
 **Read in this order:**
 
@@ -60,6 +70,34 @@ Worth solving before it starts.
 ---
 
 ## 2. What changed most recently
+
+### Kings Corner — the seventh game, on the `kings-corner` branch
+
+Rules in `KINGS-CORNER.md`, settled with Seb before any code. Two things in it
+have no precedent here: **a turn is a chain** of moves ended by an explicit
+`play/endTurn` rather than being one card, and `play/movePile` is **the first
+command that touches nobody's hand**. A turn cannot go round for ever for a
+structural reason rather than a careful one — a pile may only land on another
+pile, so every pile move reduces the number of occupied slots by one.
+
+**Its bot ladder could not be established, and that is written down rather than
+papered over.** Only `easy` is separated. Four heuristics were built and thrown
+away for making the bots measurably WORSE, and both obvious ways to measure a
+ladder turned out to be invalid instruments — heads-up is won by whoever leads
+100% of the time, and a uniform field can be free-ridden. The sharpest finding
+generalises past this game: **counting the deck here is worth less than nothing**,
+because what it informs is a shared resource, so acting on it helps everybody at
+the table equally. `lib/kingscorner/bot.js` and `ADDING-A-GAME.md` carry the
+detail.
+
+Five bugs came out of the browser and none would have failed a test. The two
+worth knowing before touching any state handler: a crash inside one looks
+**exactly** like a broken SSE push (a typo threw before `state = next`, and the
+second phone sat on the lobby through a whole dealt game while every push
+arrived perfectly — read the console on the phone that is behaving oddly, not on
+the one you are driving); and `arrived(next)` is part of the handler contract
+that nothing enforces, so leaving it out strands anybody arriving by shared link.
+
 
 ### QR reading — `public/qr-read.js`, `public/scan.js`
 
@@ -142,7 +180,27 @@ still only at the end of a game.
 
 ---
 
-## 3. The shelf height budget — read before adding a seventh game
+## 3. The shelf height budget — spent, and how
+
+**The seventh tile arrived and the prediction below was exactly right**: in one
+column at the largest text setting it ended at **937px against an 812px
+viewport**. It is now a **two-column grid at that size only**, measured at
+639px, and scrolling was rejected because the failure it produces is somebody
+never finding half the games — which is the failure this whole budget exists to
+prevent.
+
+Getting there took three goes and every failure was silent. `1fr 1fr` overflows,
+because a 1fr track still has `min-width: auto` and a name that will not break
+widens its own track and pushes the second column off the phone; use
+`minmax(0, 1fr)`. Then the names ellipsised to "Ch..." for **both** Cheat and
+Chase the Ace. Then `overflow-wrap: break-word` gave "Kin gs Cor ner". What
+worked was **dropping the icon at that size**: the name is the information and
+the icon is decoration, the same call the taglines already lost.
+
+An eighth tile is another two rows and there is room for it. The original
+reasoning is kept below because it is why the arithmetic is watched at all.
+
+## 3a. The original budget — read before adding an eighth game
 
 `html[data-size='huge']` in `styles.css` exists because the largest text setting
 multiplies everything by 1.4, and six tiles plus a code box do not fit a phone.
@@ -234,6 +292,19 @@ A 160-game script is twenty lines and it is the only thing that tells you whethe
 "impossible" means anything. Silly Head's ladder test was dismissed as flaky for
 weeks and turned out to be reporting a real drift — its middle rung had narrowed
 to 53.4%, barely a coin toss.
+
+**Kings Corner added two more, and they are about method.** First: **check that
+your instrument can measure the thing you think it is measuring.** Both obvious
+ways to rank bots gave confident wrong answers there - heads-up reported a
+perfect 50.0% for every rung while measuring nothing but who went first, and
+one-against-three-of-a-kind produced two contradictory results that were both
+true, because a uniform field can be free-ridden. Run one policy against itself
+first; if that does not come out at baseline, nothing above it means anything.
+
+Second: **the value of information depends on whether the thing it tells you
+about is yours.** Counting the deck earns Go Fish its top rung and is worth less
+than nothing in Kings Corner, because there the count informs decisions about
+eight shared slots and acting on it helps everybody equally.
 
 `tools/soak.js` drives the reducers directly and is the fastest way to hammer a
 game without a browser. `SOAK-REPORT.md` records what it found last time.

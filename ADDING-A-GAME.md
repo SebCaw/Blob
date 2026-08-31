@@ -80,6 +80,22 @@ What each one demands that the platform does not already do:
   playing: a game essentially never makes all thirteen books. It averages 11.8 and
   stops when there is nobody left to ask.
 
+- **Kings Corner** — **BUILT and on the shelf. See `KINGS-CORNER.md`.** It
+  became game seven ahead of Solitaire, and it is the better seventh: a real
+  multiplayer game where Solitaire is a single-player one, so it exercised the
+  machinery that actually breaks.
+
+  Two things it added that nothing here had. A **turn is a chain of moves**
+  ended by an explicit command rather than being one card, which means per-turn
+  state in the reducer and a bot that returns one move and is asked again — and
+  an `at` key that must move on every move INSIDE the turn, or the room's early
+  return leaves a bot sat there after its first card. And it has **a move with no
+  card in it**: a whole pile lifted off one slot onto another, where every other
+  command in every engine is "play this card from my hand".
+
+  It is also the first game whose **bot ladder could not be established**, and
+  the first where a genuinely informative signal measured as harmful. See the
+  cost section below — that lesson is about method and it generalises.
 - **Solitaire** — **single player, and two variants under one tile: traditional
   (Klondike) and around the clock (Clock Patience).** See the section below; it
   is the odd one out and needs its own treatment.
@@ -973,6 +989,93 @@ eyes during the seconds you were trying to read a claim. Seb described the scree
 as reloading. Somebody else's thinking is not yours to act on - and anything that
 repaints during a moment the player is trying to read is noise, however true.
 
+## What building Kings Corner actually cost
+
+The seventh game, and the reducer-to-glass ratio held for a seventh time:
+rules, view, bots and thirty-four tests in one stretch, and every problem worth
+writing down afterwards. Five things generalise.
+
+**The bot ladder is not a ladder, and finding that out was most of the work.**
+Only `easy` came out separated. `medium`, `hard` and `impossible` measure 27-34%
+at a mixed table against a 25% baseline with no stable ordering. Four heuristics
+were built, measured and thrown away for making the bots WORSE. The details are
+in `KINGS-CORNER.md` and `lib/kingscorner/bot.js`; three things belong here
+because they are about method rather than about this game.
+
+**Both of the obvious measuring instruments were invalid, and each looked
+perfect while lying.** Heads-up reported exactly 50.0% for every rung, which
+reads as a beautifully balanced measurement and was measuring the seat: in a
+mirror match between two competent bots, whoever leads wins 100% of the time,
+and the harness swapped seats every other game. Then "one challenger against
+three of a kind" produced "hard beats a field of mediums" AND "medium beats a
+field of hards" - both true, because a uniform field can be free-ridden. **Before
+trusting a ladder number, check that the instrument can distinguish the thing you
+think it is measuring**; a null run of one policy against itself should come out
+at baseline, and if it does not, nothing above it means anything.
+
+**The value of information depends on whether the thing it tells you about is
+yours.** Cheat and Go Fish both taught that a top rung needs a different KIND of
+knowledge. Kings Corner is the counter-example and it is worth holding next to
+them: counting the deck here is real knowledge, correctly derived, entirely
+public - and worth less than nothing. A field of counting bots was markedly
+easier to beat than a field without (46% against 24%). What the counting informs
+is the eight shared slots, so acting on it helps everyone at the table equally.
+Go Fish's counting pays because a book is yours alone.
+
+**A game can be shaped so its best play is generous.** Freeing a slot is the
+move Kings Corner appears to be about, and at four players it is a gift: the slot
+is used by the three people who play before it comes back to you. Bots that did
+it proactively lost about ten points; bots that never did it at all collapsed.
+The optimum is to free one only when you have nothing else left to do. Worth
+knowing before designing a bot for any game with a shared board.
+
+**Say so when a ladder is not real.** Four levels are offered because the lobby
+and the platform expect four. The lobby blurbs describe what each one
+demonstrably does - "puts one card down and stops", "plays out its whole turn" -
+rather than promising a difficulty nobody has established, and the shortfall is
+written down in the game's own file. Claiming a bot is unbeatable when it is
+level with the one below it is a small lie the player finds out about.
+
+### And on the glass
+
+**`arrived(next)` is part of the state-handler contract and nothing says so.**
+Every other engine's handler ends with the same four lines and mine had three of
+them. It is what routes a phone INTO a game and puts the colours on, so leaving
+it out strands anybody arriving by shared link or waking mid-game. If the
+handlers are ever generalised, that tail is the part to lift.
+
+**A crash inside a state handler looks exactly like a broken SSE push.** A
+`holdWake is not defined` typo threw before `state = next`, so the second phone
+sat on the lobby through an entire dealt game while every push arrived
+perfectly. Half an hour went on the network before the console was read. **Read
+the console on the phone that is behaving oddly, not on the one you are driving.**
+
+**`topbar`'s default title is Blob's.** ADDING-A-GAME.md already recorded that
+passing `left: codeChip(state)` draws the code twice, which Cheat's table does.
+Removing the chip exposed the other half of the same trap: with no `left` and no
+`title`, the default is `Round N of M` falling back to `Lobby`, so a game with no
+rounds sits under the word Lobby for its whole length. **A new table screen needs
+an explicit `title:` and no `left:`.**
+
+**Two columns of tiles is not one CSS rule.** The seventh tile ended at 937px
+against an 812px viewport at the largest text size, exactly as the height budget
+predicted. Getting to two columns took three goes and each failure was silent:
+`grid-template-columns: 1fr 1fr` overflows, because a 1fr track still has
+`min-width: auto` and a name that will not break widens its own track and pushes
+the second column off the phone - use `minmax(0, 1fr)`. Then the names
+ellipsised, giving "Ch..." for both Cheat and Chase the Ace, which is two tiles
+nobody can tell apart on the one screen whose job is showing you what there is.
+Then `overflow-wrap: break-word` gave "Kin gs Cor ner". **What finally worked was
+dropping the icon at that size** - the name is the information, the icon is
+decoration, and the taglines had already gone for the same reason. Measured
+after: 639px against 812, no horizontal overflow.
+
+**Let the measurement decide what to drop, on the table as well as the shelf.**
+The table itself ran 85px past the fold at the largest size. The page scrolled,
+so nothing was unreachable and the naive check passed - but the fix is the board
+giving room back rather than the screen moving, because the board is the biggest
+block and its cards do not need to shrink for it to do so.
+
 ## The screen key, and the bug it caused twice
 
 `app.js` plays the whole entry animation whenever `screenKey()` CHANGES. So a
@@ -1089,7 +1192,22 @@ Sevens is also already a blue at 205, so Go Fish had to go deep - 228 - to be
 tellable apart from it on the shelf, where the tiles sit side by side each
 carrying its own hue AND its own accent (`screens/shelf.js:86`).
 
-**Solitaire is the seventh game and there is no obvious hue left for it.** Worth
+**Kings Corner took the seventh hue: 178, a teal**, with a coral `#ff3d47` at
+S100 L62 straight off the accent rule — the first red accent in the app, and the
+shelf had nothing else in that family. It sits between Silly Head's 148 and
+Sevens' 205, which is the cluster this section named in advance as the one most
+likely to need separating; on a phone the three tiles are tellable apart, so the
+prediction held and the budget did not run out.
+
+**One thing to look at on a real screen before copying the rule blindly.** The
+derived accent doubles as the `--lime` token, which is what every screen paints
+"this is the thing to tap" and "this card is playable" in. A red one puts a red
+ring on a playable card and a red primary button on the table, and red is a
+strong convention for something else. It is consistent, it is the rule working,
+and it may still be wrong — flagged rather than changed, because repainting a
+game's accent is Seb's call.
+
+**Solitaire was to be the seventh game and there was no obvious hue left for it.** Worth
 solving before it is started rather than after - though see the section above,
 which is where the hue problem most likely goes away by the game not being
 built. Six games have used the usable arc almost exactly as planned, which is
