@@ -124,8 +124,13 @@ test('every round is dealt fresh, and the lead moves round a seat', () => {
   const second = game.currentRound(state);
 
   assert.notEqual(second.seed, first.seed);
-  assert.equal(first.leadId, state.players[0].id);
-  assert.equal(second.leadId, state.players[1].id);
+  // Relative to wherever the lead started, not to seat one: where the rotation
+  // BEGINS is now drawn from the game's id, so that round one is not always the
+  // person who made the room. The rotation itself is what this test is about.
+  const ids = state.players.map((p) => p.id);
+  const firstAt = ids.indexOf(first.leadId);
+  assert.ok(firstAt >= 0, 'the lead is one of the seats');
+  assert.equal(second.leadId, ids[(firstAt + 1) % ids.length], 'and it moves round a seat');
   assert.equal(second.handSize, 2, 'the round sequence still counts down');
 });
 
@@ -193,7 +198,25 @@ test('you have to follow suit while you can, and the refusal says which suit', (
   let round = game.currentRound(state);
 
   const leaderId = round.trick.turnId;
-  const led = round.hands[leaderId][0];
+  const order = game.roundPlayers(state, round).map((p) => p.id);
+  const nextUp = order[(order.indexOf(leaderId) + 1) % order.length];
+
+  // Lead a suit the next player can actually follow, rather than whatever
+  // happens to be first in the leader's hand.
+  //
+  // It used to take `hands[leaderId][0]` and assert that it worked out, which
+  // held only because the deal was deterministic AND the leader was always seat
+  // one. Now that where the lead starts is drawn from the game's id, the same
+  // line was testing the deal instead of the rule. What the rule needs is a
+  // led suit the next player holds and something off-suit to refuse; this picks
+  // exactly that, and still fails loudly if no such hand exists.
+  const led = round.hands[leaderId].find((card) => {
+    const suit = suitOf(card);
+    const theirs = round.hands[nextUp];
+    return theirs.some((c) => suitOf(c) === suit) && theirs.some((c) => suitOf(c) !== suit);
+  });
+  assert.ok(led, 'this deal should let the leader lead a suit the next player can follow');
+
   state = ok(state, { type: 'trick/play', cardId: led }, leaderId, ctxf).state;
   round = game.currentRound(state);
 
@@ -203,8 +226,7 @@ test('you have to follow suit while you can, and the refusal says which suit', (
   const canFollow = hand.filter((c) => suitOf(c) === ledSuit);
   const offSuit = hand.find((c) => suitOf(c) !== ledSuit);
 
-  // Asserted rather than skipped: the deal is deterministic, so if a change ever
-  // stops this hand holding both, the test says so instead of quietly passing.
+  assert.equal(nextId, nextUp, 'and the turn passed to the player we chose the card for');
   assert.ok(canFollow.length, 'this deal should leave the second player able to follow');
   assert.ok(offSuit, 'and holding something off-suit to be refused');
 

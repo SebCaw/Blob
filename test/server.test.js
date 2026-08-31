@@ -958,13 +958,31 @@ test('a phone that goes mid-trick puts the choice in front of the Master', async
   for (const session of sessions) await send(app, session, { type: 'bid/submit', playerId: session.playerId, value: 0 });
   const opened = await streams[0].waitFor((s) => s.phase === 'playing', 'playing');
 
-  // The Master leads, so the next player to act is somebody else — then their
-  // phone goes, mid-trick, with everyone else sat waiting.
-  assert.equal(opened.round.trick.turnId, host.playerId);
-  await send(app, host, { type: 'trick/play', cardId: opened.you.playable[0] });
-  const waiting = await streams[0].waitFor((s) => s.round && s.round.trick && s.round.trick.plays.length === 1, 'one card down');
-  const missingIndex = sessions.findIndex((s) => s.playerId === waiting.round.trick.turnId);
-  assert.ok(missingIndex > 0);
+  // Play until the turn sits on somebody who is NOT the Master, then their phone
+  // goes mid-trick with everyone else waiting on them.
+  //
+  // It used to assert that the Master led. That held only because round one
+  // always started at seat one, and where the rotation begins is now drawn from
+  // the game's id — so the test has to find the leader rather than assume it.
+  // What it is actually about is unchanged: the offer goes to the Master and to
+  // nobody else.
+  let waiting = opened;
+  let missingIndex = sessions.findIndex((s) => s.playerId === waiting.round.trick.turnId);
+  let cardsDown = 0;
+  while (missingIndex === 0 && cardsDown < sessions.length) {
+    const mine = await streams[0].waitFor(
+      (s) => s.round && s.round.trick && s.round.trick.turnId === host.playerId && s.you.playable.length,
+      'the Master to be on'
+    );
+    await send(app, host, { type: 'trick/play', cardId: mine.you.playable[0] });
+    cardsDown += 1;
+    waiting = await streams[0].waitFor(
+      (s) => s.round && s.round.trick && s.round.trick.plays.length === cardsDown,
+      'a card down'
+    );
+    missingIndex = sessions.findIndex((s) => s.playerId === waiting.round.trick.turnId);
+  }
+  assert.ok(missingIndex > 0, 'somebody other than the Master is on');
   streams[missingIndex].close();
 
   const offered = await streams[0].waitFor((s) => s.you.canSkipTurnsFor, 'the skip offer');
