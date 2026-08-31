@@ -1,6 +1,7 @@
 import { h, plural } from '../../ui.js';
 import { cardFace, cardBack, rankOf } from '../../cards.js';
-import { topbar, action, fitFan, splitHand } from '../common.js';
+import { topbar, action, splitHand } from '../common.js';
+import { uiZoom } from '../../size.js';
 
 /**
  * The Kings Corner table.
@@ -91,10 +92,68 @@ export function tableScreen(ctx) {
   );
 
   requestAnimationFrame(() => {
-    fitFan(screen, '.kc-hand');
+    fitHand(screen);
   });
 
   return screen;
+}
+
+/** How much of a card behind another one still has to show. */
+const FAN_MIN_SHOW = 0.34;
+
+/** Clear space kept either side of the fan, in the app's pixels. */
+const HAND_GUTTER = 14;
+
+/**
+ * How far apart to fan the hand, in both directions.
+ *
+ * The shared `fitFan` only ever TIGHTENS - it caps at the resting overlap, on
+ * the reasoning that a fan is a fan. That is right for a screen the width of a
+ * phone and wrong on a laptop, where this game's hand is seven cards in a
+ * seven-hundred pixel column and they huddled in the middle of it with the room
+ * going spare either side. Seb saw it immediately.
+ *
+ * So this measures the same way and clamps at BOTH ends: never tighter than a
+ * card you can still read by its corner, and never further apart than a small
+ * gap - past that they stop reading as one hand and start reading as seven
+ * cards that happen to be near each other.
+ *
+ * Measured rather than keyed on a breakpoint, so it needs no rule about which
+ * screens are wide: a big hand on a laptop still tightens, and a small one on a
+ * phone still spreads if the room is there.
+ */
+function fitHand(screen) {
+  const zoom = uiZoom();
+  for (const hand of screen.querySelectorAll('.kc-hand')) {
+    const cards = [...hand.querySelectorAll('.hand__card')];
+    if (cards.length < 2) continue;
+
+    // Clear the last answer before measuring, or the fit reads its own output
+    // and creeps every render.
+    hand.style.removeProperty('--fan-overlap');
+    // The ROOM, not the fan.
+    //
+    // `hand.clientWidth` is the fan itself, which is centred and shrink-to-fit -
+    // so measuring it says the hand is exactly as wide as the hand, every time,
+    // and there is never any room going spare. That is why the first version of
+    // this looked like it did nothing. The room is the block the fan sits in.
+    // `.kc-hands` is centred inside `.kc-yours` and therefore shrink-to-fit as
+    // well, so it is no better a measure than the fan. The block with the ring
+    // round it is the one that is actually the width of the screen.
+    const block = hand.closest('.kc-yours') || hand.parentElement || hand;
+    const room = block.getBoundingClientRect().width;
+    const available = room - HAND_GUTTER * 2 * zoom;
+    const cardWidth = cards[0].getBoundingClientRect().width;
+    if (!available || !cardWidth) continue;
+
+    const gaps = cards.length - 1;
+    const wanted = (available - cards.length * cardWidth) / gaps / zoom;
+    const tightest = -(cardWidth / zoom) * (1 - FAN_MIN_SHOW);
+    const loosest = 10;
+    // Floored rather than rounded: a fan a pixel too tight is invisible, and a
+    // pixel too wide runs off the phone.
+    hand.style.setProperty('--fan-overlap', `${Math.floor(Math.min(Math.max(wanted, tightest), loosest))}px`);
+  }
 }
 
 // ── The status line ──────────────────────────────────────────────────────────

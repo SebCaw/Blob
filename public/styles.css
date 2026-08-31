@@ -6424,9 +6424,21 @@ html[data-size='huge'] .gf-tools { min-height: 86px; }
    goes as well - it explains a rule the button label already states, and
    "controls stay, captions go" is the same call the bidding pad makes.
 */
-html[data-size="huge"] .kc-cell { min-height: 66px; }
+/* At the largest size the screen SCROLLS rather than squeezing.
+
+   Squeezing was tried first and it is what Seb saw overlap: the cells were
+   clamped to 66px to buy back the 85px the screen was overrunning, and a card
+   plus the head peeking out behind it does not fit in 66px, so the piles ran
+   over their own neighbours. The clamp is gone.
+
+   `.screen--fixed` already scrolls at any explicit size setting, and this
+   screen deliberately has no `--fits` - it has a turn button that must be
+   reachable, and the rule in this file is that a screen with a control to
+   reach takes the hatch. So the hatch does the job and nothing is clipped.
+
+   The caption under the button still goes: it explains a rule the button label
+   already states, and controls stay while captions go. */
 html[data-size="huge"] .kc-actions__note { display: none; }
-html[data-size="huge"] .kc-yours { min-height: 0; }
 html[data-size="huge"] .kc-play { gap: 6px; }
 
 /* The seat strip is one row that scrolls, never two that wrap.
@@ -6519,6 +6531,13 @@ html[data-size="huge"] .tile__players { letter-spacing: 0.04em; }
   min-height: 0;
 }
 
+/* The board never squashes below the cards it holds.
+
+   Its rows stretch to fill, which is what uses a tall window - but stretching
+   works both ways, and in a short one the same rule would shrink the rows under
+   the cards and overlap them. A floor stops that; the screen scrolls instead. */
+.kc-board { min-height: 288px; }
+
 /* And the board takes that room rather than floating in the middle of it.
 
    The rows stretch, so the nine cells grow and the CARDS stay exactly the size
@@ -6584,8 +6603,15 @@ html[data-size="huge"] .tile__players { letter-spacing: 0.04em; }
   background: var(--ink-faint);
   transition: transform 140ms ease, background 140ms ease;
 }
-.kc-hints__switch--on { background: var(--lime-deep); }
-.kc-hints__switch--on::after { transform: translateX(18px); background: var(--ink); }
+/* Green when on, and deliberately NOT the game accent.
+
+   The accent rule gives this game a red, so an "on" switch painted in it came
+   out as a red pill on a green track - which reads as a warning light rather
+   than as a setting that is switched on. `--good` is the token this app already
+   uses to mean yes, it is the same in every game, and a switch is the one
+   control where that meaning matters more than the theme. */
+.kc-hints__switch--on { background: var(--good); }
+.kc-hints__switch--on::after { transform: translateX(18px); background: var(--night-900); }
 
 @media (prefers-reduced-motion: reduce) {
   .kc-hints__switch,
