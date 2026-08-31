@@ -107,11 +107,19 @@ nothing, so you draw. *(Also on the Open list.)*
 You are told there is nothing to draw and it passes to the next person. The
 game does not stop.
 
-### Going out
+### Going out, and how it ends
 
-**Empty your hand and you have won**, the moment the last card lands. There is
-no scoring, no rounds and no second place — the same shape as Silly Head,
-Sevens, Cheat and Chase the Ace.
+**Going out does not end the game.** Empty your hand and you are out, in the
+place you earned — first, second, third — and everybody else plays on. The game
+stops when **one person is left holding cards**, and that person is the loser.
+
+This is Seb's rule and it changes what the game is about. By the time somebody
+has gone out, what is left at stake for everybody else is not winning; it is not
+being last. That is the same shape as Sevens and Silly Head, and it is why the
+end screen is an ORDER rather than a winner and a crowd.
+
+Your turn ends the moment your last card lands — there is nothing left for you to
+do — and the seat skips you from then on. No scoring and no rounds.
 
 ### The dead-board backstop
 
@@ -127,10 +135,20 @@ its tail — and moving it frees a slot. So a lock needs the pile moves to be
 exhausted as well, which makes it rare rather than impossible.
 
 **So: the stock is empty, and the table goes round twice with no card leaving
-any hand and no pile moved. The game stops, and fewest cards in hand wins,
-shared if it is level.** Two rounds rather than one because playing is optional
-and one round of everybody choosing to pass is a legal position, not a stuck
-one.
+any hand and no pile moved. The game stops there.** Two rounds rather than one
+because playing is optional, and one round of everybody choosing to pass is a
+legal position rather than a stuck one.
+
+Everybody still in is then placed by how few cards they are holding, which is
+the nearest honest thing to the order they would have gone out in, and whoever
+holds the most is the loser. Anybody already out keeps the place they earned.
+
+**A tie stays a tie.** The list of places needs a total order and takes an
+arbitrary tiebreak to get one, but the RESULT does not have to pretend:
+somebody who actually went out wins outright, and only a board that died with
+nobody out at all can be shared. If two people are level on the most cards,
+nobody is named the loser. A coin toss for a title nobody agreed to play for is
+worse than an honest draw.
 
 Same shape as Go Fish's barren rule and it carries the same warning: measure it
 in the soak rather than believing it. If it never fires in ten thousand games it
@@ -207,6 +225,36 @@ reported as a broken hitbox, and that has already cost a session once.
 `END TURN` when you have played something, `DRAW AND PASS` when you have not,
 `PASS` when the stock is empty. Never three controls appearing and disappearing
 under the thumb.
+
+**But it is only FILLED when there is nothing else you could do.** Seb played it
+and reported pressing it while still holding a playable card, which is exactly
+what a big solid button in the accent colour asks you to do — it was the loudest
+thing on the screen whether or not it was the right move. It is an outline while
+you still have a move and goes solid the moment it becomes the only thing left.
+Same button, same place, same words: only the shouting moves.
+
+**The board takes the height going spare.** The nine cells stretch and the cards
+stay exactly the size they were, which is the rule in `CLAUDE.md` — a bigger
+screen gets a bigger layout, not bigger type. Capped, because a laptop window is
+tall enough to make nine cells look like nine paddocks.
+
+### Hints, which are the Master's call
+
+**"Show what you can play" is a lobby setting**, on by default, and everybody
+plays under the same one — a table where one person is being shown the answers
+and the others are not is two different games. With it off, the screen stops
+ringing your playable cards, stops lighting up the slots a lifted card fits, and
+stops marking which piles can be moved.
+
+**What it does NOT do is stop the screen answering you.** An unplayable card
+still says what it is waiting for when you press it, and a slot still says why
+it will not take what you are holding. That is deliberate: a control that gives
+nothing back when pressed reads as broken, which has already cost this project a
+wrong diagnosis once. Turning the hints off should make the game harder, not
+make the app feel faulty.
+
+It is a convenience rather than a secret, so the legal moves still ride in the
+view. Nothing about the privacy boundary changes.
 
 **The gold ring goes on your hand block for as long as the game is waiting on
 you.** Silly Head's mechanism exactly — `outline` and `box-shadow`, never a

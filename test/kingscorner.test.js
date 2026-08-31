@@ -324,17 +324,54 @@ test('playing is optional — you may sit on a card that fits', () => {
 
 // ── Winning ──────────────────────────────────────────────────────────────────
 
-test('the first player to empty their hand wins there and then', () => {
+test('going out does not end the game \u2014 the rest play on', () => {
   const { state, ids } = started(3);
   const [a, b, c] = ids;
   let s = pin(state, { hands: { [a]: ['5H'], [b]: ['2S'], [c]: ['3D'] }, board: { N: ['6S'] }, turnId: a });
 
   s = ok(game.applyCommand(s, { type: 'play/card', cardId: '5H', slot: 'N' }, ctxFactory()(a)));
+
+  assert.equal(s.phase, 'playing', 'two people are still holding cards');
+  assert.deepEqual(s.finished, [a], 'and the first one out is written down');
+  assert.equal(s.lastEvent.wentOut, true);
+  assert.equal(s.lastEvent.place, 1);
+  assert.equal(s.turnId, b, 'their turn ends with their last card');
+});
+
+test('a player who is out is skipped, and never dealt another turn', () => {
+  const { state, ids } = started(3);
+  const [a, b, c] = ids;
+  let s = pin(state, { hands: { [a]: ['5H'], [b]: ['2S'], [c]: ['3D'] }, board: { N: ['6S'] }, stock: [], turnId: a });
+
+  s = ok(game.applyCommand(s, { type: 'play/card', cardId: '5H', slot: 'N' }, ctxFactory()(a)));
+  assert.equal(s.turnId, b);
+  s = ok(game.applyCommand(s, { type: 'play/endTurn' }, ctxFactory()(b)));
+  assert.equal(s.turnId, c, 'straight past the one who is out');
+  s = ok(game.applyCommand(s, { type: 'play/endTurn' }, ctxFactory()(c)));
+  assert.equal(s.turnId, b, 'and round again to the two still in');
+});
+
+test('the game ends when one player is left holding cards', () => {
+  const { state, ids } = started(3);
+  const [a, b, c] = ids;
+  // A goes out, then C does. B is the only one left, so that is that.
+  let s = pin(state, {
+    hands: { [a]: ['5H'], [b]: ['2S', '9C'], [c]: ['4C'] },
+    board: { N: ['6S'], E: ['5D'] },
+    turnId: a,
+  });
+
+  s = ok(game.applyCommand(s, { type: 'play/card', cardId: '5H', slot: 'N' }, ctxFactory()(a)));
+  assert.equal(s.phase, 'playing');
+  s = ok(game.applyCommand(s, { type: 'play/endTurn' }, ctxFactory()(b)));
+  s = ok(game.applyCommand(s, { type: 'play/card', cardId: '4C', slot: 'E' }, ctxFactory()(c)));
+
   assert.equal(s.phase, 'complete');
-  assert.deepEqual(s.winnerIds, [a]);
+  assert.deepEqual(s.finished, [a, c], 'in the order they went out');
+  assert.deepEqual(s.winnerIds, [a], 'first out wins');
+  assert.equal(s.loserId, b, 'last one holding cards');
   assert.equal(s.endReason, 'went-out');
   assert.equal(s.turnId, null);
-  assert.equal(s.lastEvent.wentOut, true);
 });
 
 test('a dead board ends the game and fewest cards wins', () => {
@@ -358,7 +395,7 @@ test('a dead board ends the game and fewest cards wins', () => {
   assert.deepEqual(s.winnerIds, [a], 'one card beats two');
 });
 
-test('a dead board that is level is a shared win, not a coin toss', () => {
+test('a dead board with nobody out and a level count is shared, not a coin toss', () => {
   const { state, ids } = started(2);
   const [a, b] = ids;
   let s = pin(state, {
@@ -373,6 +410,7 @@ test('a dead board that is level is a shared win, not a coin toss', () => {
   }
   assert.equal(s.endReason, 'dead-board');
   assert.deepEqual(s.winnerIds.slice().sort(), [a, b].sort());
+  assert.equal(s.loserId, null, 'and nobody is named the loser either');
 });
 
 test('one move anywhere resets the idle count', () => {
@@ -453,7 +491,8 @@ test('a history record survives being summarised', () => {
   const line = view.historySummary(record);
   assert.equal(line.game, 'kingscorner');
   assert.deepEqual(line.winners, ['Host']);
-  assert.match(line.detail, /P1 2/, 'the line says what everybody else was left holding');
+  assert.match(line.detail, /Host/, 'the line is the order people went out in');
+  assert.equal(line.loser, 'P1', 'and who was left holding them');
   assert.ok(record.seed, 'the seed is written down once nothing is secret');
 });
 

@@ -6502,3 +6502,92 @@ html[data-size="huge"] .tile__name {
    already lost at this size, for the same reason. */
 html[data-size="huge"] .tile__icon { display: none; }
 html[data-size="huge"] .tile__players { letter-spacing: 0.04em; }
+
+/* ── Kings Corner, second pass ────────────────────────────────────────────────
+   Everything here came out of Seb playing it. */
+
+/* The board takes the height going spare and centres in it.
+
+   Without this the whole screen stacked at the top and a tall window had a
+   third of itself empty underneath - which on a laptop looked like the app had
+   failed to finish drawing. The board does not grow; the room around it does,
+   so the cards stay the fixed sizes CLAUDE.md insists on. */
+.kc-boardwrap {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+
+/* And the board takes that room rather than floating in the middle of it.
+
+   The rows stretch, so the nine cells grow and the CARDS stay exactly the size
+   they were - which is the rule in CLAUDE.md: a bigger screen gets a bigger
+   layout, not bigger type. Capped, because a laptop window is tall enough to
+   make nine cells look like nine paddocks. */
+.kc-board {
+  height: min(100%, 430px);
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+
+/* A seat that has gone out, and where it finished. */
+.kc-seat--out { opacity: 0.7; }
+.kc-seat--out .kc-seat__name { text-decoration: line-through; text-decoration-thickness: 1px; }
+.kc-seat__place {
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--lime);
+}
+
+/* Whoever was left holding the cards, at the bottom of the end screen. */
+.sh-order__row--last .sh-order__place { color: var(--ink-faint); }
+
+/* The Master's hints switch, in the lobby.
+
+   A row rather than a screen, because it is one question with two answers and
+   the lobby is where the rest of the pre-game furniture already lives. */
+.kc-hints {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 2px solid var(--night-600);
+  background: var(--night-800);
+  color: var(--ink);
+  font-family: var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.kc-hints__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.kc-hints__label { font-weight: 800; font-size: 15px; }
+.kc-hints__note { font-size: 13px; color: var(--ink-faint); }
+.kc-hints__switch {
+  flex: 0 0 auto;
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  background: var(--night-600);
+  transition: background 140ms ease;
+}
+.kc-hints__switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  transition: transform 140ms ease, background 140ms ease;
+}
+.kc-hints__switch--on { background: var(--lime-deep); }
+.kc-hints__switch--on::after { transform: translateX(18px); background: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .kc-hints__switch,
+  .kc-hints__switch::after { transition: none; }
+}

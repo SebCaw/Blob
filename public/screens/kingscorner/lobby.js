@@ -29,6 +29,7 @@ export function kingscornerLobby(ctx) {
       h('span.mode-strip__note', { text: dealLine(state, here) })
     ),
     codeCard(state),
+    isMaster ? hintsRow(ctx) : hintsNote(state),
     h(
       'div.stack.stack--tight',
       h(
@@ -64,6 +65,49 @@ export function kingscornerLobby(ctx) {
     sizeControl(ctx),
     h('button.btn.btn--link', { text: 'Leave game', type: 'button', onClick: () => ctx.leaveGame() })
   );
+}
+
+/**
+ * Does the app point out what you can play?
+ *
+ * The Master's call, before the deal, and everybody plays under the same one -
+ * a table where one person is being shown the answers and the others are not is
+ * two different games.
+ *
+ * A row rather than a screen, and it sits in the lobby rather than in Settings
+ * because Settings is per-device and this is per-game. It patches nothing in
+ * place: the lobby re-renders on the state coming back, which is the honest
+ * way round - a refusal puts it straight back.
+ */
+function hintsRow(ctx) {
+  const on = ctx.state.hints !== false;
+  return h(
+    'button.kc-hints',
+    {
+      type: 'button',
+      'aria-pressed': on ? 'true' : 'false',
+      onClick: () => ctx.send({ type: 'game/setHints', hints: !on }),
+    },
+    h(
+      'span.kc-hints__text',
+      h('span.kc-hints__label', { text: 'Show what you can play' }),
+      h('span.kc-hints__note', {
+        text: on
+          ? 'Your playable cards are ringed and the slots they fit light up.'
+          : 'Nothing is pointed out. Work it out yourselves.',
+      })
+    ),
+    h('span.kc-hints__switch', { className: on ? 'kc-hints__switch--on' : '', 'aria-hidden': 'true' })
+  );
+}
+
+/** What the Master has chosen, for everybody else. */
+function hintsNote(state) {
+  if (state.hints !== false) return null;
+  return h('p.muted.center', {
+    style: { 'font-size': '14px' },
+    text: 'The Master has turned the hints off. Nothing will be pointed out.',
+  });
 }
 
 /**

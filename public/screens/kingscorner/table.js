@@ -80,7 +80,11 @@ export function tableScreen(ctx) {
     // the word Lobby for the whole game. Both halves had to be got right.
     topbar(state, { title: 'Kings Corner', ctx }),
     statusLine(ctx),
-    board(ctx, event),
+    // The board is wrapped rather than placed directly, so the wrapper can take
+    // the height going spare and centre the board in it. Without that the whole
+    // screen stacked at the top of a tall window with a third of it empty
+    // underneath, which is what Seb saw.
+    h('div.kc-boardwrap', board(ctx, event)),
     yours(ctx),
     turnButton(ctx),
     seats(ctx)
@@ -109,7 +113,9 @@ function statusLine(ctx) {
   const pile = ctx.ui.kcPile;
 
   let text;
-  if (!you.isTurn) {
+  if (you.out) {
+    text = 'You are out. Waiting for the rest.';
+  } else if (!you.isTurn) {
     const turn = state.players.find((p) => p.id === state.turnId);
     text = turn ? `${turn.name} is playing.` : 'Waiting.';
   } else if (lifted) {
@@ -186,7 +192,10 @@ function slotCell(ctx, pile, event) {
   const canTakePile = Boolean(heldPile && (((you.moves || {}).piles || {})[heldPile] || []).includes(pile.slot));
   const canLift = Boolean(!lifted && !heldPile && ((you.moves || {}).piles || {})[pile.slot]);
   const isHeld = heldPile === pile.slot;
-  const target = canTakeCard || canTakePile;
+  // With hints off the screen stops POINTING, and nothing else changes: the
+  // move is just as legal, the tap still works, and a wrong one still says why.
+  const hints = state.hints !== false;
+  const target = hints && (canTakeCard || canTakePile);
 
   const classes = [
     'kc-cell',
@@ -195,7 +204,7 @@ function slotCell(ctx, pile, event) {
     pile.count ? '' : 'kc-slot--bare',
     target ? 'kc-slot--target' : '',
     isHeld ? 'kc-slot--held' : '',
-    canLift ? 'kc-slot--liftable' : '',
+    hints && canLift ? 'kc-slot--liftable' : '',
     event && event.kind === 'play' && event.slot === pile.slot ? 'kc-slot--landed' : '',
   ]
     .filter(Boolean)
@@ -320,6 +329,7 @@ function yours(ctx) {
   const cards = you.hand || [];
   const moves = (you.moves || {}).cards || {};
   const lifted = liftedCard(ctx);
+  const hints = state.hints !== false;
 
   const rows = splitHand(cards, ROW_MAX);
 
@@ -349,9 +359,9 @@ function yours(ctx) {
                     // out of ten is an ordinary turn, so the same rule would
                     // grey out almost the whole hand and you could not read your
                     // own cards. Sevens learned this the same way.
-                    state: isLifted ? 'lifted' : legal && you.isTurn ? 'playable' : null,
+                    state: isLifted ? 'lifted' : hints && legal && you.isTurn ? 'playable' : null,
                     className: [
-                      legal && you.isTurn ? '' : 'card-face--idle',
+                      hints && legal && you.isTurn ? '' : 'card-face--idle',
                       ctx.ui.kcNew && ctx.ui.kcNew.includes(card) ? 'kc-card--fresh' : '',
                     ]
                       .filter(Boolean)
@@ -413,15 +423,29 @@ function turnButton(ctx) {
 
   const label = you.turnPlayed ? 'End turn' : you.willDraw ? 'Draw and pass' : 'Pass';
 
+  // Filled ONLY when there is nothing else you could do.
+  //
+  // Seb played it and reported pressing this while still holding a playable
+  // card, which is exactly what a big solid button in the accent colour asks
+  // you to do - it was the loudest thing on the screen whether or not it was
+  // the right move. Now it is an outline while you still have a move, and goes
+  // solid the moment it becomes the only thing left. Same button, same place,
+  // same words: only the shouting moves.
+  const stuck = Boolean(ctx.state.stuck);
+
   return h(
     'div.kc-actions',
-    action(label, () => {
-      ctx.ui.kcCard = null;
-      ctx.ui.kcPile = null;
-      ctx.send({ type: 'play/endTurn' });
-    }),
-    !you.turnPlayed && you.willDraw
-      ? h('p.kc-actions__note', { text: 'You only pick up if you have played nothing.' })
+    action(
+      label,
+      () => {
+        ctx.ui.kcCard = null;
+        ctx.ui.kcPile = null;
+        ctx.send({ type: 'play/endTurn' });
+      },
+      { kind: stuck ? 'primary' : 'ghost' }
+    ),
+    stuck && !you.turnPlayed && you.willDraw
+      ? h('p.kc-actions__note', { text: 'Nothing goes. You pick one up.' })
       : null
   );
 }
@@ -447,6 +471,7 @@ function seats(ctx) {
           {
             className: [
               player.id === state.turnId ? 'kc-seat--turn' : '',
+              player.out ? 'kc-seat--out' : '',
               player.id === you.id ? 'kc-seat--you' : '',
               !player.connected && !player.isBot ? 'kc-seat--away' : '',
             ]
@@ -454,10 +479,15 @@ function seats(ctx) {
               .join(' '),
           },
           h('span.kc-seat__name', { text: player.name }),
-          h('span.kc-seat__count.tabular', {
-            text: String(player.cardsHeld),
-            'aria-label': `${player.name} is holding ${player.cardsHeld}`,
-          })
+          player.out
+            ? h('span.kc-seat__place', {
+                text: player.place === 1 ? '1st' : `${player.place}${ordinal(player.place)}`,
+                'aria-label': `${player.name} went out ${player.place === 1 ? 'first' : `${player.place}th`}`,
+              })
+            : h('span.kc-seat__count.tabular', {
+                text: String(player.cardsHeld),
+                'aria-label': `${player.name} is holding ${player.cardsHeld}`,
+              })
         )
       )
   );
@@ -467,6 +497,13 @@ function seats(ctx) {
 //
 // All four of these read off what the server already sent, so they explain
 // rather than decide. The reducer would refuse anything they got wrong.
+
+/** 1st, 2nd, 3rd, 4th. Small, and only ever used on a place. */
+function ordinal(n) {
+  if (n === 2) return 'nd';
+  if (n === 3) return 'rd';
+  return 'th';
+}
 
 function liftedCard(ctx) {
   const hand = ((ctx.state || {}).you || {}).hand || [];

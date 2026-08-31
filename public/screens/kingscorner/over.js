@@ -5,45 +5,52 @@ import { cardFace } from '../../cards.js';
 /**
  * The end of a game of Kings Corner.
  *
- * Somebody emptied their hand, and everybody else is holding what they were
- * left with — so the screen is that, fewest first. The cards go face up, which
- * is the one moment the privacy boundary widens and is exactly what happens at a
- * real table when the hands go down.
+ * The result is an ORDER, not a winner and a crowd. Going out does not stop the
+ * game — everybody plays on and the last person still holding cards is the one
+ * the evening remembers — so this screen is the order people went out in, with
+ * whoever was left at the bottom holding what they were left with.
  *
- * No wooden spoon. There is no scoring in this game and being left with six
- * cards is mostly the deal; a spoon for it would be a joke at the wrong
- * person's expense.
+ * The cards go face up, which is the one moment the privacy boundary widens and
+ * is exactly what happens at a real table when the hands go down.
+ *
+ * No wooden spoon. There is no scoring here and being last is mostly the deal.
  */
 
 export function overScreen(ctx) {
   const state = ctx.state;
   const you = state.you || {};
   const isMaster = you.isMaster;
-  const winners = state.winnerIds || [];
-  const youWon = winners.includes(you.id);
+  const order = state.finished || [];
+  const youWon = order.length > 0 && order[0].id === you.id;
 
-  const order = state.players
-    .filter((p) => !p.left)
-    .slice()
-    .sort((a, b) => (a.cardsLeft || []).length - (b.cardsLeft || []).length || a.name.localeCompare(b.name));
+  // Everybody in the order they went out, then whoever never did.
+  const places = order
+    .map((entry, i) => ({ player: state.players.find((p) => p.id === entry.id), place: i + 1 }))
+    .filter((row) => row.player);
+  const placed = new Set(places.map((row) => row.player.id));
+  const leftOver = state.players.filter((p) => !p.left && !placed.has(p.id)).map((player) => ({ player, place: null }));
+  const rows = [...places, ...leftOver];
 
   const screen = h(
     'div.screen.screen--scroll',
     topbar(state, { title: 'Game over', ctx }),
     h(
       'div.stack.center',
-      h('h1.sh-over__title', { text: headline(state, youWon) }),
+      h('h1.sh-over__title', { text: headline(state, you, youWon) }),
       h('p.muted.center', { text: subtitle(state) })
     ),
     h(
       'ol.sh-order',
-      order.map((player, index) => {
+      rows.map(({ player, place }, index) => {
         const left = player.cardsLeft || [];
-        const won = winners.includes(player.id);
+        const isLoser = state.loserId === player.id;
         return h(
           'li.sh-order__row',
-          { className: won ? 'sh-order__row--first' : '', style: { '--i': String(index) } },
-          h('span.sh-order__place', { text: String(left.length) }),
+          {
+            className: place === 1 ? 'sh-order__row--first' : isLoser ? 'sh-order__row--last' : '',
+            style: { '--i': String(index) },
+          },
+          h('span.sh-order__place', { text: place ? String(place) : '—' }),
           h('div.player__badge', { text: initials(player.name) }),
           h(
             'div.kc-over__who',
@@ -55,7 +62,11 @@ export function overScreen(ctx) {
                 )
               : h('span.kc-over__out', { text: 'went out' })
           ),
-          won ? h('span.player__state.state--in', { text: winners.length > 1 ? 'Level' : 'Won' }) : null
+          place === 1
+            ? h('span.player__state.state--in', { text: 'Won' })
+            : isLoser
+              ? h('span.player__state.state--gone', { text: 'Left holding' })
+              : null
         );
       })
     ),
@@ -72,28 +83,26 @@ export function overScreen(ctx) {
   return screen;
 }
 
-function headline(state, youWon) {
-  const names = state.winnerNames || [];
-  if (youWon && names.length > 1) return 'Level at the top.';
+function headline(state, you, youWon) {
+  const first = (state.finished || [])[0];
   if (youWon) return 'Out first. Yours.';
-  if (!names.length) return 'Nobody got out.';
-  if (names.length > 1) return `${names.join(' and ')} finished level.`;
-  return `${names[0]} takes it.`;
+  if (state.loserId === you.id) return 'Left holding the cards.';
+  if (!first) return 'Nobody got out.';
+  return `${first.name} was out first.`;
 }
 
 /**
- * Why it stopped.
+ * Why it stopped, and who was left.
  *
- * A dead board and somebody going out are different results, and a screen that
- * showed them the same would be lying quietly — anybody who was watching knows
- * nobody emptied their hand, and being told "X wins" with four cards still in
- * their hand needs explaining.
+ * A dead board and everybody going out are different results, and a screen that
+ * showed them the same would be lying quietly — anybody watching knows whether
+ * the last hand was played out or the board simply seized up.
  */
 function subtitle(state) {
   if (state.endedEarly) return 'The Master ended this one early.';
   if (state.endReason === 'dead-board') {
-    return 'Nothing legal left anywhere and no cards to draw, so it stopped there. Fewest cards wins.';
+    return 'Nothing legal left anywhere and no cards to draw, so it stopped there. Fewest cards left came out best.';
   }
-  if (state.endReason === 'last-standing') return 'Everybody else had gone.';
-  return 'First hand empty takes it.';
+  if (state.loserName) return `${state.loserName} was last one holding cards.`;
+  return 'Everybody got out.';
 }
