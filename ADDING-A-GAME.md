@@ -1057,18 +1057,26 @@ Removing the chip exposed the other half of the same trap: with no `left` and no
 rounds sits under the word Lobby for its whole length. **A new table screen needs
 an explicit `title:` and no `left:`.**
 
-**Two columns of tiles is not one CSS rule.** The seventh tile ended at 937px
-against an 812px viewport at the largest text size, exactly as the height budget
-predicted. Getting to two columns took three goes and each failure was silent:
+**The shelf just scrolls, and the two-column detour is worth reading before
+anybody tries it again.** The seventh tile ended at 937px against an 812px
+viewport at the largest text size, exactly as the height budget predicted. Two
+columns were built, measured, shipped - and then Seb asked for scrolling
+instead, which is his call and it is the front page.
+
+Recording what the two columns cost, because it is the argument against
+reaching for them a second time. Each failure was silent.
 `grid-template-columns: 1fr 1fr` overflows, because a 1fr track still has
 `min-width: auto` and a name that will not break widens its own track and pushes
-the second column off the phone - use `minmax(0, 1fr)`. Then the names
-ellipsised, giving "Ch..." for both Cheat and Chase the Ace, which is two tiles
-nobody can tell apart on the one screen whose job is showing you what there is.
-Then `overflow-wrap: break-word` gave "Kin gs Cor ner". **What finally worked was
-dropping the icon at that size** - the name is the information, the icon is
-decoration, and the taglines had already gone for the same reason. Measured
-after: 639px against 812, no horizontal overflow.
+the second column off the phone - `minmax(0, 1fr)` fixes that. Then the names
+ellipsised, giving "Ch..." for **both** Cheat and Chase the Ace, which is two
+tiles nobody can tell apart on the one screen whose job is showing you what
+there is. Then `overflow-wrap: break-word` gave "Kin gs Cor ner". The only thing
+that worked was dropping the icon at that size.
+
+Three silent failures, and the fix for all of them was one line of CSS deleted:
+`.shelf` is already `screen--scroll`. **The general lesson is worth more than
+the specific one: when a layout needs three repairs to avoid a scroll, ask
+whether the scroll was ever the problem.** Nobody had objected to it.
 
 **Let the measurement decide what to drop, on the table as well as the shelf.**
 The table itself ran 85px past the fold at the largest size. The page scrolled,

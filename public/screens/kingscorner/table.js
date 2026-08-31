@@ -584,7 +584,11 @@ function refuseCard(ctx, card, pile) {
 }
 
 function refusePile(ctx, from, pile) {
-  if (!pile.count) return 'A pile can only go onto another pile.';
+  if (!pile.count) {
+    return pile.corner
+      ? 'Only a pile headed by a king can go into a corner.'
+      : 'A pile can only go onto another pile.';
+  }
   const head = (ctx.state.piles || []).find((p) => p.slot === from);
   if (!head || !head.head) return 'That pile will not go there.';
   return `That pile starts with a ${rankOf(head.head)} — it needs a pile showing one rank higher, in the other colour.`;

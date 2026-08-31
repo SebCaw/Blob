@@ -180,25 +180,23 @@ still only at the end of a game.
 
 ---
 
-## 3. The shelf height budget — spent, and how
+## 3. The shelf height budget — spent, and then set aside
 
 **The seventh tile arrived and the prediction below was exactly right**: in one
 column at the largest text setting it ended at **937px against an 812px
-viewport**. It is now a **two-column grid at that size only**, measured at
-639px, and scrolling was rejected because the failure it produces is somebody
-never finding half the games — which is the failure this whole budget exists to
-prevent.
+viewport**.
 
-Getting there took three goes and every failure was silent. `1fr 1fr` overflows,
-because a 1fr track still has `min-width: auto` and a name that will not break
-widens its own track and pushes the second column off the phone; use
-`minmax(0, 1fr)`. Then the names ellipsised to "Ch..." for **both** Cheat and
-Chase the Ace. Then `overflow-wrap: break-word` gave "Kin gs Cor ner". What
-worked was **dropping the icon at that size**: the name is the information and
-the icon is decoration, the same call the taglines already lost.
+**And the answer is that the shelf scrolls.** A two-column grid was built and
+shipped first; Seb asked for scrolling instead, which is his call and it is the
+front page. So there is now no special rule at all — `.shelf` is already
+`screen--scroll`, one column at every size, icons and full names intact, and you
+scroll to reach the games that do not fit.
 
-An eighth tile is another two rows and there is room for it. The original
-reasoning is kept below because it is why the arithmetic is watched at all.
+**An eighth tile therefore costs nothing.** The budget below is kept because the
+arithmetic is still why the front page is watched, but it has stopped being a
+wall. Before reaching for columns again, read what they cost in
+`ADDING-A-GAME.md`: three silent failures in a row, all to avoid a scroll nobody
+had objected to.
 
 ## 3a. The original budget — read before adding an eighth game
 

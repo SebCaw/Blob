@@ -254,7 +254,58 @@ test('a pile will not move onto a bare slot', () => {
   const [a, b] = ids;
   const s = pin(state, { hands: { [a]: ['2H'], [b]: ['2S'] }, board: { N: ['8S'] }, turnId: a });
   const err = refused(game.applyCommand(s, { type: 'play/movePile', from: 'N', to: 'S' }, ctxFactory()(a)));
-  assert.equal(err.code, 'empty-target');
+  assert.equal(err.code, 'not-playable');
+  assert.match(err.message, /only go onto another pile/);
+});
+
+test('a king turned into the cross can be moved to a corner, and takes its pile', () => {
+  // Seb's: a king dealt into the cross is in the wrong place through nobody's
+  // decision, and it blocks that slot for the rest of the game.
+  const { state, ids } = started(2);
+  const [a, b] = ids;
+  let s = pin(state, {
+    hands: { [a]: ['2H'], [b]: ['2S'] },
+    board: { N: ['KS', 'QH'], E: ['4D'] },
+    turnId: a,
+  });
+
+  assert.ok(rules.canMovePile('N', 'NW', s.board), 'a king-headed pile goes to a bare corner');
+  s = ok(game.applyCommand(s, { type: 'play/movePile', from: 'N', to: 'NW' }, ctxFactory()(a)));
+  assert.deepEqual(s.board.NW, ['KS', 'QH'], 'the queen came with it');
+  assert.deepEqual(s.board.N, [], 'and the cross slot is free');
+});
+
+test('only a king goes to a bare corner, and only from the cross', () => {
+  const board = { ...rules.emptyBoard(), N: ['QS'], W: ['KH'], NE: ['KD'] };
+  assert.ok(!rules.canMovePile('N', 'NW', board), 'a queen-headed pile does not');
+  assert.ok(rules.canMovePile('W', 'NW', board), 'a king-headed one does');
+  // Corner to corner is refused, and that is load-bearing: it is what stops a
+  // king pile hopping between empty corners for ever inside one turn.
+  assert.ok(!rules.canMovePile('NE', 'NW', board), 'corner to corner never');
+  assert.ok(!rules.canMovePile('W', 'S', board), 'and not into a bare cross slot');
+});
+
+test('who leads is drawn from the deal, not handed to the host', () => {
+  // Seeded, so a deal stays replayable - but not always seat one. Heads-up
+  // between two competent players the leader wins essentially every game, so
+  // this is fairness rather than flavour.
+  const leaders = new Set();
+  for (let n = 0; n < 40; n += 1) {
+    // A ctx whose ids differ per run, so the DEAL differs per run. The shared
+    // helper restarts its counter each time, which makes every seed identical
+    // and every leader the same - which is what this test caught first.
+    let i = 0;
+    let clock = 1_000;
+    const next = (actorId) => ({ now: (clock += 1), newId: (p) => `${p}_${n}_${(i += 1)}`, actorId });
+    let { state } = game.createGame({ hostName: 'Host', code: '4827' }, next(null));
+    const host = state.masterId;
+    for (let seat = 1; seat < 4; seat += 1) {
+      state = ok(game.applyCommand(state, { type: 'player/join', name: `P${seat}` }, next(null)));
+    }
+    state = ok(game.applyCommand(state, { type: 'game/start' }, next(host)));
+    leaders.add(state.players.findIndex((p) => p.id === state.turnId));
+  }
+  assert.ok(leaders.size > 1, `the same seat led every time: ${[...leaders]}`);
 });
 
 // ── Turns and the draw ───────────────────────────────────────────────────────
