@@ -71,9 +71,6 @@ export function tableScreen(ctx) {
     // in styles.css is that a screen with a control to reach takes the escape
     // hatch while a surface you only look at shrinks instead.
     'div.screen.screen--fixed.kc-play',
-    // No `left: codeChip(state)` here. `topbar` already draws the game code on
-    // the right, and passing one shows it twice - which Cheat's table does and
-    // nobody has noticed. ADDING-A-GAME.md records it; this is it being read.
     // A title rather than a `left:` chip. `topbar` already draws the game code on
     // the right, so passing a chip shows it twice - which Cheat's table does and
     // nobody has noticed. But its DEFAULT title is Blob's "Round N of M", falling
