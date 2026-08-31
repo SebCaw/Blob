@@ -6429,6 +6429,23 @@ html[data-size="huge"] .kc-actions__note { display: none; }
 html[data-size="huge"] .kc-yours { min-height: 0; }
 html[data-size="huge"] .kc-play { gap: 6px; }
 
+/* The seat strip is one row that scrolls, never two that wrap.
+
+   Wrapping makes the height of this block depend on the player count, which is
+   how Go Fish's table ended up 1024px tall in an 812px window at six players -
+   and nothing was clipped, so the naive fit check reported a screen that fitted
+   perfectly. One row cannot do that: six seats take exactly as much vertical
+   room as two. */
+.kc-seats {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  justify-content: flex-start;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.kc-seats::-webkit-scrollbar { display: none; }
+.kc-seat { flex: 0 0 auto; }
+
 .kc-over__who { display: grid; gap: 4px; }
 .kc-over__cards { display: flex; flex-wrap: wrap; gap: 3px; }
 .kc-over__out { color: var(--lime); font-size: 13px; font-weight: 700; }

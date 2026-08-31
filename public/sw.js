@@ -6,7 +6,7 @@
  * lie, and this app would rather show "reconnecting" than a stale round.
  */
 
-const CACHE = 'blob-shell-v59';
+const CACHE = 'blob-shell-v60';
 const SHELL = [
   '/',
   '/index.html',
@@ -56,6 +56,7 @@ const SHELL = [
   '/screens/sevens/over.js',
   '/screens/chase/index.js',
   '/screens/cheat/index.js',
+  '/screens/help-kingscorner.js',
   '/screens/kingscorner/index.js',
   '/screens/kingscorner/home.js',
   '/screens/kingscorner/lobby.js',

@@ -11,6 +11,11 @@ import { STEPS as SEVENS_STEPS, ANSWERS as SEVENS_ANSWERS, SUGGESTED as SEVENS_S
 import { STEPS as CHASE_STEPS, ANSWERS as CHASE_ANSWERS, SUGGESTED as CHASE_SUGGESTED } from './help-chase.js';
 import { STEPS as CHEAT_STEPS, ANSWERS as CHEAT_ANSWERS, SUGGESTED as CHEAT_SUGGESTED } from './help-cheat.js';
 import { STEPS as GOFISH_STEPS, ANSWERS as GOFISH_ANSWERS, SUGGESTED as GOFISH_SUGGESTED } from './help-gofish.js';
+import {
+  STEPS as KINGSCORNER_STEPS,
+  ANSWERS as KINGSCORNER_ANSWERS,
+  SUGGESTED as KINGSCORNER_SUGGESTED,
+} from './help-kingscorner.js';
 
 /**
  * How to play — shown, and asked about.
@@ -276,6 +281,18 @@ function lessonFor(ctx) {
       shrug:
         'I do not know that one, sorry. Try asking about pairs, the shuffle button, or whether people can see you ' +
         'moving your cards — or have a look at Show me.',
+    };
+  }
+  if (id === 'kingscorner') {
+    return {
+      name: 'Kings Corner',
+      steps: KINGSCORNER_STEPS,
+      answers: KINGSCORNER_ANSWERS,
+      suggested: KINGSCORNER_SUGGESTED,
+      greeting: 'Ask me anything about Kings Corner. Tap one below if you like.',
+      shrug:
+        'I do not know that one, sorry. Try asking why a card will not go down, how to move a whole pile, or ' +
+        'why you picked a card up - or have a look at Show me.',
     };
   }
   if (id === 'sillyhead') {
