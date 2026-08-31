@@ -966,15 +966,19 @@ test('a phone that goes mid-trick puts the choice in front of the Master', async
   // the game's id — so the test has to find the leader rather than assume it.
   // What it is actually about is unchanged: the offer goes to the Master and to
   // nobody else.
+  // At least one card has to be down before anybody can be missing mid-TRICK,
+  // and the seat left waiting must not be the Master's - so play from whoever
+  // is on until both are true.
   let waiting = opened;
-  let missingIndex = sessions.findIndex((s) => s.playerId === waiting.round.trick.turnId);
   let cardsDown = 0;
-  while (missingIndex === 0 && cardsDown < sessions.length) {
-    const mine = await streams[0].waitFor(
-      (s) => s.round && s.round.trick && s.round.trick.turnId === host.playerId && s.you.playable.length,
-      'the Master to be on'
+  let missingIndex = sessions.findIndex((s) => s.playerId === waiting.round.trick.turnId);
+  while ((cardsDown === 0 || missingIndex === 0) && cardsDown < sessions.length - 1) {
+    const onNow = sessions.findIndex((s) => s.playerId === waiting.round.trick.turnId);
+    const theirs = await streams[onNow].waitFor(
+      (s) => s.round && s.round.trick && s.round.trick.turnId === sessions[onNow].playerId && s.you.playable.length,
+      'their turn'
     );
-    await send(app, host, { type: 'trick/play', cardId: mine.you.playable[0] });
+    await send(app, sessions[onNow], { type: 'trick/play', cardId: theirs.you.playable[0] });
     cardsDown += 1;
     waiting = await streams[0].waitFor(
       (s) => s.round && s.round.trick && s.round.trick.plays.length === cardsDown,
@@ -982,7 +986,8 @@ test('a phone that goes mid-trick puts the choice in front of the Master', async
     );
     missingIndex = sessions.findIndex((s) => s.playerId === waiting.round.trick.turnId);
   }
-  assert.ok(missingIndex > 0, 'somebody other than the Master is on');
+  assert.ok(cardsDown > 0, 'a card is down, so the trick is genuinely mid-way');
+  assert.ok(missingIndex > 0, 'and somebody other than the Master is on');
   streams[missingIndex].close();
 
   const offered = await streams[0].waitFor((s) => s.you.canSkipTurnsFor, 'the skip offer');
@@ -990,15 +995,33 @@ test('a phone that goes mid-trick puts the choice in front of the Master', async
 
   // Nobody else is offered it.
   const bystander = sessions.findIndex((s, i) => i !== 0 && i !== missingIndex);
-  const theirView = await streams[bystander].waitFor((s) => s.round && s.round.trick && s.round.trick.plays.length === 1, 'same moment');
+  // Keyed on the state version rather than on a card count.
+  //
+  // "The same moment" is the point of this check, and counting cards was only
+  // ever a proxy for it - one that raced, because the bystander's stream can be
+  // a push ahead or behind. The version is the moment, exactly.
+  const theirView = await streams[bystander].waitFor((s) => s.version >= offered.version, 'the same moment');
   assert.equal(theirView.you.canSkipTurnsFor, null);
 
   await send(app, host, { type: 'trick/skipTurns', playerId: sessions[missingIndex].playerId });
+
+  // Waited on the table having MOVED PAST them, rather than on the length of the
+  // trick.
+  //
+  // Counting the cards on the table only worked while the missing player was
+  // always second of three. Once the lead moves about, the card played for them
+  // can be the one that COMPLETES the trick - and a completed trick is cleared,
+  // so the count this was waiting for went up and straight back down again. The
+  // table getting past them is the thing being proved, and it stays proved.
   const played = await streams[0].waitFor(
-    (s) => s.round && s.round.trick && s.round.trick.plays.length >= 2,
+    (s) =>
+      s.players[missingIndex] &&
+      s.players[missingIndex].skipped &&
+      s.round &&
+      s.round.trick &&
+      s.round.trick.turnId !== sessions[missingIndex].playerId,
     'played for them'
   );
-  assert.equal(played.round.trick.plays[1].playerId, sessions[missingIndex].playerId);
   assert.equal(played.players[missingIndex].skipped, true);
   assert.equal(played.you.canSkipTurnsFor, null, 'and the offer is spent');
 });
