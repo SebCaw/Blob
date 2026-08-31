@@ -179,6 +179,27 @@ const FIXTURES = {
       return hidden.filter((card) => !crossing.has(card));
     },
   },
+
+  kingscorner: {
+    create: {},
+    seats: 4,
+    hiddenFrom(state, viewerId) {
+      // The shortest fixture in this file, and that is the finding rather than
+      // an omission: Kings Corner has exactly two secrets. Everything else in
+      // that game went face up on the board in front of the room and stays
+      // there, so there is no watched-then-public carve-out to write here the
+      // way Silly Head, Cheat and Go Fish all need.
+      if (!state.hands || state.phase === 'complete') return [];
+      const hidden = [];
+      for (const [id, hand] of Object.entries(state.hands)) {
+        if (id === viewerId) continue;
+        hidden.push(...hand);
+      }
+      // The stock, from everybody including whoever is about to draw off it.
+      hidden.push(...(state.stock || []));
+      return hidden;
+    },
+  },
 };
 
 /**
